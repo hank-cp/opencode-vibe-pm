@@ -32,6 +32,7 @@ vibe-pm 发布时**内置一批开箱即用的流程模板文件**。`/pm-instal
 **Template ID**: `{kebab-case-id}`
 **Category**: {research / development / maintenance}
 **Description**: {一句话描述}
+**Command**: `/pm-{command-name}`
 **Version**: 1.0.0
 
 ---
@@ -61,7 +62,8 @@ sequenceDiagram
     Core->>User: 展示可用模板列表（question 工具选择）
     User->>Core: 选择模板
     Core->>FS: 复制到 /docs/flow/[flow]{name}.md
-    Core->>User: ✅ 流程已安装
+    Core->>FS: 生成 .opencode/commands/{command}.md
+    Core->>User: ✅ 流程已安装（含启动命令）
 ```
 
 ### `/pm-uninstall-flow` 工作流
@@ -78,8 +80,43 @@ sequenceDiagram
     Core->>User: 展示已安装流程列表
     User->>Core: 选择要移除的流程
     Core->>FS: 删除 /docs/flow/[flow]{name}.md
-    Core->>User: ✅ 流程已移除
+    Core->>FS: 删除 .opencode/commands/{command}.md
+    Core->>User: ✅ 流程已移除（含启动命令）
 ```
+
+### Command 文件生成
+
+安装 Flow 时，自动在 `.opencode/commands/` 下创建 Markdown prompt 模板文件，让用户可通过 `/命令名` 直接启动该 Flow 下的任务。
+
+文件命名：`{command-name}.md`（去掉 `**Command**:` 中的前导 `/`）
+
+内容结构：
+```markdown
+# {flow-title}
+
+{适用场景原文}
+
+## 任务启动
+
+当用户触发 `/{command-name}` 命令时，表示要启动 **{flow-title}** 流程。
+
+### 输入要求
+
+| 输入项 | 必填 | 说明 |
+|--------|------|------|
+{从 Flow 文档表格解析}
+
+### 执行步骤
+
+1. 与用户确认任务目标和摘要
+2. 收集输入要求中的必填项
+3. 调用 `/pm-task-start` 启动任务（flow: `{flow-id}`）
+4. 按照 Flow 文档中定义的步骤逐步执行
+```
+
+如果模板没有 `**Command**:` 字段，则不生成命令文件。
+
+卸载 Flow 时，同时删除 `.opencode/commands/` 下的同名命令文件。
 
 > **设计原则**：不需要 `ITemplateManager` 接口抽象层。Plugin Core 的命令实现直接按约定路径读写文件。
 
@@ -89,13 +126,13 @@ sequenceDiagram
 
 5 个模板，均基于 XMind 中定义的例子生成：
 
-| Template ID | 名称 | Category | 来源 |
-|-------------|------|----------|------|
-| `research` | 调研任务 | research | XMind「调研」例子 |
-| `project-build` | 项目搭建 | development | XMind「重任务开发」精简版 |
-| `new-feature` | 新功能开发 | development | XMind「重任务开发」完整版 |
-| `bug-fix` | Bug 修复 | maintenance | XMind「Bug修复」例子 |
-| `large-refactor` | 大规模重构 | development | 「重任务开发」+ 迁移/兼容步骤 |
+| Template ID | 名称 | Category | Command | 来源 |
+|-------------|------|----------|---------|------|
+| `research` | 调研任务 | research | `/pm-research` | XMind「调研」例子 |
+| `project-build` | 项目搭建 | development | `/pm-project-build` | XMind「重任务开发」精简版 |
+| `new-feature` | 新功能开发 | development | `/pm-new-feature` | XMind「重任务开发」完整版 |
+| `bug-fix` | Bug 修复 | maintenance | `/pm-bug-fix` | XMind「Bug修复」例子 |
+| `large-refactor` | 大规模重构 | development | `/pm-large-refactor` | 「重任务开发」+ 迁移/兼容步骤 |
 
 ### 模板完成状态
 
@@ -161,5 +198,23 @@ S13 [Human-in-loop] 用户验收 → S14 合流
 | 新增 | `scan_finds_all_templates` | /docs/template/ 下有 3 个 .md 文件 | 扫描目录 | 返回 3 个文件名 | 目录扫描 |
 | 新增 | `scan_filters_non_md_files` | /docs/template/ 下有 .md + .DS_Store | 扫描目录 | 仅返回 .md 文件 | 过滤非模板 |
 | 新增 | `install_copies_to_flow_dir` | 选中模板 | 执行安装 | /docs/flow/ 下出现同名文件，内容一致 | 文件复制 |
+| 新增 | `install_generates_command_file` | 模板含 Command 字段 | 执行安装 | .opencode/commands/{cmd}.md 创建 | 命令生成 |
+| 新增 | `install_without_command_skips` | 模板不含 Command 字段 | 执行安装 | .opencode/commands/ 下无文件 | 无命令则跳过 |
 | 新增 | `install_overwrite_prompt` | /docs/flow/ 已有同名 Flow | 执行安装 | 提示用户确认覆盖 | 冲突处理 |
 | 新增 | `uninstall_removes_from_flow_dir` | /docs/flow/ 下有 2 个 Flow | 选择移除 1 个 | 目标文件被删除，另一个保留 | 卸载 |
+| 新增 | `uninstall_removes_command_file` | 已安装含 Command 的 Flow | 执行卸载 | .opencode/commands 中对应文件也删除 | 命令清理 |
+
+### command-generation.test.ts
+
+- **测试文件**: `tests/template/command-generation.test.ts`
+- **关联设计文档**: `vibe-pm-template-manager.md`
+- **Setup/Teardown**: 创建临时项目目录，放入含/不含 Command 字段的模板
+
+| 动作指令 | 测试方法 | Given | When | Then | Notes |
+|----------|----------|-------|------|------|-------|
+| 新增 | `parse_meta_includes_command` | 模板含 `**Command**: \`/pm-test\`` | 扫描模板 | TemplateMeta.command = "/pm-test" | 命令字段解析 |
+| 新增 | `parse_meta_no_command` | 模板不含 Command 字段 | 扫描模板 | TemplateMeta.command = "" | 缺失字段降级 |
+| 新增 | `install_generates_command_file` | 模板含 Command + 输入要求 | installTemplate | .opencode/commands/pm-test-cmd.md 创建，内容含适用场景/输入要求/执行步骤 | 完整内容验证 |
+| 新增 | `install_without_command_skips_file` | 模板不含 Command | installTemplate | .opencode/commands/ 目录不存在 | 无命令则跳过 |
+| 新增 | `uninstall_removes_command_file` | 已安装含 Command 的 Flow | uninstallFlow | Flow 文件和 Command 文件均被删除 | 清理一致性 |
+| 新增 | `generated_command_content_structure` | 模板含 Command + 输入要求表格 | installTemplate | 命令文件包含标题/适用场景/输入要求/执行步骤完整结构 | 内容结构验证 |

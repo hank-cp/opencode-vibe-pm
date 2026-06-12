@@ -3,6 +3,7 @@
 **Template ID**: `bug-fix`
 **Category**: maintenance
 **Description**: Bug 修复标准化流程（根因分析 → 修复 → 回归 → 验收）
+**Command**: `/pm-bug-fix`
 **Version**: 1.0.0
 
 ---

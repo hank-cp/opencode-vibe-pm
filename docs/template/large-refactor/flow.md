@@ -3,6 +3,7 @@
 **Template ID**: `large-refactor`
 **Category**: development
 **Description**: 大规模代码重构流程（影响范围评估 → 迁移路径 → 兼容性验证 → 合流）
+**Command**: `/pm-large-refactor`
 **Version**: 1.0.0
 
 ---

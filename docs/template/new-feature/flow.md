@@ -3,6 +3,7 @@
 **Template ID**: `new-feature`
 **Category**: development
 **Description**: 复杂任务的标准化开发流程（编码/测试/验收/合流，13步）
+**Command**: `/pm-new-feature`
 **Version**: 1.0.0
 
 ---

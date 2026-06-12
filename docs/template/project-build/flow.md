@@ -3,6 +3,7 @@
 **Template ID**: `project-build`
 **Category**: development
 **Description**: 新项目从零搭建的标准化流程（Flow + Spec + Plan + Implement + Test）
+**Command**: `/pm-project-build`
 **Version**: 1.0.0
 
 ---

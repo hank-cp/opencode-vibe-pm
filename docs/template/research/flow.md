@@ -3,6 +3,7 @@
 **Template ID**: `research`
 **Category**: research
 **Description**: 梳理需求、设计文档、研究分析的调研工作流
+**Command**: `/pm-research`
 **Version**: 1.0.0
 
 ---
