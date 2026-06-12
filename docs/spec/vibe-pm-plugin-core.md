@@ -1,8 +1,9 @@
 # Plugin Core Spec
 
 **创建日期**: 2026-06-11
-**状态**: Draft
+**状态**: Implemented
 **输入来源**: XMind 设计文档 + OpenCode 插件 API 调研
+**最后更新**: 2026-06-12 — Plugin Core 实现完成
 
 ---
 
@@ -170,7 +171,7 @@ interface PluginConfig {
   dataDir: string;                           // 默认 ".vibe-pm"
   autoAnalyze: boolean;                      // 默认 true
   contextInjection: {
-    maxStepTokens: number;                   // 默认 4000
+    maxStepTokens: number;                   // 默认 0（不限制）
     pruneIrrelevant: boolean;                // 默认 true
   };
 }
@@ -187,7 +188,31 @@ function loadConfig(projectDir: string): PluginConfig {
   const raw = JSON.parse(fs.readFileSync(configPath, "utf-8"));
   return { ...DEFAULT_CONFIG, ...raw };
 }
+
+// DEFAULT_CONFIG 完整定义
+const DEFAULT_CONFIG: PluginConfig = {
+  language: "zh-CN",
+  dataDir: ".vibe-pm",
+  autoAnalyze: true,
+  contextInjection: {
+    maxStepTokens: 0,       // 0 = 不限制
+    pruneIrrelevant: true,
+  },
+};
 ```
+
+### 项目技术栈
+
+- **语言**: TypeScript
+- **模块格式**: NodeNext ESM
+- **编译目标**: ES2022
+- **包管理器**: pnpm
+- **测试框架**: vitest
+- **参数校验**: zod
+
+### 日志系统
+
+使用 `console.warn` / `console.error` + `[vibe-pm]` 统一前缀，零外部依赖。
 
 ---
 
@@ -222,13 +247,17 @@ interface ModuleHooks {
 
 Plugin Core 加载所有模块的 `ModuleHooks`，合并后注册到 OpenCode。
 
+### 模块接入机制
+
+各模块通过普通 TypeScript `import`/`export` 接入。Plugin Core 直接 import 各模块的 `ModuleInit` 函数，调用后获得 `ModuleHooks` 并合并。无需注册表、DI 容器或动态扫描机制。
+
 ---
 
 ## 测试用例
 
 ### plugin-config.test.ts
 
-- **测试文件**: `src/core/__tests__/plugin-config.test.ts`
+- **测试文件**: `tests/core/config.test.ts`
 - **关联设计文档**: `vibe-pm-plugin-core.md`
 - **Setup/Teardown**: 创建临时目录和 `.vibe-pm.json` 文件，测试后清理
 
@@ -240,7 +269,7 @@ Plugin Core 加载所有模块的 `ModuleHooks`，合并后注册到 OpenCode。
 
 ### plugin-init.test.ts
 
-- **测试文件**: `src/core/__tests__/plugin-init.test.ts`
+- **测试文件**: `tests/core/plugin.test.ts`
 - **关联设计文档**: `vibe-pm-plugin-core.md`
 - **Setup/Teardown**: 创建临时项目目录，Mock OpenCode PluginContext
 
@@ -249,10 +278,11 @@ Plugin Core 加载所有模块的 `ModuleHooks`，合并后注册到 OpenCode。
 | 新增 | `init_creates_data_dir` | 项目目录下无 `.vibe-pm/` | Plugin 初始化 | 创建 `.vibe-pm/` 目录和空的 `data.json` | 首次安装 |
 | 新增 | `init_registers_all_hooks` | 正常配置 | Plugin 初始化 | 返回的 hooks 对象包含 config, tool, chat.message, system.transform, messages.transform, event | 完整性检查 |
 | 新增 | `init_module_failure_skips` | 某模块 init 抛异常 | Plugin 初始化 | 跳过该模块，其他模块正常注册，记录 error 日志 | 故障隔离 |
+| 新增 | `no_active_task_passthrough` | 当前 session 无活跃 Task | `chat.message` 钩子触发 | output 不做任何修改 | 无任务时不干预 |
 
 ### plugin-commands.test.ts
 
-- **测试文件**: `src/core/__tests__/plugin-commands.test.ts`
+- **测试文件**: `tests/core/commands.test.ts`
 - **关联设计文档**: `vibe-pm-plugin-core.md`
 - **Setup/Teardown**: Mock OpenCode config 对象
 
@@ -260,7 +290,6 @@ Plugin Core 加载所有模块的 `ModuleHooks`，合并后注册到 OpenCode。
 |----------|----------|-------|------|------|-------|
 | 新增 | `register_all_commands` | 空 command 配置 | 调用 `registerCommands()` | config.command 包含全部 8 个 `/pm-*` 命令 | 命令完整性 |
 | 新增 | `command_no_duplicate_key` | 已有同名命令 | 再次注册 | 后者覆盖前者，不抛异常 | 幂等性 |
-| 新增 | `no_active_task_passthrough` | 当前 session 无活跃 Task | `chat.message` 钩子触发 | output 不做任何修改 | 无任务时不干预 |
 
 ---
 
@@ -281,7 +310,7 @@ Plugin Core 加载所有模块的 `ModuleHooks`，合并后注册到 OpenCode。
 
 ### 技术约束
 
-- 依赖 `@opencode-ai/plugin` 包提供的 Plugin 类型和 Hook API
+- Plugin Core 使用最小化本地类型定义，不依赖 `@opencode-ai/plugin` 包
 - `experimental.*` 钩子可能在后续版本变化，Plugin Core 需通过抽象层隔离实验性 API
 - 命令注册分 config + tool 两层，需保证两者一致
 
@@ -299,3 +328,33 @@ Plugin Core 加载所有模块的 `ModuleHooks`，合并后注册到 OpenCode。
 ### 影响范围
 
 - 无现有代码影响（新项目）
+
+---
+
+## 开发进度
+
+> 本部分在开发过程中持续更新。
+
+### 已实现功能
+
+- Plugin Core 入口（`VibePMPlugin`）
+- 配置管理（`loadConfig` + `DEFAULT_CONFIG`，支持深度合并）
+- 8 个 `/pm-*` 命令注册（config hook + tool hook）
+- 日志系统（`[vibe-pm]` 前缀）
+- 核心类型定义（`PluginConfig`, `IPluginContext`, `ModuleInit`, `ModuleHooks`, `PluginHooks`）
+- 3 个测试文件，13 个测试用例全部通过
+
+### 未实现功能
+
+- Memory System（AxioDB 集成，当前为 stub）
+- Flow Engine（步骤流转、上下文注入、消息裁剪，当前为 stub）
+- 5 个可执行命令的实际逻辑（当前返回占位消息）
+- TUI 集成（终端显示当前任务状态）
+
+### 占位代码清单
+
+| 位置 | 说明 | 预期替换时间 |
+|------|------|-------------|
+| `src/core/plugin.ts` — `initMemory()` | AxioDB 初始化的 stub | Memory System 实现时 |
+| `src/core/plugin.ts` — `FlowEngine` 类 | 流程引擎的 stub | Flow Engine 实现时 |
+| `src/core/commands.ts` — `createStubTool()` | 命令执行的 stub，返回占位消息 | 各命令实现时 |
