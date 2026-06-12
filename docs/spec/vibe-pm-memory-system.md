@@ -1,8 +1,9 @@
 # Memory System Spec
 
 **创建日期**: 2026-06-11
-**状态**: Draft
+**状态**: Implemented
 **输入来源**: XMind 设计文档 + S4 访谈（AxioDB 嵌入式、JSON 存储）
+**最后更新**: 2026-06-12 — Memory System 实现完成
 
 ---
 
@@ -160,7 +161,7 @@ interface IMemorySystem {
   createTask(task: Omit<Task, "closed">): Promise<Task>;
   getTask(sessionId: string): Promise<Task | null>;
   getActiveTask(sessionId: string): Promise<Task | null>;   // closed === false
-  updateStep(sessionId: string, step: string): Promise<void>;
+  updateStep(sessionId: string, step: string, stepName: string): Promise<void>;
   closeTask(sessionId: string): Promise<void>;
   listActiveTasks(): Promise<Task[]>;                        // 所有未关闭的任务
 
@@ -172,8 +173,20 @@ interface IMemorySystem {
   listDiscussions(filter?: { priority?: string; unresolved?: boolean }): Promise<Discussion[]>;
 
   // --- FlowMetrics CRUD ---
-  recordStepEntry(sessionId: string, flow: string, step: string, tokens: number): Promise<void>;
-  recordStepExit(sessionId: string, step: string, dwellTime: number, humanTime: number): Promise<void>;
+  recordStepEntry(
+    sessionId: string,
+    flow: string,
+    step: string,
+    stepName: string,
+    tokensConsumed: number,
+    userInputTokens: number,
+  ): Promise<void>;
+  recordStepExit(
+    sessionId: string,
+    step: string,
+    dwellTime: number,
+    humanInterventionTime: number,
+  ): Promise<void>;
   getFlowMetrics(sessionId: string): Promise<FlowMetrics[]>;
   getFlowMetricsByFlow(flow: string): Promise<FlowMetrics[]>; // 按流程聚合
 
@@ -184,6 +197,11 @@ interface IMemorySystem {
 
 ### AxioDB 集成
 
+基于 AxioDB v9.6.6，关键发现：
+- **不支持 `$set` 操作符**：`UpdateOne({ field: value })` 直接传纯对象
+- **Query 返回格式**：`{ statusCode: 200, data: { documents: [...] } }`
+- **单实例限制**：每进程只能创建一个 AxioDB 实例
+
 ```typescript
 import { AxioDB } from "axiodb";
 
@@ -191,31 +209,17 @@ class MemorySystem implements IMemorySystem {
   private db: AxioDB;
 
   async init(dataDir: string): Promise<void> {
-    await fs.mkdir(dataDir, { recursive: true });
     this.db = new AxioDB({
-      path: path.join(dataDir, "data.json"),
-      // AxioDB 配置项（待 AxioDB 文档调研后补充）
+      CustomPath: dataDir,
+      RootName: "vibe-pm",
     });
+    const appDb = await this.db.createDB("vibe-pm");
+    this.tasks = await appDb.createCollection("tasks");
+    this.discussions = await appDb.createCollection("discussions");
+    this.flowMetrics = await appDb.createCollection("flowMetrics");
   }
-
-  async createTask(task: Omit<Task, "closed">): Promise<Task> {
-    const newTask: Task = { ...task, closed: false };
-    await this.db.insert("tasks", newTask);
-    return newTask;
-  }
-
-  async getActiveTask(sessionId: string): Promise<Task | null> {
-    const tasks = await this.db.query("tasks", {
-      where: { sessionId, closed: false }
-    });
-    return tasks[0] ?? null;
-  }
-
-  // ... 其他方法
 }
 ```
-
-> **注意**：AxioDB 具体 API（query 语法、insert 方法等）待 AxioDB 文档调研后精确化。当前使用通用 key-value 语义描述接口。
 
 ---
 
@@ -225,7 +229,7 @@ class MemorySystem implements IMemorySystem {
 
 ### task-crud.test.ts
 
-- **测试文件**: `src/memory/__tests__/task-crud.test.ts`
+- **测试文件**: `tests/memory/task-crud.test.ts`
 - **关联设计文档**: `vibe-pm-memory-system.md`
 - **Setup/Teardown**: 创建临时 `.vibe-pm/` 目录，初始化 Memory System，测试后清理
 
@@ -238,7 +242,7 @@ class MemorySystem implements IMemorySystem {
 
 ### discussion-crud.test.ts
 
-- **测试文件**: `src/memory/__tests__/discussion-crud.test.ts`
+- **测试文件**: `tests/memory/discussion-crud.test.ts`
 - **关联设计文档**: `vibe-pm-memory-system.md`
 - **Setup/Teardown**: 创建临时数据库，预置一个 closed Task，测试后清理
 
@@ -250,7 +254,7 @@ class MemorySystem implements IMemorySystem {
 
 ### flowmetrics-crud.test.ts
 
-- **测试文件**: `src/memory/__tests__/flowmetrics-crud.test.ts`
+- **测试文件**: `tests/memory/flowmetrics-crud.test.ts`
 - **关联设计文档**: `vibe-pm-memory-system.md`
 - **Setup/Teardown**: 创建临时数据库，预置 Task，测试后清理
 
@@ -262,7 +266,7 @@ class MemorySystem implements IMemorySystem {
 
 ### data-file.test.ts
 
-- **测试文件**: `src/memory/__tests__/data-file.test.ts`
+- **测试文件**: `tests/memory/data-file.test.ts`
 - **关联设计文档**: `vibe-pm-memory-system.md`
 - **Setup/Teardown**: 创建临时目录，测试后清理
 
@@ -309,3 +313,28 @@ class MemorySystem implements IMemorySystem {
 
 - 无现有代码影响（新模块）
 - 被 Flow Engine、Metrics & Analysis、TUI Display 依赖
+
+---
+
+## 开发进度
+
+### 已实现功能
+
+- AxioDB 嵌入式数据库集成（v9.6.6）
+- Task CRUD（创建、查询、更新步骤、关闭、列表）
+- Discussion CRUD（创建、决议、按条件过滤）
+- FlowMetrics CRUD（步骤进入/退出指标记录、聚合查询）
+- 容错处理（数据文件自动创建、重复任务检查）
+- 4 个测试文件，14 个测试用例全部通过
+
+### 未实现功能
+
+- 大数据量归档/清理策略
+- 数据迁移/Migration 机制
+- AxioDBCloud 远程数据库支持
+
+### 技术笔记
+
+- AxioDB `UpdateOne()` 不支持 `$set` 操作符，需传纯对象
+- AxioDB 查询返回 `data.documents` 嵌套包装
+- AxioDB 单进程实例限制，测试需共享 MemorySystem（beforeAll/afterAll）

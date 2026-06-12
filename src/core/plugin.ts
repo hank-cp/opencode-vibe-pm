@@ -4,44 +4,27 @@
  * 插件入口函数。负责：配置加载、模块初始化、钩子注册。
  * 模块（Memory System, Flow Engine 等）通过普通 import 接入。
  *
- * 当前阶段：Memory System 和 Flow Engine 为 stub，返回空实现。
+ * 当前阶段：Flow Engine 为 stub，返回空实现。
  */
 
-import * as fs from "node:fs";
 import * as path from "node:path";
 import { loadConfig } from "./config.js";
 import { registerCommands, registerTools } from "./commands.js";
 import { logger } from "./logger.js";
+import { MemorySystem } from "../memory/index.js";
 import type {
   PluginHooks,
   OpenCodePluginContext,
   IPluginContext,
 } from "./types.js";
 
-// ─── Stub 模块（后续由 Memory System / Flow Engine 实现替换）───
-
-async function initMemory(dataDir: string): Promise<Record<string, unknown>> {
-  // 确保数据目录存在
-  const absDataDir = path.resolve(dataDir);
-  if (!fs.existsSync(absDataDir)) {
-    fs.mkdirSync(absDataDir, { recursive: true });
-  }
-
-  // 确保 data.json 存在
-  const dataFile = path.join(absDataDir, "data.json");
-  if (!fs.existsSync(dataFile)) {
-    fs.writeFileSync(dataFile, "{}", "utf-8");
-  }
-
-  // Stub: 返回空对象，后续由 Memory System 实现
-  return {};
-}
+// ─── Stub 模块（后续由 Flow Engine 实现替换）───
 
 class FlowEngine {
   constructor(
-    private _memory: Record<string, unknown>,
+    private _memory: MemorySystem,
     private _projectDir: string,
-  ) {}
+  ) {};
 
   // Stub: 消息处理
   onMessage(_input: unknown, _output: unknown): void {
@@ -87,25 +70,14 @@ export async function VibePMPlugin(
 
   logger.info(`vibe-pm initializing in ${ctx.directory}`);
 
-  // 2. 初始化各模块（当前为 stub）
-  let memory: Record<string, unknown>;
-  let engine: FlowEngine;
+  // 2. 初始化 Memory System
+  const memory = new MemorySystem();
+  await memory.init(dataDir);
 
-  try {
-    memory = await initMemory(dataDir);
-  } catch (err) {
-    logger.error("Memory system init failed, using empty store:", err);
-    memory = {};
-  }
+  // 3. 初始化 Flow Engine（当前为 stub）
+  const engine = new FlowEngine(memory, ctx.directory);
 
-  try {
-    engine = new FlowEngine(memory, ctx.directory);
-  } catch (err) {
-    logger.error("Flow engine init failed, using empty engine:", err);
-    engine = new FlowEngine({}, ctx.directory);
-  }
-
-  // 3. 注册所有钩子
+  // 4. 注册所有钩子
   logger.info("vibe-pm hooks registered");
 
   return {
