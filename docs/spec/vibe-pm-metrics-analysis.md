@@ -2,7 +2,7 @@
 
 **创建日期**: 2026-06-11
 **状态**: Draft
-**输入来源**: XMind 设计文档 + Memory System Spec
+**输入来源**: XMind 设计文档 + Memory System Spec + 消息裁剪算法调研
 
 ---
 
@@ -68,6 +68,87 @@ sequenceDiagram
     MA->>MA: 生成 AnalysisResult
     MA->>MA: 识别瓶颈步骤和问题
     MA->>Mem: 批量创建 Discussion 记录
+```
+
+### 步骤 Token 分解
+
+借鉴 MC 的七桶分解模型，按步骤维度统计 Token 分布：
+
+```typescript
+interface StepTokenBreakdown {
+  stepId: string;
+  stepName: string;
+  totalTokens: number;
+  breakdown: {
+    injectedContext: number;     // 注入的 Flow/Regulation/Constitution
+    userMessages: number;        // 用户输入
+    toolCalls: number;           // 工具调用（只读 + 写入）
+    toolResults: number;         // 工具结果
+    llmResponses: number;        // LLM 回复
+    prunedTokens: number;        // 被裁剪节省的 Token 数
+  };
+  cacheHits: number;             // 估算的缓存命中 Token 数
+  cacheMisses: number;           // 估算的缓存未命中 Token 数
+}
+```
+
+**Token 估算方式**：
+
+```typescript
+function estimateTokens(text: string): number {
+  // 首选：OpenCode 暴露的 token 计数 API
+  if (opencodeTokenApi.available) {
+    return opencodeTokenApi.count(text);
+  }
+  // 回退：char 长度 ÷ 4（75%+ 精确度）
+  return Math.ceil(text.length / 4);
+}
+```
+
+#### 粘性缓存防抖
+
+防止 Token 计数在缓存命中轮次变为 0，导致统计面板闪烁或出错：
+
+```typescript
+class StickyTokenCache {
+  private cache: Map<string, { tokens: StepTokenBreakdown; timestamp: number }>;
+  private readonly TTL = 5 * 60 * 1000;  // 5 分钟
+
+  get(sessionId: string, stepId: string): StepTokenBreakdown | null {
+    const key = `${sessionId}:${stepId}`;
+    const entry = this.cache.get(key);
+    if (entry && Date.now() - entry.timestamp < this.TTL) {
+      return entry.tokens;
+    }
+    return null;
+  }
+
+  set(sessionId: string, stepId: string, tokens: StepTokenBreakdown): void {
+    if (tokens.totalTokens > 0) {  // 仅缓存非零快照
+      this.cache.set(`${sessionId}:${stepId}`, {
+        tokens,
+        timestamp: Date.now(),
+      });
+    }
+  }
+
+  clear(sessionId: string): void {
+    // session 结束时清理
+    for (const key of this.cache.keys()) {
+      if (key.startsWith(sessionId)) this.cache.delete(key);
+    }
+  }
+}
+```
+
+**使用方式**：
+
+```typescript
+// 在 onStepExit 时
+const fresh = computeStepTokenBreakdown(sessionId, stepId);
+const cached = stickyCache.get(sessionId, stepId);
+const final = fresh.totalTokens > 0 ? fresh : cached;  // fallback 到缓存
+stickyCache.set(sessionId, stepId, final);
 ```
 
 ### 接口设计
@@ -215,17 +296,20 @@ interface FlowSummary {
 ### 技术约束
 
 - 依赖 Memory System 的 FlowMetrics CRUD
-- Token 快照依赖于 OpenCode 是否暴露 token 计数 API（待确认）
+- Token 快照优先使用 OpenCode token 计数 API，不存在时回退到 char/4 估算（75%+ 精度）
+- 粘性缓存 TTL 为 5 分钟，可配置
 - 分析逻辑为确定性规则，不依赖 LLM
 
 ### 业务约束
 
 - Discussion 的建议是参考性的，不自动修改 Flow 文档
 - 用户审阅 Discussion 后才能落地修改
+- 步骤 Token 分解数据按 step 聚合存储，不存储原始逐消息计数
 
 ### 已知风险
 
-- Token 计数不准确（若无 API 则用消息长度估算）
+- Token 计数不准确（回退到 char/4 估算时）→ 缓解：统计时标注 `estimatedTokens: true`
+- 粘性缓存可能返回过时数据（TTL 内步骤推进后未更新）→ 缓解：步骤推进时主动 invalidate 缓存
 - 单 session 分析可能不足以发现模式——需积累多 session 数据后才有统计意义
 
 ### 影响范围
