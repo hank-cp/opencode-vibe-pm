@@ -1,8 +1,9 @@
 # Template Manager Spec
 
 **创建日期**: 2026-06-11
-**状态**: Draft
+**状态**: Implemented
 **输入来源**: XMind 设计文档 + 用户反馈
+**最后更新**: 2026-06-12 — Template Manager 实现完成
 
 ---
 
@@ -90,21 +91,32 @@ sequenceDiagram
 
 | Template ID | 名称 | Category | 来源 |
 |-------------|------|----------|------|
-| `research` | 调研任务 | research | XMind「调研」例子（梳理需求、设计文档、研究分析） |
-| `project-build` | 项目搭建 | development | XMind「重任务开发」精简版（新项目从零搭建） |
-| `new-feature` | 新功能开发 | development | XMind「重任务开发」完整版（含编码/测试/验收/合流） |
-| `bug-fix` | Bug 修复 | maintenance | XMind「Bug修复」例子（根因分析/修复/回归） |
-| `large-refactor` | 大规模重构 | development | 参照「重任务开发」，增加迁移路径和兼容性检查步骤 |
+| `research` | 调研任务 | research | XMind「调研」例子 |
+| `project-build` | 项目搭建 | development | XMind「重任务开发」精简版 |
+| `new-feature` | 新功能开发 | development | XMind「重任务开发」完整版 |
+| `bug-fix` | Bug 修复 | maintenance | XMind「Bug修复」例子 |
+| `large-refactor` | 大规模重构 | development | 「重任务开发」+ 迁移/兼容步骤 |
 
 ### 模板完成状态
 
 | 模板 | 状态 | 文件 |
 |------|------|------|
-| research | ✅ 已完成 | `rules/[rules]research.md`（即当前使用的调研流程） |
-| project-build | ✅ 已完成 | `docs/flow/[flow]project-build.md` |
-| new-feature | 📋 待生成 | 基于 XMind「重任务开发」13 步流程 |
-| bug-fix | 📋 待生成 | 基于 XMind「Bug修复」10 步流程 |
-| large-refactor | 📋 待生成 | 基于「重任务开发」+ 迁移/兼容步骤 |
+| research | ✅ 已完成 | `docs/template/research/flow.md` |
+| project-build | ✅ 已完成 | `docs/template/project-build/flow.md` |
+| new-feature | ✅ 已完成 | `docs/template/new-feature/flow.md` |
+| bug-fix | ✅ 已完成 | `docs/template/bug-fix/flow.md` |
+| large-refactor | ✅ 已完成 | `docs/template/large-refactor/flow.md` + `regulations/migration-checklist.md` |
+
+### 模板 Bundle 结构
+
+```
+docs/template/{template-id}/
+├── flow.md                ← Flow 文档（含 Template Meta）
+└── regulations/           ← 配套 Regulation（可选）
+    └── *.md
+```
+
+安装时：`flow.md` → `/docs/flow/[flow]{id}.md`，`regulations/*.md` → `/docs/regulation/`。
 
 ### XMind 各流程步骤对照
 
@@ -140,7 +152,7 @@ S13 [Human-in-loop] 用户验收 → S14 合流
 
 ### template-scan.test.ts
 
-- **测试文件**: `src/template/__tests__/template-scan.test.ts`
+- **测试文件**: `tests/template/template-scan.test.ts`
 - **关联设计文档**: `vibe-pm-template-manager.md`
 - **Setup/Teardown**: 创建临时 `/docs/template/` 目录，放入测试模板文件；创建空 `/docs/flow/` 目录
 
