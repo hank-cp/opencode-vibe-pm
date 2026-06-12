@@ -1,8 +1,9 @@
 # Flow Engine Spec
 
 **创建日期**: 2026-06-11
-**状态**: Draft
+**状态**: Implemented
 **输入来源**: XMind 设计文档 + Plugin Core Spec + Memory System Spec + Spec 评估报告 + 消息裁剪算法调研
+**最后更新**: 2026-06-12 — Flow Engine 实现完成
 
 ---
 
@@ -602,7 +603,7 @@ interface IMemorySystem {
 
 ### task-start.test.ts
 
-- **测试文件**: `src/engine/__tests__/task-start.test.ts`
+- **测试文件**: `tests/engine/task-start.test.ts`
 - **关联设计文档**: `vibe-pm-flow-engine.md`
 - **Setup/Teardown**: Mock Memory System，预置测试 Flow 文件
 
@@ -614,7 +615,7 @@ interface IMemorySystem {
 
 ### context-injection.test.ts
 
-- **测试文件**: `src/engine/__tests__/context-injection.test.ts`
+- **测试文件**: `tests/engine/context-injection.test.ts`
 - **关联设计文档**: `vibe-pm-flow-engine.md`
 - **Setup/Teardown**: 创建临时项目目录含 Flow 文档和 Regulation，Mock Memory System
 
@@ -630,7 +631,7 @@ interface IMemorySystem {
 
 ### flow-parser.test.ts
 
-- **测试文件**: `src/engine/__tests__/flow-parser.test.ts`
+- **测试文件**: `tests/engine/flow-parser.test.ts`
 - **关联设计文档**: `vibe-pm-flow-engine.md`、`flow-document-format.md`
 - **Setup/Teardown**: 创建临时 `/docs/flow/` 目录，放入符合 `flow-document-format.md` 规范的测试文件
 
@@ -644,7 +645,7 @@ interface IMemorySystem {
 
 ### message-pruner.test.ts
 
-- **测试文件**: `src/engine/__tests__/message-pruner.test.ts`
+- **测试文件**: `tests/engine/message-pruner.test.ts`
 - **关联设计文档**: `vibe-pm-flow-engine.md`
 - **Setup/Teardown**: 准备 20 条 mock 消息，标记当前 Step 为 S3
 
@@ -704,3 +705,31 @@ interface IMemorySystem {
 - 依赖 Plugin Core 的 hook 接口
 - 依赖 Memory System 的 Task CRUD
 - 由 Metrics & Analysis 消费 FlowMetrics 数据
+
+---
+
+## 开发进度
+
+### 已实现功能
+
+- Flow 文档解析（Markdown → FlowDefinition，含步骤属性、FSM 图、HiL 标记）
+- 三明治上下文注入（Layer 1 全局视野 + Layer 2 当前步骤 + Layer 3 前瞻窗口）
+- 注入指纹去重（同一步骤内跳过重复注入）
+- 消息裁剪（tiktoken 估算 + 惰性策略 + 保护机制）
+- 任务启动/步骤跳转（含重复任务检查）
+- Flow 文档发现（listFlows / readFlowContent）
+- Plugin Core stub FlowEngine 已替换
+
+### 未实现功能
+
+- 完整三步裁剪管道（tagMessagesByStep / assignDepthLevel）
+- StepTransition 时间线追踪
+- FlowMetrics 数据采集（recordStepEntry / recordStepExit ）
+- HiL 步骤注入差异化策略
+- 注入内容过大时的优先级截断机制
+
+### 技术笔记
+
+- Token 估算使用 tiktoken cl100k_base 编码
+- Flow 解析器基于正则匹配 Markdown 结构
+- 注入指纹通过 MD5(flow:step:regulations) 计算

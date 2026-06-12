@@ -346,8 +346,6 @@ Plugin Core 加载所有模块的 `ModuleHooks`，合并后注册到 OpenCode。
 
 ### 未实现功能
 
-- Memory System（AxioDB 集成，当前为 stub）
-- Flow Engine（步骤流转、上下文注入、消息裁剪，当前为 stub）
 - 5 个可执行命令的实际逻辑（当前返回占位消息）
 - TUI 集成（终端显示当前任务状态）
 

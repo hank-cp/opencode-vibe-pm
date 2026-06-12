@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "axiodb": "^9.6.6",
+    "tiktoken": "^1.0.22",
     "zod": "^3.23.0"
   }
 }
