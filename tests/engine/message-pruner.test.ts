@@ -8,7 +8,16 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { MemorySystem } from "../../src/memory/memory-system.js";
 import { FlowEngine } from "../../src/engine/flow-engine.js";
-import type { PluginConfig, MessagesTransformOutput } from "../../src/core/types.js";
+import type { PluginConfig } from "../../src/core/types.js";
+
+interface MessagesTransformOutput {
+  messages: Array<{
+    role?: string;
+    content?: string | null;
+    [key: string]: unknown;
+  }>;
+  [key: string]: unknown;
+}
 
 const PRUNE_CONFIG: PluginConfig = {
   language: "zh-CN",

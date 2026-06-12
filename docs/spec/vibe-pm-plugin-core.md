@@ -230,22 +230,17 @@ interface IPluginContext {
 
 ### 模块注册接口
 
+模块通过 `ModuleHooks`（`Partial<Hooks>`）贡献钩子子集。Plugin Core 加载所有模块的 hooks 后合并注册到 OpenCode。
+
 ```typescript
-interface ModuleInit {
-  (ctx: IPluginContext): ModuleHooks;
+import type { Hooks } from "@opencode-ai/plugin";
+
+interface ModuleHooks extends Partial<Hooks> {
+  // 模块可以贡献任意钩子子集
 }
 
-interface ModuleHooks {
-  config?: Hook["config"];
-  tool?: Hook["tool"];
-  chatMessage?: Hook["chat.message"];
-  systemTransform?: Hook["experimental.chat.system.transform"];
-  messagesTransform?: Hook["experimental.chat.messages.transform"];
-  event?: Hook["event"];
-}
+type ModuleInit = (ctx: IPluginContext) => ModuleHooks;
 ```
-
-Plugin Core 加载所有模块的 `ModuleHooks`，合并后注册到 OpenCode。
 
 ### 模块接入机制
 
@@ -310,7 +305,7 @@ Plugin Core 加载所有模块的 `ModuleHooks`，合并后注册到 OpenCode。
 
 ### 技术约束
 
-- Plugin Core 使用最小化本地类型定义，不依赖 `@opencode-ai/plugin` 包
+- Plugin Core 通过 `@opencode-ai/plugin` SDK 获取 OpenCode 交互类型（`Plugin`、`PluginInput`、`Hooks`、`tool()`）
 - `experimental.*` 钩子可能在后续版本变化，Plugin Core 需通过抽象层隔离实验性 API
 - 命令注册分 config + tool 两层，需保证两者一致
 

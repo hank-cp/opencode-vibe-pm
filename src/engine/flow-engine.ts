@@ -2,6 +2,7 @@
  * Flow Engine — vibe-pm 核心业务层
  *
  * Flow 文档解析、三明治上下文注入、消息裁剪、步骤流转协调。
+ * 使用 @opencode-ai/plugin SDK 的 hook 类型。
  */
 
 import * as fs from "node:fs";
@@ -11,7 +12,7 @@ import { get_encoding } from "tiktoken";
 import { MemorySystem } from "../memory/index.js";
 import { DuplicateTaskError } from "../memory/errors.js";
 import { logger } from "../core/logger.js";
-import type { PluginConfig, SystemTransformOutput, MessagesTransformOutput } from "../core/types.js";
+import type { PluginConfig } from "../core/types.js";
 import type { Task } from "../memory/types.js";
 import type {
   FlowDefinition,
@@ -27,6 +28,27 @@ import {
   FlowParseError,
 } from "./errors.js";
 
+// ─── SDK Hook 运行时类型 ───
+
+interface SystemTransformOutput {
+  system: string[];
+  [key: string]: unknown;
+}
+
+interface MessagesTransformOutput {
+  messages: Array<{
+    role?: string;
+    content?: string | null;
+    [key: string]: unknown;
+  }>;
+  [key: string]: unknown;
+}
+
+interface ChatMessageInput {
+  sessionID?: string;
+  [key: string]: unknown;
+}
+
 // ─── Token 估算器 ───
 
 const tokenizer = get_encoding("cl100k_base");
@@ -40,7 +62,6 @@ function estimateTokens(text: string): number {
 const lastInjectedFingerprint = new Map<string, string>();
 
 function computeFingerprint(
-  sessionId: string,
   flow: string,
   step: string,
   regulations: string[],
@@ -57,7 +78,7 @@ function shouldInject(
   step: string,
   regulations: string[],
 ): boolean {
-  const fp = computeFingerprint(sessionId, flow, step, regulations);
+  const fp = computeFingerprint(flow, step, regulations);
   if (lastInjectedFingerprint.get(sessionId) === fp) return false;
   lastInjectedFingerprint.set(sessionId, fp);
   return true;
@@ -82,17 +103,12 @@ export class FlowEngine {
   // Hook 回调
   // ═══════════════════════════════════════════
 
-  async onMessage(
-    input: { sessionID?: string; [key: string]: unknown },
-    _output: unknown,
-  ): Promise<void> {
+  async onMessage(input: ChatMessageInput): Promise<void> {
     const sessionId = input.sessionID;
     if (!sessionId) return;
 
     const task = await this.memory.getActiveTask(sessionId);
     if (!task) return; // 无活跃任务 → 透传
-
-    // 有活跃任务 → 后续 injectContext 和 transformMessages 处理
   }
 
   async injectContext(
@@ -128,16 +144,20 @@ export class FlowEngine {
       regulations,
     );
 
-    // 注入到 system prompt
-    const parts = [output.system ?? "", plan.layer1, plan.layer2];
+    // 注入到 system prompt（SDK 格式：string[]）
+    const parts: string[] = [];
+    if (output.system.length > 0) {
+      parts.push(...output.system);
+    }
+    parts.push(plan.layer1, plan.layer2);
     if (plan.layer3) {
       parts.push(plan.layer3);
     }
-    output.system = parts.join("\n");
+    output.system = parts;
   }
 
   async transformMessages(
-    input: { sessionID?: string; messages?: unknown[]; [key: string]: unknown },
+    input: { sessionID?: string; [key: string]: unknown },
     output: MessagesTransformOutput,
   ): Promise<void> {
     const sessionId = input.sessionID;
@@ -160,8 +180,10 @@ export class FlowEngine {
     if (currentTokens < maxTokens * 0.8) return;
 
     // 消息裁剪
-    const pruned = this.pruneMessages(messages as Array<{ role: string; content: string | null }>);
-    output.messages = pruned;
+    const pruned = this.pruneMessages(
+      messages as Array<{ role: string; content: string | null }>,
+    );
+    output.messages = pruned as MessagesTransformOutput["messages"];
   }
 
   async onSessionIdle(_sessionId: string): Promise<void> {
@@ -338,11 +360,16 @@ export class FlowEngine {
   }
 
   private parseInputRequirements(raw: string) {
-    const tableMatch = raw.match(/##\s+输入要求\s*\n.*?\n((?:\|.+\|[\s\S]*?))(?=\n##|\n---|$)/);
+    const tableMatch = raw.match(
+      /##\s+输入要求\s*\n.*?\n((?:\|.+\|[\s\S]*?))(?=\n##|\n---|$)/,
+    );
     if (!tableMatch) return [];
     const lines = tableMatch[1].split("\n").filter((l) => l.includes("|"));
     return lines.slice(1).map((line) => {
-      const cols = line.split("|").map((c) => c.trim()).filter(Boolean);
+      const cols = line
+        .split("|")
+        .map((c) => c.trim())
+        .filter(Boolean);
       return {
         name: cols[0] ?? "",
         required: cols[1]?.toLowerCase() === "是",
@@ -352,7 +379,9 @@ export class FlowEngine {
   }
 
   private parseDeliverables(raw: string): string[] {
-    const section = raw.match(/##\s+(?:默认)?交付清单\s*\n((?:[\s\S]*?))(?=\n##|\n---|$)/);
+    const section = raw.match(
+      /##\s+(?:默认)?交付清单\s*\n((?:[\s\S]*?))(?=\n##|\n---|$)/,
+    );
     if (!section) return [];
     return section[1]
       .split("\n")
@@ -374,7 +403,8 @@ export class FlowEngine {
 
       // 提取该步骤的原始内容（到下一个步骤或文档结束）
       const startIdx = (match.index ?? 0) + match[0].length;
-      const nextIdx = i + 1 < matches.length ? matches[i + 1].index : raw.length;
+      const nextIdx =
+        i + 1 < matches.length ? matches[i + 1].index : raw.length;
       const section = raw.slice(startIdx, nextIdx!);
 
       const step = this.parseOneStep(stepId, stepName, section);
@@ -384,7 +414,11 @@ export class FlowEngine {
     return steps;
   }
 
-  private parseOneStep(id: string, name: string, section: string): StepDefinition {
+  private parseOneStep(
+    id: string,
+    name: string,
+    section: string,
+  ): StepDefinition {
     // 提取目标
     const goalMatch = section.match(/\*\*目标\*\*[：:]\s*(.+)/);
     const goal = goalMatch?.[1]?.trim() ?? "";
@@ -395,10 +429,11 @@ export class FlowEngine {
 
     // 提取引用 Regulation
     const regMatch = section.match(/\*\*引用 Regulation\*\*[：:]\s*(.+)/);
-    const regulations = regMatch?.[1]
-      ?.split(/[,，]/)
-      .map((r) => r.trim())
-      .filter((r) => r !== "—" && r !== "") ?? [];
+    const regulations =
+      regMatch?.[1]
+        ?.split(/[,，]/)
+        .map((r) => r.trim())
+        .filter((r) => r !== "—" && r !== "") ?? [];
 
     // 提取编号指令
     const instructions: string[] = [];
@@ -413,7 +448,11 @@ export class FlowEngine {
       } else if (inInstructions && line.trim() === "") {
         // 允许空行在指令之间
         continue;
-      } else if (inInstructions && !/^\d+\.\s/.test(line) && line.trim() !== "") {
+      } else if (
+        inInstructions &&
+        !/^\d+\.\s/.test(line) &&
+        line.trim() !== ""
+      ) {
         inInstructions = false;
       }
     }
@@ -423,7 +462,8 @@ export class FlowEngine {
     const onComplete = onCompleteMatch?.[1]?.trim() ?? "";
 
     // Human-in-loop 检测
-    const humanInLoop = section.includes("⚠️") || section.includes("需要用户介入");
+    const humanInLoop =
+      section.includes("⚠️") || section.includes("需要用户介入");
 
     return {
       id,
@@ -442,7 +482,12 @@ export class FlowEngine {
   // ═══════════════════════════════════════════
 
   private readRegulation(filename: string): string {
-    const regPath = path.join(this.projectDir, "docs", "regulation", filename);
+    const regPath = path.join(
+      this.projectDir,
+      "docs",
+      "regulation",
+      filename,
+    );
     if (fs.existsSync(regPath)) {
       return fs.readFileSync(regPath, "utf-8");
     }
@@ -510,14 +555,11 @@ export class FlowEngine {
     }
 
     parts.push("\n<step-overview>");
-    parts.push(
-      `\n**当前步骤: ${task.currentStep} - ${task.currentStepName}**`,
-    );
+    parts.push(`\n**当前步骤: ${task.currentStep} - ${task.currentStepName}**`);
     for (const step of flowDef.steps) {
       const isHiL = step.humanInLoop ? " ⚠️[需用户介入]" : "";
-      const shortGoal = step.goal.length > 60
-        ? step.goal.slice(0, 60) + "..."
-        : step.goal;
+      const shortGoal =
+        step.goal.length > 60 ? step.goal.slice(0, 60) + "..." : step.goal;
       parts.push(`\n- ${step.id}: ${step.name} — ${shortGoal}${isHiL}`);
     }
     parts.push("\n</step-overview>");
@@ -600,7 +642,7 @@ export class FlowEngine {
 
     // 简化裁剪：从旧到新，保留最近消息
     const minRecent = 3;
-    let result = [...messages];
+    const result = [...messages];
     let totalTokens = estimateTokens(JSON.stringify(result));
 
     // 从最旧的消息开始裁剪

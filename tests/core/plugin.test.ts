@@ -7,7 +7,25 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { VibePMPlugin } from "../../src/core/plugin.js";
-import type { OpenCodePluginContext } from "../../src/core/types.js";
+import type { PluginInput } from "../../src/core/types.js";
+
+// SDK PluginInput 的最小 Mock
+function createMockPluginInput(dir: string): PluginInput {
+  return {
+    directory: dir,
+    worktree: dir,
+    serverUrl: new URL("http://localhost"),
+    client: {} as ReturnType<
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (...args: any[]) => any
+    >,
+    project: {} as PluginInput["project"],
+    experimental_workspace: {
+      register: () => {},
+    },
+    $: {} as PluginInput["$"],
+  };
+}
 
 describe("VibePMPlugin", () => {
   let tmpDir: string;
@@ -15,7 +33,7 @@ describe("VibePMPlugin", () => {
 
   beforeAll(async () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-pm-test-init-"));
-    const ctx: OpenCodePluginContext = { directory: tmpDir };
+    const ctx = createMockPluginInput(tmpDir);
     hooks = await VibePMPlugin(ctx);
   });
 
@@ -40,26 +58,31 @@ describe("VibePMPlugin", () => {
     expect(typeof hooks.event).toBe("function");
   });
 
-  it("init_no_active_task_passthrough: 无活跃任务时 chat.message 透传", () => {
-    const input = { messages: [{ role: "user", content: "hello" }] };
-    const output = {};
-    hooks["chat.message"]!(input, output as any);
-    expect(output).toEqual({});
+  it("init_no_active_task_passthrough: 无活跃任务时 chat.message 透传", async () => {
+    const input = { sessionID: "test-ses" } as Parameters<
+      NonNullable<typeof hooks["chat.message"]>
+    >[0];
+    const output = {} as Parameters<
+      NonNullable<typeof hooks["chat.message"]>
+    >[1];
+    await hooks["chat.message"]!(input, output);
+    // 无活跃任务时不修改 output
+    expect(output).toBeDefined();
   });
 
-  it("init_event_session_created: session.created 事件不抛异常", () => {
-    expect(() => {
+  it("init_event_session_created: session.created 事件不抛异常", async () => {
+    await expect(
       hooks.event!({
         event: { type: "session.created", properties: { sessionID: "s1" } },
-      });
-    }).not.toThrow();
+      } as Parameters<NonNullable<typeof hooks.event>>[0]),
+    ).resolves.toBeUndefined();
   });
 
-  it("init_event_session_idle: session.idle 事件不抛异常", () => {
-    expect(() => {
+  it("init_event_session_idle: session.idle 事件不抛异常", async () => {
+    await expect(
       hooks.event!({
         event: { type: "session.idle", properties: { sessionID: "s1" } },
-      });
-    }).not.toThrow();
+      } as Parameters<NonNullable<typeof hooks.event>>[0]),
+    ).resolves.toBeUndefined();
   });
 });

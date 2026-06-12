@@ -8,7 +8,6 @@ build/
 
 # Runtime data (local AxioDB)
 .vibe-pm/
-/docs/plan
 
 # IDE
 .idea/
@@ -38,4 +37,8 @@ coverage/
 # Temp files
 *.tmp
 *.bak
+/docs/plan
 /docs/note
+
+/docs/flow/**.md
+/docs/regulation/**.md

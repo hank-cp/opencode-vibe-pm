@@ -61,7 +61,18 @@
 - 优先编辑现有文件，不创建新文件除非绝对必要
 - 不添加"不可能发生"的错误处理代码。只在系统边界验证（用户输入、外部 API）
 
-### VII. 中文优先沟通（Chinese-First Communication）
+### VII. 优先基于 SDK 开发（SDK-First Development）
+
+与 OpenCode 宿主环境的交互**必须**通过 `@opencode-ai/plugin` SDK 进行：
+
+- 插件入口类型使用 `Plugin` / `PluginInput`，**禁止**手写 OpenCode 交互类型
+- 工具注册使用 `tool()` 工厂函数配合 Zod schema，**禁止**手动构造工具对象
+- Hook 签名使用 SDK 提供的 `Hooks` 类型，**禁止**本地定义替代
+- 当 SDK 能力不足时，先评估是否为暂时性缺失（等待 SDK 更新）还是永久性缺口（再手写补充）
+
+例外：项目自有领域类型（如 `PluginConfig`、`IPluginContext`）不受此限制。
+
+### VIII. 中文优先沟通（Chinese-First Communication）
 
 - **Thinking** 思考过程用中文表述
 - **Reply** 回答用中文
@@ -75,13 +86,14 @@
 ### 技术栈
 
 - **语言**: TypeScript（严格模式）
+- **SDK**: `@opencode-ai/plugin`（OpenCode 插件开发）
 - **数据库**: AxioDB（结构化记忆存储）
 - **运行环境**: OpenCode 插件运行时
 - **TUI**: 终端信息展示
 
 ### 架构约束
 
-- 插件通过 OpenCode Plugin API 与宿主通信
+- 插件通过 `@opencode-ai/plugin` SDK 与 OpenCode 宿主通信，禁止手写 OpenCode 交互类型
 - 结构化记忆通过 AxioDB 读写，不直接操作文件
 - MD 文档记忆通过文件系统读取，不缓存过时内容
 - TUI 展示与插件核心逻辑解耦

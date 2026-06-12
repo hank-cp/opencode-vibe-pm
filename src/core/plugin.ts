@@ -12,22 +12,21 @@ import { logger } from "./logger.js";
 import { MemorySystem } from "../memory/index.js";
 import { FlowEngine } from "../engine/index.js";
 import type {
-  PluginHooks,
-  OpenCodePluginContext,
+  Plugin,
+  PluginInput,
+  Hooks,
   IPluginContext,
+  Config,
 } from "./types.js";
 
 // ─── Plugin 导出 ───
 
 /**
  * vibe-pm 插件主入口。
- *
- * @param ctx OpenCode 提供的 PluginContext
- * @returns PluginHooks 对象
  */
-export async function VibePMPlugin(
-  ctx: OpenCodePluginContext,
-): Promise<PluginHooks> {
+export const VibePMPlugin: Plugin = async (
+  ctx: PluginInput,
+): Promise<Hooks> => {
   // 1. 加载配置
   const config = loadConfig(ctx.directory);
   const dataDir = path.resolve(ctx.directory, config.dataDir);
@@ -52,30 +51,34 @@ export async function VibePMPlugin(
 
   return {
     // 命令声明
-    config: (opencodeConfig) => registerCommands(opencodeConfig),
+    config: async (opencodeConfig: Config) =>
+      registerCommands(opencodeConfig),
 
     // 可执行工具
     tool: registerTools(pluginCtx),
 
     // 消息到达 → 检查任务状态
-    "chat.message": (input, output) => engine.onMessage(input, output),
+    "chat.message": async (input, _output) =>
+      engine.onMessage(input),
 
     // 系统提示注入
-    "experimental.chat.system.transform": (input, output) =>
+    "experimental.chat.system.transform": async (input, output) =>
       engine.injectContext(input, output),
 
     // 消息裁剪
-    "experimental.chat.messages.transform": (input, output) =>
+    "experimental.chat.messages.transform": async (input, output) =>
       engine.transformMessages(input, output),
 
     // 生命周期事件
-    event: ({ event }) => {
+    event: async ({ event }) => {
       if (event.type === "session.created") {
         // Stub: 记录会话创建
       }
       if (event.type === "session.idle") {
-        engine.onSessionIdle(event.properties?.sessionID as string);
+        await engine.onSessionIdle(
+          (event.properties?.sessionID as string) ?? "",
+        );
       }
     },
   };
-}
+};

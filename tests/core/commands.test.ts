@@ -3,25 +3,25 @@
  *
  * 测试文件: tests/core/commands.test.ts
  * 关联 Spec: vibe-pm-plugin-core.md
- * Setup: 创建 Mock OpenCodeConfig 对象
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
-import type { OpenCodeConfig, IPluginContext } from "../../src/core/types.js";
+import type { Config, IPluginContext, ToolContext } from "../../src/core/types.js";
 import { registerCommands, registerTools } from "../../src/core/commands.js";
 
 describe("registerCommands", () => {
-  let config: OpenCodeConfig;
+  let config: Config;
 
   beforeEach(() => {
-    config = {};
+    config = {} as Config;
   });
 
   it("register_all_commands: 注册全部 8 个 /pm-* 命令", () => {
     registerCommands(config);
 
-    expect(config.command).toBeDefined();
-    const names = Object.keys(config.command!);
+    const cmd = config.command as Record<string, { template: string; description?: string; agent?: string }> | undefined;
+    expect(cmd).toBeDefined();
+    const names = Object.keys(cmd!);
     expect(names).toHaveLength(8);
     expect(names).toContain("pm-init");
     expect(names).toContain("pm-install-flow");
@@ -34,14 +34,14 @@ describe("registerCommands", () => {
 
     // 验证每个命令有 template 和 description
     for (const name of names) {
-      expect(config.command![name].template).toBeTruthy();
-      expect(config.command![name].description).toBeTruthy();
-      expect(config.command![name].agent).toBe("build");
+      expect(cmd![name].template).toBeTruthy();
+      expect(cmd![name].description).toBeTruthy();
+      expect(cmd![name].agent).toBe("build");
     }
   });
 
   it("command_no_duplicate_key: 重复注册后者覆盖前者", () => {
-    config.command = {
+    (config as Record<string, unknown>).command = {
       "pm-init": {
         template: "old template",
         description: "old desc",
@@ -51,9 +51,10 @@ describe("registerCommands", () => {
 
     registerCommands(config);
 
+    const cmd = config.command as Record<string, { template: string; description?: string; agent?: string }> | undefined;
     // 后者覆盖，不抛异常
-    expect(config.command!["pm-init"].template).not.toBe("old template");
-    expect(Object.keys(config.command!)).toHaveLength(8);
+    expect(cmd!["pm-init"].template).not.toBe("old template");
+    expect(Object.keys(cmd!)).toHaveLength(8);
   });
 });
 
@@ -67,6 +68,17 @@ describe("registerTools", () => {
     },
     projectDir: "/test",
     dataDir: "/test/.vibe-pm",
+  };
+
+  const mockToolCtx: ToolContext = {
+    sessionID: "test",
+    messageID: "msg1",
+    agent: "build",
+    directory: "/test",
+    worktree: "/test",
+    abort: new AbortController().signal,
+    metadata: () => {},
+    ask: async () => {},
   };
 
   it("register_executable_tools: 注册 5 个可执行工具", () => {
@@ -89,7 +101,7 @@ describe("registerTools", () => {
   it("stub_tool_returns_message: stub 工具返回占位消息", async () => {
     const tools = registerTools(mockCtx);
 
-    const result = await tools.pm_init.execute({}, {});
+    const result = await tools.pm_init.execute({}, mockToolCtx);
     expect(result).toContain("[vibe-pm]");
     expect(result).toContain("/pm-init");
     expect(result).toContain("stub");

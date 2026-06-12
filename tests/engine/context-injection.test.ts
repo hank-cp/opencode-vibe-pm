@@ -8,7 +8,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { MemorySystem } from "../../src/memory/memory-system.js";
 import { FlowEngine } from "../../src/engine/flow-engine.js";
-import type { PluginConfig, SystemTransformOutput } from "../../src/core/types.js";
+import type { PluginConfig } from "../../src/core/types.js";
 
 const DEFAULT_CONFIG: PluginConfig = {
   language: "zh-CN",
@@ -60,16 +60,17 @@ describe("Context Injection", () => {
     });
 
     const input = { sessionID: "ses_ci1" };
-    const output: SystemTransformOutput = { system: "" };
+    const output = { system: [] as string[] };
 
     await engine.injectContext(input, output);
 
-    expect(output.system).toContain("<constitution>");
-    expect(output.system).toContain("<fsm-diagram");
-    expect(output.system).toContain("<step-overview>");
-    expect(output.system).toContain("<current-step");
-    expect(output.system).toContain("<task-state>");
-    expect(output.system).toContain("<fsm-instructions>");
+    const fullSystem = output.system.join("\n");
+    expect(fullSystem).toContain("<constitution>");
+    expect(fullSystem).toContain("<fsm-diagram");
+    expect(fullSystem).toContain("<step-overview>");
+    expect(fullSystem).toContain("<current-step");
+    expect(fullSystem).toContain("<task-state>");
+    expect(fullSystem).toContain("<fsm-instructions>");
   });
 
   it("inject_layer3_when_non_hil: 非 HiL 步骤含 Layer 3 前瞻", async () => {
@@ -80,29 +81,30 @@ describe("Context Injection", () => {
     });
 
     const input = { sessionID: "ses_l3" };
-    const output: SystemTransformOutput = { system: "" };
+    const output = { system: [] as string[] };
 
     await engine.injectContext(input, output);
 
     // S1 是非 HiL, S2 也是 → 应有 Layer 3 前瞻
-    expect(output.system).toContain("<lookahead-window>");
+    const fullSystem = output.system.join("\n");
+    expect(fullSystem).toContain("<lookahead-window>");
   });
 
   it("no_inject_without_task: 无活跃任务不注入", async () => {
     const input = { sessionID: "ses_noop" };
-    const output: SystemTransformOutput = { system: "original" };
+    const output = { system: ["original"] };
 
     await engine.injectContext(input, output);
 
-    expect(output.system).toBe("original");
+    expect(output.system).toEqual(["original"]);
   });
 
   it("no_inject_without_session: 无 sessionID 不注入", async () => {
     const input = {};
-    const output: SystemTransformOutput = { system: "original" };
+    const output = { system: ["original"] };
 
     await engine.injectContext(input, output);
 
-    expect(output.system).toBe("original");
+    expect(output.system).toEqual(["original"]);
   });
 });
