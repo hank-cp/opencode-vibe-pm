@@ -26,12 +26,6 @@ interface CommandMeta {
 
 const COMMANDS: CommandMeta[] = [
   {
-    name: "pm-init",
-    description: "引导式初始化向导",
-    template: "Initialize vibe-pm project with guided questions",
-    executable: true,
-  },
-  {
     name: "pm-install-flow",
     description: "从模板库安装流程",
     template: "Install a flow from template library",
@@ -72,6 +66,12 @@ const COMMANDS: CommandMeta[] = [
     description: "关闭任务，触发分析",
     template: "Close the current task and trigger analysis",
     executable: true,
+  },
+  {
+    name: "pm-config",
+    description: "查看或修改插件配置",
+    template: "View or modify vibe-pm configuration in .vibe-pm.json",
+    executable: false,
   },
 ];
 

@@ -10,7 +10,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { loadConfig, DEFAULT_CONFIG } from "../../src/core/config.js";
+import {
+  loadConfig,
+  DEFAULT_CONFIG,
+  ensureDefaultConfig,
+  writeConfig,
+} from "../../src/core/config.js";
 
 // Mock logger
 vi.mock("../../src/core/logger.js", () => ({
@@ -84,5 +89,41 @@ describe("loadConfig", () => {
     expect(result.contextInjection.pruneIrrelevant).toBe(
       DEFAULT_CONFIG.contextInjection.pruneIrrelevant,
     );
+  });
+});
+
+describe("ensureDefaultConfig", () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-pm-test-ecfg-"));
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it("ensureDefaultConfig_creates_when_missing: 不存在时创建默认配置", () => {
+    const configPath = path.join(tmpDir, ".vibe-pm.json");
+    expect(fs.existsSync(configPath)).toBe(false);
+
+    const created = ensureDefaultConfig(tmpDir);
+
+    expect(created).toBe(true);
+    expect(fs.existsSync(configPath)).toBe(true);
+    const content = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    expect(content).toEqual(DEFAULT_CONFIG);
+  });
+
+  it("ensureDefaultConfig_skips_when_exists: 已存在时跳过", () => {
+    const configPath = path.join(tmpDir, ".vibe-pm.json");
+    fs.writeFileSync(configPath, JSON.stringify({ language: "en-US" }));
+
+    const created = ensureDefaultConfig(tmpDir);
+
+    expect(created).toBe(false);
+    const content = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    expect(content.language).toBe("en-US");
   });
 });

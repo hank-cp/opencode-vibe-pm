@@ -35,6 +35,8 @@ sequenceDiagram
     participant Memory as Memory System
 
     OC->>PC: Plugin 初始化
+    PC->>Config: ensureDefaultConfig() 创建 .vibe-pm.json（如不存在）
+    Config-->>PC: 配置就绪
     PC->>Config: 加载 .vibe-pm.json
     Config-->>PC: PluginConfig
     PC->>Memory: 初始化 AxioDB (dataDir)
@@ -43,6 +45,8 @@ sequenceDiagram
     Engine-->>PC: 就绪
     PC->>OC: 注册 hooks (tool/event/config/chat.*)
 ```
+
+启动时确保 `.vibe-pm.json` 存在（不存在则创建默认配置）。目录结构（`docs/flow/` 等）由 `/pm-install-flow` 按需创建。
 
 ### 命令注册
 
@@ -93,7 +97,6 @@ tool: {
 
 | 命令 | 实现方式 | 功能 |
 |------|---------|------|
-| `/pm-init` | config + tool | 引导式初始化向导 |
 | `/pm-install-flow` | config（声明式）+ Plugin Core 处理 | 从内置模板目录选择并安装流程 |
 | `/pm-uninstall-flow` | config（声明式）+ Plugin Core 处理 | 移除一个流程 |
 | `/pm-refine-flow` | config（声明式）+ Plugin Core 处理 | 迭代优化流程定义 |
@@ -101,6 +104,7 @@ tool: {
 | `/pm-task-set-step` | config + tool | 手动跳转步骤 |
 | `/pm-task-refresh` | config + tool | 重新注入当前步骤上下文 |
 | `/pm-task-close` | config + tool | 关闭任务，触发分析 |
+| `/pm-config` | config（声明式）| 查看或修改 .vibe-pm.json 配置 |
 
 ### 生命周期钩子编排
 
@@ -332,16 +336,15 @@ type ModuleInit = (ctx: IPluginContext) => ModuleHooks;
 
 ### 已实现功能
 
-- Plugin Core 入口（`VibePMPlugin`）
-- 配置管理（`loadConfig` + `DEFAULT_CONFIG`，支持深度合并）
+- Plugin Core 入口（`VibePMPlugin`）+ 启动时自动创建默认配置
+- 配置管理（`loadConfig` + `DEFAULT_CONFIG` + `initEnvironment`，支持深度合并/自动创建）
 - 8 个 `/pm-*` 命令注册（config hook + tool hook）
 - 日志系统（`[vibe-pm]` 前缀）
-- 核心类型定义（`PluginConfig`, `IPluginContext`, `ModuleInit`, `ModuleHooks`, `PluginHooks`）
-- 3 个测试文件，13 个测试用例全部通过
+- 核心类型定义（`PluginConfig`, `IPluginContext`, `ModuleInit`, `ModuleHooks`，OpenCode 交互类型来自 SDK）
 
 ### 未实现功能
 
-- 5 个可执行命令的实际逻辑（当前返回占位消息）
+- 4 个可执行命令的实际逻辑（当前返回占位消息）
 - TUI 集成（终端显示当前任务状态）
 
 ### 占位代码清单

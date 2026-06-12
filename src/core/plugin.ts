@@ -6,7 +6,7 @@
  */
 
 import * as path from "node:path";
-import { loadConfig } from "./config.js";
+import { loadConfig, ensureDefaultConfig } from "./config.js";
 import { registerCommands, registerTools } from "./commands.js";
 import { logger } from "./logger.js";
 import { MemorySystem } from "../memory/index.js";
@@ -27,7 +27,10 @@ import type {
 export const VibePMPlugin: Plugin = async (
   ctx: PluginInput,
 ): Promise<Hooks> => {
-  // 1. 加载配置
+  // 1. 确保默认配置文件存在
+  ensureDefaultConfig(ctx.directory);
+
+  // 2. 加载配置
   const config = loadConfig(ctx.directory);
   const dataDir = path.resolve(ctx.directory, config.dataDir);
 
