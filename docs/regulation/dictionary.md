@@ -65,4 +65,3 @@
 | `/pm-task-set-step` | pm-task-set-step | 设置步骤 |
 | `/pm-task-refresh` | pm-task-refresh | 刷新上下文 |
 | `/pm-task-close` | pm-task-close | 关闭任务 |
-| `/pm-build` | pm-build | 项目搭建流程 |

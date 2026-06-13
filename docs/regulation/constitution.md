@@ -128,7 +128,6 @@ tests/               — 测试代码（或被测文件同目录）
 ```
 docs/
 ├── flow/
-│   └── [flow]project-build.md        ← 项目搭建流程
 ├── regulation/
 │   ├── constitution.md               ← 顶层宪章（本文件），不可妥协的原则
 │   ├── coding_style.md               ← TypeScript 编码风格

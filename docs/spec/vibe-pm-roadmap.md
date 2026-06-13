@@ -65,7 +65,7 @@ gantt
 | 模板 | 状态 | 说明 |
 |------|------|------|
 | research | ✅ 已完成 | 调研任务（`rules/[rules]research.md`） |
-| project-build | ✅ 已完成 | 项目搭建（`docs/flow/[flow]project-build.md`） |
+
 | new-feature | 📋 待生成 | 新功能开发（基于 XMind 重任务开发） |
 | bug-fix | 📋 待生成 | Bug 修复（基于 XMind Bug修复） |
 | large-refactor | 📋 待生成 | 大规模重构 |

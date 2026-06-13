@@ -3,7 +3,7 @@
 **创建日期**: 2026-06-11
 **状态**: Implemented
 **输入来源**: XMind 设计文档 + 用户反馈
-**最后更新**: 2026-06-12 — Template Manager 实现完成
+**最后更新**: 2026-06-13 — 移除 project-build 内置模板
 
 ---
 
@@ -124,12 +124,11 @@ sequenceDiagram
 
 ## 内置模板清单
 
-5 个模板，均基于 XMind 中定义的例子生成：
+4 个模板，均基于 XMind 中定义的例子生成：
 
 | Template ID | 名称 | Category | Command | 来源 |
 |-------------|------|----------|---------|------|
 | `research` | 调研任务 | research | `/pm-research` | XMind「调研」例子 |
-| `project-build` | 项目搭建 | development | `/pm-project-build` | XMind「重任务开发」精简版 |
 | `new-feature` | 新功能开发 | development | `/pm-new-feature` | XMind「重任务开发」完整版 |
 | `bug-fix` | Bug 修复 | maintenance | `/pm-bug-fix` | XMind「Bug修复」例子 |
 | `large-refactor` | 大规模重构 | development | `/pm-large-refactor` | 「重任务开发」+ 迁移/兼容步骤 |
@@ -139,7 +138,6 @@ sequenceDiagram
 | 模板 | 状态 | 文件 |
 |------|------|------|
 | research | ✅ 已完成 | `docs/template/research/flow.md` |
-| project-build | ✅ 已完成 | `docs/template/project-build/flow.md` |
 | new-feature | ✅ 已完成 | `docs/template/new-feature/flow.md` |
 | bug-fix | ✅ 已完成 | `docs/template/bug-fix/flow.md` |
 | large-refactor | ✅ 已完成 | `docs/template/large-refactor/flow.md` + `regulations/migration-checklist.md` |
