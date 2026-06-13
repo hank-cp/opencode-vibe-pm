@@ -72,7 +72,6 @@ stateDiagram-v2
 ### S1: 理解重构意图
 
 **目标**：准确理解重构目标、动机和期望效果。
-**执行 Agent**：Assistant
 
 1. 阅读重构需求描述
 2. 提取核心目标——改什么？为什么改？期望效果？
@@ -85,7 +84,6 @@ stateDiagram-v2
 ### S2: 探索现有代码
 
 **目标**：全面了解受影响代码的现状。
-**执行 Agent**：explore / librarian（并行）
 
 1. 搜索所有引用点（函数、类型、接口）
 2. 分析调用链路和依赖关系
@@ -98,7 +96,6 @@ stateDiagram-v2
 ### S3: 标记影响范围与风险
 
 **目标**：系统评估重构的波及面和风险。
-**执行 Agent**：Assistant
 
 1. 列出所有受影响文件和模块
 2. 评估破坏性变更的影响
@@ -114,7 +111,6 @@ stateDiagram-v2
 > **⚠️ 本步骤需要用户介入。** 每次只问 1 个问题。
 
 **目标**：澄清重构决策中的模糊点。
-**执行 Agent**：Assistant
 
 1. 使用 question / confirm 逐题提问
 2. 覆盖：兼容策略、迁移窗口、回滚方案
@@ -126,7 +122,6 @@ stateDiagram-v2
 ### S5: 设计方案与迁移路径
 
 **目标**：设计完整的重构方案和迁移计划。
-**执行 Agent**：Assistant
 **引用 Regulation**：coding_style.md、constitution.md
 
 1. 设计新架构/接口/数据模型
@@ -141,7 +136,6 @@ stateDiagram-v2
 ### S6: [Human-in-loop] 审查计划 ⚠️
 
 **目标**：用户评审重构计划。
-**执行 Agent**：—
 
 1. 展示：影响范围、迁移路径、兼容策略、风险
 2. 使用 confirm 工具等待评审
@@ -153,7 +147,6 @@ stateDiagram-v2
 ### S7: 编写代码（保持向后兼容）
 
 **目标**：按迁移路径逐步实现重构。
-**执行 Agent**：Assistant / Task Agent
 **引用 Regulation**：coding_style.md、constitution.md
 
 1. 先建兼容层，再改内部实现
@@ -167,7 +160,6 @@ stateDiagram-v2
 ### S8: 编写迁移测试
 
 **目标**：编写覆盖旧行为和新行为的测试。
-**执行 Agent**：Assistant
 **引用 Regulation**：coding_style.md
 
 1. 保留旧 API 的回归测试
@@ -181,7 +173,6 @@ stateDiagram-v2
 ### S9: 运行测试修复
 
 **目标**：全部测试通过。
-**执行 Agent**：Assistant
 
 1. 运行全部测试
 2. 修复失败项
@@ -194,7 +185,6 @@ stateDiagram-v2
 ### S10: 兼容性验证
 
 **目标**：验证向后兼容性。
-**执行 Agent**：Assistant
 **引用 Regulation**：migration-checklist.md
 
 1. 运行旧 API 的调用方测试
@@ -209,7 +199,6 @@ stateDiagram-v2
 ### S11: 自查
 
 **目标**：全面自检。
-**执行 Agent**：Assistant
 **引用 Regulation**：checklist.md
 
 1. 迁移路径是否完整
@@ -224,7 +213,6 @@ stateDiagram-v2
 ### S12: [Human-in-loop] 用户验收 ⚠️
 
 **目标**：用户确认重构效果。
-**执行 Agent**：—
 
 1. 展示重构报告（影响范围、迁移路径、兼容性）
 2. 使用 confirm 工具等待确认
@@ -236,7 +224,6 @@ stateDiagram-v2
 ### S13: 合流
 
 **目标**：最终验证并提交。
-**执行 Agent**：Assistant
 **引用 Regulation**：checklist.md
 
 1. 运行最终 tsc + 测试

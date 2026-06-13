@@ -8,6 +8,7 @@ build/
 
 # Runtime data (local AxioDB)
 .vibe-pm/
+.vibe-pm.json
 
 # IDE
 .idea/
@@ -33,6 +34,7 @@ coverage/
 
 # Agents
 .omo
+.opencode
 
 # Temp files
 *.tmp

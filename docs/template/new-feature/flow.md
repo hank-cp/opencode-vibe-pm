@@ -70,7 +70,6 @@ stateDiagram-v2
 ### S1: 理解需求与现状
 
 **目标**：准确理解调整意图，了解当前代码现状。
-**执行 Agent**：Assistant
 
 1. 阅读用户提出的调整需求
 2. 提取核心意图——要改动什么？为什么？
@@ -84,7 +83,6 @@ stateDiagram-v2
 ### S2: 标记信息缺口与矛盾点
 
 **目标**：系统性找出模糊、缺失、冲突的地方。
-**执行 Agent**：explore / librarian（按需并行）
 
 1. 对照 Spec 与需求，标记缺失项、模糊项、矛盾项
 2. 按影响程度排序
@@ -99,7 +97,6 @@ stateDiagram-v2
 > **⚠️ 本步骤需要用户介入。** 每次只问 1 个问题。
 
 **目标**：逐题澄清模糊点。
-**执行 Agent**：Assistant
 
 1. 使用 question / confirm 阻塞式工具
 2. 每次只问 1 个问题
@@ -112,7 +109,6 @@ stateDiagram-v2
 ### S4: 设计 Spec 改动点
 
 **目标**：基于澄清后需求设计 Spec 改动。
-**执行 Agent**：Assistant
 **引用 Regulation**：coding_style.md
 
 1. 标记需要修改/补充的章节
@@ -125,7 +121,6 @@ stateDiagram-v2
 ### S5: [Human-in-loop] 确认改动点 ⚠️
 
 **目标**：用户审查 Spec 改动范围。
-**执行 Agent**：—
 
 1. 展示改动点文档
 2. 使用 confirm 工具等待确认
@@ -137,7 +132,6 @@ stateDiagram-v2
 ### S6: 设计执行计划
 
 **目标**：将 Spec 改动转化为 Plan 文档。
-**执行 Agent**：Assistant
 **引用 Regulation**：coding_style.md
 
 1. 阅读更新后的 Spec 和源码
@@ -151,7 +145,6 @@ stateDiagram-v2
 ### S7: [Human-in-loop] 评审计划 ⚠️
 
 **目标**：用户评审执行计划。
-**执行 Agent**：—
 
 1. 展示 Plan 文档
 2. 使用 confirm 工具等待评审
@@ -163,7 +156,6 @@ stateDiagram-v2
 ### S8: 编写代码
 
 **目标**：按 Plan 编写实现。
-**执行 Agent**：Assistant / Task Agent
 **引用 Regulation**：coding_style.md、constitution.md
 
 1. 按 Plan 改动点逐个实现
@@ -177,7 +169,6 @@ stateDiagram-v2
 ### S9: 编写测试与修复
 
 **目标**：编写测试代码并全部通过。
-**执行 Agent**：Assistant
 **引用 Regulation**：coding_style.md
 
 1. 按 Plan 的测试用例编写
@@ -191,7 +182,6 @@ stateDiagram-v2
 ### S10: 自查
 
 **目标**：全面自检。
-**执行 Agent**：Assistant
 **引用 Regulation**：checklist.md
 
 1. Plan 任务是否全部实现
@@ -206,7 +196,6 @@ stateDiagram-v2
 ### S11: [Human-in-loop] 审查确认 ⚠️
 
 **目标**：用户确认交付物。
-**执行 Agent**：—
 
 1. 展示交付报告
 2. 使用 confirm 工具等待确认
@@ -218,7 +207,6 @@ stateDiagram-v2
 ### S12: 交付合流
 
 **目标**：收尾，更新文档，准备提交。
-**执行 Agent**：Assistant
 **引用 Regulation**：checklist.md
 
 1. 保存交付报告到 Plan
