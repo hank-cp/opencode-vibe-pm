@@ -119,7 +119,10 @@ export class FlowEngine {
     if (!sessionId) return;
 
     const task = await this.memory.getActiveTask(sessionId);
-    if (!task) return;
+    if (!task) {
+      this.injectFlowReminder(sessionId, output);
+      return;
+    }
 
     const flowDef = await this.parseFlow(task.flow);
     const currentStep = flowDef.steps.find((s) => s.id === task.currentStep);
@@ -629,6 +632,27 @@ export class FlowEngine {
     }
     parts.push("\n</lookahead-window>");
     return parts.join("");
+  }
+
+  private injectFlowReminder(
+    sessionId: string,
+    output: SystemTransformOutput,
+  ): void {
+    if (!shouldInject(sessionId, "__global__", "__reminder__", [])) return;
+
+    const reminder = `<flow-reminder>
+如果用户触发了 /pm-* 命令（如 /pm-new-feature、/pm-bug-fix、/pm-research、/pm-large-refactor 等），你必须按以下优先级执行：
+
+1. **最高优先级**：调用 \`pm_task_start\` 工具创建任务。
+   - 参数：flow（流程名）、summary（任务摘要）、specRef/planRef（如有）
+   - 未成功创建任务前，禁止执行代码实现、文件编辑或跳过流程
+2. 任务创建后，下一次消息时系统会自动注入当前步骤的详细指导（FSM 状态图、步骤指令、需引用的 Regulation、Human-in-loop 警告）
+3. 严格按照注入的步骤执行，不要跳过 Human-in-loop 步骤直接实现
+
+当前无活跃任务，如果你收到了 /pm-* 命令，先从步骤 0 开始。
+</flow-reminder>`;
+
+    output.system = [...output.system, reminder];
   }
 
   // ═══════════════════════════════════════════

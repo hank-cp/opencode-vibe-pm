@@ -13,6 +13,7 @@ import type {
   IPluginContext,
   Config,
 } from "./types.js";
+import { scanTemplates, installTemplate } from "../template/index.js";
 
 // ─── 命令清单 ───
 
@@ -29,7 +30,7 @@ const COMMANDS: CommandMeta[] = [
     name: "pm-install-flow",
     description: "从模板库安装流程",
     template: "Install a flow from template library",
-    executable: false, // 声明式，Plugin Core 处理
+    executable: true,
   },
   {
     name: "pm-uninstall-flow",
@@ -104,14 +105,18 @@ export function registerCommands(opencodeConfig: Config): void {
  * 创建 tool 注册表。使用 SDK tool() 工厂函数 + Zod schema。
  */
 export function registerTools(
-  _ctx: IPluginContext,
+  ctx: IPluginContext,
 ): Record<string, ToolDefinition> {
   const tools: Record<string, ToolDefinition> = {};
 
   for (const cmd of COMMANDS) {
     if (!cmd.executable) continue;
 
-    tools[cmd.name.replace(/-/g, "_")] = createStubTool(cmd);
+    if (cmd.name === "pm-install-flow") {
+      tools.pm_install_flow = createInstallFlowTool(ctx);
+    } else {
+      tools[cmd.name.replace(/-/g, "_")] = createStubTool(cmd);
+    }
   }
 
   return tools;
@@ -128,6 +133,48 @@ function createStubTool(cmd: CommandMeta): ToolDefinition {
       _ctx: ToolContext,
     ): Promise<string> {
       return `[vibe-pm] /${cmd.name} - stub: 该命令尚未实现。`;
+    },
+  });
+}
+
+// ─── pm-install-flow 实现 ───
+
+function createInstallFlowTool(ctx: IPluginContext): ToolDefinition {
+  return tool({
+    description: "Install a flow from template library",
+    args: {
+      templateId: tool.schema.string().optional().describe(
+        "Template ID to install (e.g. 'new-feature', 'bug-fix', 'research', 'large-refactor'). If omitted, lists available templates.",
+      ),
+    } as any,
+    async execute(
+      args: { templateId?: string },
+      _toolCtx: ToolContext,
+    ): Promise<string> {
+      if (args.templateId) {
+        try {
+          installTemplate(ctx.projectDir, args.templateId);
+          return `[vibe-pm] 流程 "${args.templateId}" 已成功安装。\n\n已安装到：\n- docs/flow/[flow]${args.templateId}.md\n- 对应的 Command 文件已生成到 .opencode/commands/\n\n你可以使用对应的 /pm-* 命令启动任务。`;
+        } catch (err) {
+          const msg =
+            err instanceof Error ? err.message : "未知错误";
+          return `[vibe-pm] 安装失败：${msg}`;
+        }
+      }
+
+      const templates = scanTemplates(ctx.projectDir);
+      if (templates.length === 0) {
+        return "[vibe-pm] 未在 docs/template/ 下找到任何模板。请确认模板目录结构正确。";
+      }
+
+      const lines = templates.map(
+        (t, i) =>
+          `${i + 1}. \`${t.id}\` — ${t.name}（${t.description}）${
+            t.command ? `→ \`${t.command}\`` : ""
+          }`,
+      );
+
+      return `[vibe-pm] 可用的模板列表：\n\n${lines.join("\n")}\n\n要安装一个流程，请运行：\n\`\`\`\n/pm-install-flow templateId: <模板ID>\n\`\`\``;
     },
   });
 }

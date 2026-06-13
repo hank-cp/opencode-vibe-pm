@@ -90,13 +90,15 @@ describe("Context Injection", () => {
     expect(fullSystem).toContain("<lookahead-window>");
   });
 
-  it("no_inject_without_task: 无活跃任务不注入", async () => {
+  it("no_inject_without_task: 无活跃任务注入流程提醒", async () => {
     const input = { sessionID: "ses_noop" };
     const output = { system: ["original"] };
 
     await engine.injectContext(input, output);
 
-    expect(output.system).toEqual(["original"]);
+    expect(output.system.length).toBeGreaterThan(1);
+    expect(output.system[1]).toContain("<flow-reminder>");
+    expect(output.system[1]).toContain("pm_task_start");
   });
 
   it("no_inject_without_session: 无 sessionID 不注入", async () => {
@@ -106,5 +108,18 @@ describe("Context Injection", () => {
     await engine.injectContext(input, output);
 
     expect(output.system).toEqual(["original"]);
+  });
+
+  it("flow_reminder_dedup: 流程提醒同一 session 只注入一次", async () => {
+    const sessionId = "ses_dedup_test";
+
+    const output1 = { system: ["first"] };
+    await engine.injectContext({ sessionID: sessionId }, output1);
+    expect(output1.system.length).toBeGreaterThan(1);
+    expect(output1.system[1]).toContain("<flow-reminder>");
+
+    const output2 = { system: ["second"] };
+    await engine.injectContext({ sessionID: sessionId }, output2);
+    expect(output2.system).toEqual(["second"]);
   });
 });
