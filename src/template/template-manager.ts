@@ -65,66 +65,21 @@ function parseTemplateMeta(raw: string, bundleDir: string): TemplateMeta | null 
   };
 }
 
-function parseFlowScenario(raw: string): string {
-  const match = raw.match(/##\s+适用场景\s*\n+(.+?)(?=\n##|\n---)/s);
-  return match?.[1]?.trim() ?? "";
-}
-
-function parseFlowInputReqs(raw: string): Array<{ name: string; required: string; description: string }> {
-  const tableMatch = raw.match(
-    /##\s+输入要求\s*\n.*?\n((?:\|.+\|[\s\S]*?))(?=\n##|\n---|$)/,
-  );
-  if (!tableMatch) return [];
-  const lines = tableMatch[1].split("\n").filter((l) => l.includes("|"));
-  return lines.slice(1).map((line) => {
-    const cols = line
-      .split("|")
-      .map((c) => c.trim())
-      .filter(Boolean);
-    return {
-      name: cols[0] ?? "",
-      required: cols[1] ?? "",
-      description: cols[2] ?? "",
-    };
-  });
-}
-
 function generateCommandFile(
   meta: TemplateMeta,
-  flowRaw: string,
+  _flowRaw: string,
 ): string {
-  const scenario = parseFlowScenario(flowRaw);
-  const inputReqs = parseFlowInputReqs(flowRaw);
-
   const parts: string[] = [];
 
   parts.push(`# ${meta.name}\n`);
-  parts.push(`${scenario}\n`);
   parts.push("## 任务启动\n");
   parts.push(
-    `当用户触发 \`${meta.command}\` 命令时，表示要启动 **${meta.name}** 流程下的任务。\n`,
+    `当您触发 \`${meta.command}\` 命令时，系统将自动创建任务，`,
   );
-
-  if (inputReqs.length > 0) {
-    parts.push("### 输入要求\n");
-    parts.push("| 输入项 | 必填 | 说明 |");
-    parts.push("|--------|------|------|");
-    for (const req of inputReqs) {
-      parts.push(`| ${req.name} | ${req.required} | ${req.description} |`);
-    }
-    parts.push("");
-  }
-
-  parts.push("### 执行步骤\n");
-  parts.push(
-    "任务已由系统自动创建，Flow 步骤指导将在下一轮对话中自动注入。请：",
-  );
-  parts.push("1. 与用户确认任务目标和摘要");
-  parts.push("2. 收集上述输入要求中列出的必填项");
-  parts.push(`3. 按照 Flow 文档 \`${meta.id}\` 中定义的步骤逐步执行`);
+  parts.push(`并注入 Flow 步骤指导（来自 \`docs/flow/[flow]${meta.id}.md\`）。`);
   parts.push("");
   parts.push(
-    "> 如果系统未能自动创建任务，使用 `/pm-task-start` 手动创建。",
+    "> 如果系统未能自动创建任务，可使用 \`/pm-task-start\` 手动创建。",
   );
 
   return parts.join("\n") + "\n";

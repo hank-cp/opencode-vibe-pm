@@ -61,13 +61,21 @@ export const VibePMPlugin: Plugin = async (
     tool: registerTools(pluginCtx, engine),
 
     // 命令执行前 → 自动创建任务（Hook 驱动，替代 LLM Tool 调用）
-    "command.execute.before": async (input, _output) => {
+    "command.execute.before": async (input, output) => {
       const cmd = (input as { command?: string; sessionID?: string; arguments?: string });
       if (cmd.sessionID && cmd.command) {
+        // 创建任务 + 设置 pendingFlowInjects（供后续 system.transform 使用）
         await engine.autoStartTaskFromCommand(
           cmd.sessionID,
           cmd.command,
           cmd.arguments ?? "",
+        );
+        // 直接注入 flow 内容到 command output parts，确保首轮 LLM 调用能获取 flow 上下文
+        // 这是对 system.transform 在 command.execute.before 之前触发的补偿
+        await engine.injectFlowToCommandParts(
+          cmd.sessionID,
+          cmd.command,
+          output as { parts: unknown[] },
         );
       }
     },
