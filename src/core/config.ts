@@ -20,6 +20,9 @@ export const DEFAULT_CONFIG: PluginConfig = {
     maxStepTokens: 0, // 0 = 不限制
     pruneIrrelevant: true,
   },
+  debug: {
+    logFullRequest: false,
+  },
 };
 
 // ─── 公开 API ───

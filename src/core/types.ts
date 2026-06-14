@@ -28,6 +28,10 @@ export interface PluginConfig {
     maxStepTokens: number;
     pruneIrrelevant: boolean;
   };
+  debug?: {
+    /** 在 system.transform 末尾输出完整请求上下文（默认 false） */
+    logFullRequest?: boolean;
+  };
 }
 
 // ─── PluginContext ───
@@ -41,6 +45,7 @@ export interface IPluginContext {
 // ─── Logger ───
 
 export interface ILogger {
+  debug(...args: unknown[]): void;
   info(...args: unknown[]): void;
   warn(...args: unknown[]): void;
   error(...args: unknown[]): void;

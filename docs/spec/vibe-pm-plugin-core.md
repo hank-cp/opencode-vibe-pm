@@ -178,6 +178,9 @@ interface PluginConfig {
     maxStepTokens: number;                   // 默认 0（不限制）
     pruneIrrelevant: boolean;                // 默认 true
   };
+  debug?: {
+    logFullRequest?: boolean;                // 默认 false。在 system.transform 末尾输出完整请求上下文
+  };
 }
 
 // 加载逻辑
@@ -201,6 +204,9 @@ const DEFAULT_CONFIG: PluginConfig = {
   contextInjection: {
     maxStepTokens: 0,       // 0 = 不限制
     pruneIrrelevant: true,
+  },
+  debug: {
+    logFullRequest: false,  // 生产环境默认关闭
   },
 };
 ```

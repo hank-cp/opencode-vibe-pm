@@ -138,11 +138,13 @@ sequenceDiagram
 
 每次对话注入以下内容（按优先级排序）：
 
-1. **Constitution** — 始终加载的最高原则
-2. **当前 Step 执行指令** — 来自 Flow 文档
-3. **Step 指定的 Regulation** — 如 CodingStyle、Checklist
-4. **Spec 文档引用** — 与当前任务关联的功能规格说明
-5. **任务计划引用** — 当前任务的执行计划
+1. **Constitution（全文）** — 始终加载的最高原则（固定前缀）
+2. **Flow 文档（原始 MD 全文）** — 当前流程的完整定义，含所有步骤、FSM 图（固定前缀）
+3. **控制 Prompt（静态纪律）** — 流程执行强制约束（固定前缀）
+4. **当前步骤状态 + Task 状态** — 步骤动态，随步骤推进更新（尾部）
+5. **Step 指定的 Regulation** — 如 CodingStyle、Checklist（条件注入，尾部）
+6. **Spec 文档引用** — 与当前任务关联的功能规格说明
+7. **任务计划引用** — 当前任务的执行计划
 
 ---
 
@@ -222,6 +224,9 @@ graph TB
   "contextInjection": {
     "maxStepTokens": 4000,   // 每个 Step 注入的上下文最大 Token 数
     "pruneIrrelevant": true  // 是否裁剪无关消息
+  },
+  "debug": {
+    "logFullRequest": false  // 调试模式：在 LLM 请求前输出完整上下文
   }
 }
 ```

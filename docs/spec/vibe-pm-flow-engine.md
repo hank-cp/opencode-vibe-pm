@@ -3,13 +3,13 @@
 **创建日期**: 2026-06-11
 **状态**: Implemented
 **输入来源**: XMind 设计文档 + Plugin Core Spec + Memory System Spec + Spec 评估报告 + 消息裁剪算法调研
-**最后更新**: 2026-06-14 — 流程上下文注入顺序：前置到 system prompt 开头
+**最后更新**: 2026-06-14 — 注入策略重构：三明治三层 → 前缀固定 + 尾部变量；新增调试支持
 
 ---
 
 ## 需求背景
 
-Flow Engine 是 vibe-pm 的核心业务层。它负责：解析 Flow 文档 → 向 LLM 注入三明治上下文（全局视野 + 当前步骤详情 + 前瞻窗口）→ 裁剪无关消息 → 由 LLM 自主判断步骤流转。
+Flow Engine 是 vibe-pm 的核心业务层。它负责：解析 Flow 文档 → 向 LLM 注入上下文（前缀固定 + 尾部变量）→ 裁剪无关消息 → 由 LLM 自主判断步骤流转。
 
 **核心设计决策**：vibe-pm 不自行实现 FSM 引擎。流转判断完全交由 LLM——将 FSM 定义、任务状态、用户决策注入 system prompt，让 LLM 自主决定下一步。
 
@@ -23,7 +23,7 @@ Flow Engine 是 vibe-pm 的核心业务层。它负责：解析 Flow 文档 → 
 |------|------|------|
 | FlowDefinition | `name`, `command`, `scenario`, `inputRequirements`, `deliverables`, `fsmDiagram`, `steps[]` | 解析自 `/docs/flow/[flow]_*.md` |
 | StepDefinition | `id`, `name`, `goal`, `agent`, `regulations[]`, `instructions[]`, `humanInLoop`, `onComplete` | 属于一个 FlowDefinition |
-| InjectedContext | `flowDoc`（全文）, `currentStep`, `taskState`, `constitution`, `regulations`, `specRef`, `planRef` | 注入到 system prompt 的完整上下文包 |
+| InjectedContext | `staticPrefix`（缓存稳定：Constitution + Flow 全文 + 控制 Prompt）, `stepDynamic`（步骤动态：当前步骤状态 + Task 状态 + Regulation 条件注入） | 注入到 system prompt 的完整上下文包 |
 
 ### 关键路径
 
@@ -139,122 +139,98 @@ sequenceDiagram
 
 ### 上下文注入（核心）
 
-采用**三明治注入策略**：不注入完整 Flow 文档（避免浪费上下文），也不仅注入当前步骤（丧失跨步执行能力），而是三层结构解耦「全局视野」与「执行细节」。
+采用**前缀固定 + 尾部变量注入策略**：将不变内容（Constitution、Flow 文档全文、控制 Prompt）放入前缀实现缓存最大化命中，将可变内容（当前步骤状态、条件 Regulation）推到尾部，最小化缓存失效范围。
 
-#### 三层注入结构
+**设计理由**：LLM prompt cache 按前缀匹配判定命中。将不变内容集中到前缀 → 整个流程中缓存几乎 100% 命中前缀。可变内容控制在尾部 → 仅尾部需重新计算。相较三明治注入（可变内容在中间打断缓存），缓存命中率提升 12-15%，7 步流程总 Token 消耗降低约 18%。
+
+> **历史记录**：此方案替代了原"三明治注入策略"（Layer 1/2/3 三层结构）。旧方案中 Layer 2（当前步骤详情）夹在 Layer 1 和 Layer 3 之间，每次步骤推进都导致从 Layer 2 位置开始的缓存完全失效，抵消了 Layer 1 的缓存收益。详见 `docs/note/vibe-pm-spec-evaluation.md` §五。
+
+#### 两层注入结构
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│ Layer 1 — 全局视野（缓存稳定，始终注入）                     │
+│ 固定前缀（缓存稳定，整个流程中不变）                          │
 │                                                          │
-│  - Constitution                               (~300T)    │
-│  - FSM 状态图 (Mermaid)                       (~200T)    │
-│  - 所有步骤的标题 + 目标摘要 + Human-in-loop 标记  (~400T)  │
+│  - Constitution（全文）                        (~500T)   │
+│  - Flow 文档（原始 Markdown 全文）              (~3000T)  │
+│  - 控制 Prompt（静态流程纪律）                   (~300T)   │
 │                                                          │
-│  总计: ~900T，提供 LLM 全局规划视野                        │
-│  缓存命中: ✅ 整个流程中不变（仅在切换流程/修改 Constitution  │
-│             /OpenCode 版本升级时重建）                      │
+│  总计: ~3800T                                             │
+│  缓存命中: ✅ 前缀完全固定，整个流程中不变                    │
+│  命中率: 92-95%                                           │
 └──────────────────────────────────────────────────────────┘
 
 ┌──────────────────────────────────────────────────────────┐
-│ Layer 2 — 当前步骤详情（缓存波动，步骤推进时更新）            │
+│ 步骤动态（缓存波动，步骤推进时更新，位于尾部）                 │
 │                                                          │
-│  - 当前步骤完整 instructions                   (~300T)    │
-│  - 当前步骤引用的 Regulation                   (~500T)    │
-│  - 当前 Task 状态                              (~100T)    │
+│  - 当前步骤状态（ID、名称）                      (~50T)    │
+│  - Task 状态（summary、specRef、planRef）        (~100T)   │
+│  - 当前步骤引用的 Regulation（条件注入）          (~500T)   │
+│  - 控制 Prompt 动态部分（onComplete 等）          (~50T)   │
 │                                                          │
-│  总计: ~900T，提供精准执行指令                            │
-│  缓存命中: ❌ 步骤推进时失效，但变化范围控制在 Layer 2 内    │
-└──────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────┐
-│ Layer 3 — 前瞻窗口（智能注入，连续步骤时展开）               │
-│                                                          │
-│  - 当前步骤的下 1-2 个连续步骤（非 HiL）的 instructions     │
-│  - 仅在 currentStep 为非 HiL 且后续有连续步骤时注入         │
-│  - 当前步骤为 HiL 时，不注入前瞻窗口（LLM 反正要等用户）     │
-│                                                          │
-│  总计: 0~600T（动态），支持跨步骤执行                      │
-│  缓存命中: ❌ 但只在有连续执行需求时启用                    │
+│  总计: ~700T（可变，每次步骤推进时更新）                     │
+│  缓存命中: ❌ 步骤推进时重新计算，但控制在尾部 →              │
+│           前缀缓存命中 + 仅尾部全价                         │
 └──────────────────────────────────────────────────────────┘
 ```
+
+> **控制 Prompt 拆分说明**：控制 Prompt 分为静态和动态两部分。静态部分（流程纪律："FLOW MANDATE"、"不得跳过步骤"、"不得绕过 HiL 步骤"）放入固定前缀（缓存稳定）；动态部分（`currentStep`、`onComplete`、"本步骤需要用户介入"等步骤特定指令）放入步骤动态（随步骤推进更新）。
 
 #### system.transform 注入实现
 
 ```typescript
-function buildInjectionLayers(
+function buildInjectionContext(
   flowDef: FlowDefinition,
   task: Task,
   constitution: string,
+  flowRawContent: string,   // Flow 文档原始 MD 全文（通过 readFlowContent 获取）
   regulations: string[],
-): InjectionPlan {
-  const currentIdx = flowDef.steps.findIndex(s => s.id === task.currentStep);
-  const currentStep = flowDef.steps[currentIdx];
+): InjectedContext {
+  // 固定前缀（缓存稳定，整个流程中不变）
+  const staticPrefix = [
+    `<constitution>\n${constitution}\n</constitution>`,
+    `\n<flow-document flow="${task.flow}">\n${flowRawContent}\n</flow-document>`,
+    `\n<flow-control>\n${buildStaticControlPrompt()}\n</flow-control>`,
+  ].join("");
 
-  // Layer 1: 全局视野（缓存稳定区）
-  const layer1 = buildGlobalOverview(flowDef, constitution, task);
+  // 步骤动态（尾部可变，步骤推进时更新）
+  const stepDynamic = buildStepDynamic(flowDef, task, regulations);
 
-  // Layer 2: 当前步骤详情
-  const layer2 = buildCurrentStepDetail(currentStep, task, regulations);
+  return { staticPrefix, stepDynamic, regulations };
+}
 
-  // Layer 3: 前瞻窗口（条件注入）
-  let layer3Steps: StepDefinition[] = [];
-  if (!currentStep.humanInLoop) {
-    let lookahead = currentIdx + 1;
-    while (lookahead < flowDef.steps.length
-           && !flowDef.steps[lookahead].humanInLoop
-           && layer3Steps.length < 2) {  // 最多前瞻 2 步
-      layer3Steps.push(flowDef.steps[lookahead]);
-      lookahead++;
+function buildStaticControlPrompt(): string {
+  // 只包含静态纪律 — 不包含 currentStep、onComplete 等动态字段
+  return [
+    "## ⚠️ FLOW MANDATE — OVERRIDES ALL OTHER BEHAVIORS",
+    "You are executing a predefined workflow. Step sequence is MANDATORY.",
+    "",
+    "**NEVER** skip ahead to code implementation before reaching the implementation step.",
+    "**NEVER** bypass Human-in-loop steps (marked ⚠️). They are MANDATORY gates.",
+    "**NEVER** skip from analysis/research directly to coding — follow the step sequence.",
+    "Use pm_task_set_step to advance ONLY after completing the current step.",
+    "Human-in-loop steps require question/confirm tools. Ask ONE question at a time.",
+    "The full Flow document above defines all steps. Follow it strictly.",
+  ].join("\n");
+}
+
+function buildStepDynamic(
+  flowDef: FlowDefinition,
+  task: Task,
+  regulations: string[],
+): string {
+  const parts: string[] = [];
+
+  // 当前步骤状态
+  const currentStep = flowDef.steps.find(s => s.id === task.currentStep);
+  parts.push(`\n<current-step id="${task.currentStep}" name="${task.currentStepName}">`);
+  parts.push(`\n**当前步骤**: ${task.currentStep} — ${task.currentStepName}`);
+  if (currentStep) {
+    parts.push(`\n**目标**: ${currentStep.goal}`);
+    if (currentStep.humanInLoop) {
+      parts.push(`\n⛔ **本步骤是 Human-in-loop！** 使用 question/confirm 工具。每次只问 1 个问题。`);
     }
-  }
-  const layer3 = layer3Steps.length > 0
-    ? buildLookaheadWindow(layer3Steps) : null;
-
-  return { layer1, layer2, layer3 };
-}
-
-function buildGlobalOverview(
-  flowDef: FlowDefinition,
-  constitution: string,
-  task: Task,
-): string {
-  const parts: string[] = [];
-
-  // Constitution
-  parts.push(`<constitution>\n${constitution}\n</constitution>`);
-
-  // FSM 状态图
-  parts.push(`\n<fsm-diagram flow="${task.flow}">`);
-  parts.push(`\n${flowDef.fsmDiagram}`);
-  parts.push(`\n</fsm-diagram>`);
-
-  // 步骤摘要（每步 ≤ 80T，标题 + 目标 + HiL 标记）
-  parts.push(`\n<step-overview>`);
-  parts.push(`\n**当前步骤: ${task.currentStep} - ${task.currentStepName}**`);
-  for (const step of flowDef.steps) {
-    const isHiL = step.humanInLoop ? ' ⚠️[需用户介入]' : '';
-    parts.push(`\n- ${step.id}: ${step.name} — ${step.goal}${isHiL}`);
-  }
-  parts.push(`\n</step-overview>`);
-
-  return parts.join('');
-}
-
-function buildCurrentStepDetail(
-  step: StepDefinition,
-  task: Task,
-  regulations: string[],
-): string {
-  const parts: string[] = [];
-
-  // 步骤目标与指令
-  parts.push(`\n<current-step id="${step.id}" name="${step.name}">`);
-  parts.push(`\n**目标**: ${step.goal}`);
-  parts.push(`\n**推荐 Agent**: ${step.agent}`);
-  parts.push(`\n---`);
-  for (const [i, instr] of step.instructions.entries()) {
-    parts.push(`\n${i + 1}. ${instr}`);
+    parts.push(`\n**完成后**: ${currentStep.onComplete}`);
   }
   parts.push(`\n</current-step>`);
 
@@ -268,41 +244,12 @@ function buildCurrentStepDetail(
   if (task.planRef) parts.push(`\n- 计划文档: ${task.planRef}`);
   parts.push(`\n</task-state>`);
 
-  // Step 指定的 Regulation
+  // Step 指定的 Regulation（条件注入）
   for (const reg of regulations) {
     parts.push(`\n<regulation>\n${reg}\n</regulation>`);
   }
 
-  // FSM 流转指令
-  parts.push(`\n<fsm-instructions>`);
-  parts.push(`\n你正在执行 Flow 文档中定义的流程。`);
-  parts.push(`\n- 当前处于 **Step ${task.currentStep}: ${step.name}**`);
-  if (step.humanInLoop) {
-    parts.push(`\n- ⚠️⚠️⚠️ **本步骤需要用户介入！** 你必须使用 question / confirm 阻塞式工具向用户提问。每次只问 1 个问题，收到回复前不得继续。⚠️⚠️⚠️`);
-    parts.push(`\n- ${step.onComplete}`);
-  }
-  parts.push(`\n- 请严格按照 Flow 文档中的「完成后」描述推进步骤`);
-  parts.push(`\n- 非 Human-in-loop 步骤完成后自行判断并推进`);
-  parts.push(`\n- 当你要推进步骤时，使用 pm_task_set_step 工具或明确告知`);
-  parts.push(`\n</fsm-instructions>`);
-
-  return parts.join('');
-}
-
-function buildLookaheadWindow(steps: StepDefinition[]): string {
-  const parts: string[] = [];
-  parts.push(`\n<lookahead-window>`);
-  parts.push(`\n> 以下步骤可在本对话中连续执行（非 HiL）：`);
-  for (const step of steps) {
-    parts.push(`\n\n### Step ${step.id}: ${step.name}`);
-    parts.push(`\n**目标**: ${step.goal}`);
-    for (const [i, instr] of step.instructions.entries()) {
-      parts.push(`\n${i + 1}. ${instr}`);
-    }
-    parts.push(`\n**完成后**: ${step.onComplete}`);
-  }
-  parts.push(`\n</lookahead-window>`);
-  return parts.join('');
+  return parts.join("");
 }
 ```
 
@@ -310,31 +257,31 @@ function buildLookaheadWindow(steps: StepDefinition[]): string {
 
 | 优先级 | 层级 | 内容 | 缓存行为 |
 |--------|:---:|------|---------|
-| 1 | Layer 1 | Constitution | 始终注入，缓存稳定 |
-| 2 | Layer 1 | FSM 状态图 + 步骤摘要 | 同一流程内缓存稳定 |
-| 3 | Layer 2 | 当前步骤详情 + Task 状态 + Regulation | 步骤推进时更新 |
-| 4 | Layer 2 | FSM 流转指令 | 步骤推进时更新 |
-| 5 | Layer 3 | 前瞻窗口（1-2 个连续非 HiL 步骤） | 条件注入，HiL 步骤时省略 |
+| 1 | 固定前缀 | Constitution（全文） | 始终注入，缓存稳定 |
+| 2 | 固定前缀 | Flow 文档（原始 MD 全文，含所有步骤） | 同一流程内缓存稳定 |
+| 3 | 固定前缀 | 控制 Prompt（静态流程纪律） | 始终注入，缓存稳定 |
+| 4 | 步骤动态 | 当前步骤状态 + Task 状态 | 步骤推进时更新（尾部） |
+| 5 | 步骤动态 | Regulation（条件注入：仅当前步骤引用的文件） | 步骤推进 + Regulation 引用变化时更新（尾部） |
 
-> **设计理由**：三明治注入在"精准注入"和"完整注入"之间取得平衡——Layer 1 提供全局视野支持规划（~900T，缓存稳定），Layer 2 提供精准执行指令（~900T），Layer 3 仅在连续执行场景下展开前瞻窗口（0~600T）。相较完整 Flow 注入（7 步 3500T），节省 40-50% 上下文；相较精准注入，保留了跨步骤执行能力。
+> **设计理由**：前缀固定 + 尾部变量策略将 prompt cache 的命中率最大化。固定前缀在流程中完全不变（仅在切换流程/修改 Constitution 时重建），步骤推进时仅尾部 ~700T 重新计算。相较旧三明治方案（Layer 2 ~1100T 在中间打断缓存），步骤推进时的缓存损失从 ~1100T 降至 ~700T（-36%），缓存命中率从 ~80% 提升至 92-95%。
 
 #### System Prompt 输出顺序
 
 流程上下文**前置**于原始 system prompt，确保流程指令优先级高于 LLM 的默认行为指令。最终顺序：
 
 ```
-[Layer 1] → [Layer 2] → [Layer 3?] → [原始 system prompt...]
+[固定前缀: Constitution + Flow 文档全文 + 控制 Prompt(静态)] → [步骤动态: 当前步骤状态 + Task 状态 + Regulation(条件)] → [原始 system prompt...]
 ```
 
-设计理由：LLM 更容易遵循 prompt 开头的指令。将流程上下文放在前面，使"按流程步骤执行"成为最高优先级，防止 LLM 的"意图检测→直接实现"行为覆盖流程指令。
+设计理由：LLM 更容易遵循 prompt 开头的指令。固定前缀始终在最前面，使"按流程步骤执行"成为 LLM 看到的最高优先级指令。步骤动态（含当前步骤高亮）紧随其后，确保 LLM 明确知晓当前所处位置。
 
 ### 缓存策略
 
-vibe-pm 每次 `system.transform` 都会修改注入内容，可能导致 LLM prompt cache 失效。以下策略最小化缓存损失：
+新方案的缓存优势来自"前缀完全固定"：LLM prompt cache 按前缀匹配判定命中，固定前缀在流程中始终不变，仅在切换流程或修改 Constitution 时重建。以下策略进一步优化：
 
 #### 策略 1：注入指纹去重
 
-同一步骤内的多次对话不重复注入相同内容：
+同一步骤内的多次对话不重复注入相同内容（仅步骤动态部分参与指纹计算，前缀固定不需要去重）：
 
 ```typescript
 const lastInjectedFingerprint: Map<string, string> = new Map();
@@ -344,14 +291,14 @@ function shouldInject(sessionId: string, task: Task, stepRegulations: string[]):
   const last = lastInjectedFingerprint.get(sessionId);
 
   if (fingerprint === last) {
-    return false;  // 指纹未变 → 跳过注入 → 缓存命中
+    return false;  // 指纹未变 → 跳过步骤动态注入 → 前缀缓存命中 + 尾部不变
   }
   lastInjectedFingerprint.set(sessionId, fingerprint);
   return true;
 }
 ```
 
-**效果**：同一步骤内多次对话，零额外缓存损失。减少 30-40% 的不必要注入操作。
+**效果**：同一步骤内多次对话，前缀缓存完全命中，步骤动态零额外注入。减少 30-40% 的不必要注入操作。
 
 #### 策略 2：惰性裁剪
 
@@ -371,21 +318,23 @@ pruneByDepthLevel(messages, currentStep, stepTransitionTimeline);
 
 | 步骤类型 | 注入策略 | 缓存影响 |
 |---------|---------|---------|
-| **Human-in-loop 步骤** | 步骤开始时注入一次，用户回复期间跳过注入 | 交互过程中缓存完全命中 |
-| **连续执行步骤**（如 S7→S8→S9） | Layer 2 更新 currentStep，Layer 3 展开新前瞻窗口 | 仅 Layer 2+3 变化 |
+| **Human-in-loop 步骤** | 步骤开始时注入一次步骤动态，用户回复期间跳过注入 | 交互过程中前缀缓存完全命中，步骤动态可缓存 |
+| **连续执行步骤**（如 S7→S8→S9） | 仅更新步骤动态尾部（currentStep 等） | 前缀缓存命中 + 尾部 ~700T 全价 |
 | **回退步骤**（LLM 判回 S[前]） | 恢复该步骤的历史注入指纹 | 可能缓存命中（指纹复用） |
 
 #### 缓存价值估算
 
 假设新功能开发流程（13 步骤），每步平均 3 轮对话：
 
-| 场景 | 缓存命中率 | 每步 Token 消耗 | 13 步总消耗 |
-|------|:---:|------|------|
-| 无优化（每次重建全部注入） | ~50% | ~7,500/步 | ~97,500 |
-| 分层注入 + 指纹去重 + 惰性裁剪 | ~80% | ~4,500/步 | ~58,500 |
-| 全面优化（含步骤边界感知） | ~90% | ~3,000/步 | ~39,000 |
+| 方案 | 前缀缓存命中 | 步骤推进缓存损失 | 13 步总消耗 | 备注 |
+|------|:---:|:---:|------|------|
+| 旧三明治（Layer 1/2/3） | ❌ L2 在中间打断 | ~1,100T/步 | ~58,500T | Layer 1 缓存收益被 L2 变化抵消 |
+| **新前缀固定（本方案）** | **✅ 前缀完全固定** | **~700T/步（尾部）** | **~48,000T** | 前缀 92-95% 命中率 |
 
-**节省**：约 **40-60% 的 Token 消耗**。
+**新方案优势**：
+- 步骤推进时缓存损失降低 **36%**（1100T → 700T）
+- 整体 Token 消耗降低 **~18%**（58,500T → 48,000T）
+- 缓存命中率提升 **12-15%**（80% → 92-95%）
 
 ### Flow 文档解析
 
@@ -732,10 +681,10 @@ interface IMemorySystem {
 | Flow 文档不存在 | parseFlow 抛出 `FlowNotFoundError` |
 | Flow 文档格式错误 | parseFlow 抛出 `FlowParseError`，标注缺失内容 |
 | 当前 Step 不存在于 Flow 中 | 重置为 S1，记录 error 日志 |
-| injectContext 内容过大 | 按优先级截断：Constitution > FSM 图 > 步骤详情 > Regulation，最低优先级先截 |
+| injectContext 内容过大 | 按优先级截断：Constitution > Flow 文档 > 控制 Prompt > 步骤状态 > Regulation，最低优先级先截 |
+| Flow 文档过大（>10,000 Token） | 记录 warning，建议用户将 Flow 拆分为多个子流程 |
 | messages.transform 裁剪过度 | 至少保留最近 3 条消息（保护机制 `minRecentMessages`） |
 | LLM 输出无法判定流转意图 | 不做状态变更，保持 currentStep |
-| Layer 1（全局视野）超出预算 | 步骤摘要压缩为仅保留标题 + HiL 标记，移除目标描述 |
 | 注入指纹哈希碰撞 | 指纹包含 flow + step + regulation 三要素，碰撞概率极低；若发生仅导致一次多余注入，不产生数据错误 |
 | 同一步骤内多次对话 | 注入指纹去重 → 跳过注入 → 缓存命中 |
 
@@ -748,7 +697,7 @@ interface IMemorySystem {
 - **不实现 FSM 引擎**：流转判断完全由 LLM 自主完成，插件只负责注入上下文和更新状态
 - Flow 文档格式见 `docs/spec/flow-document-format.md`
 - `experimental.chat.system.transform` 注入内容受 OpenCode 限制
-- **缓存策略**：三明治注入的 Layer 1 设计为缓存稳定前缀（仅在切换流程/修改 Constitution/OpenCode 升级时重建），Layer 2+3 控制在最小变化范围
+- **缓存策略**：前缀固定 + 尾部变量策略，固定前缀在整个流程中不变（仅在切换流程/修改 Constitution/OpenCode 升级时重建），步骤动态控制在尾部最小变化范围。目标缓存命中率 92-95%
 - **注入指纹**：通过 hash(flow + stepId + regulationRefs) 去重，避免同一步骤内重复注入
 
 ### 业务约束
@@ -761,10 +710,11 @@ interface IMemorySystem {
 ### 已知风险
 
 - LLM 可能误判步骤完成状态 → 缓解：Flow 文档中流转条件写清晰
-- 不同 LLM 对 FSM 的理解能力不同 → 缓解：FSM 指令段落明确告知流转规则；Layer 3 前瞻窗口为不同 planner 能力的 LLM 提供差异化支持
-- 三明治注入的 Layer 1 大小随流程复杂度线性增长 → 缓解：每步摘要控制在 ≤ 80 Token
+- 不同 LLM 对 FSM 的理解能力不同 → 缓解：控制 Prompt（静态纪律）始终注入，步骤动态中高亮 currentStep
+- **弱模型在长 Flow 文档中可能迷失当前步骤** → 缓解：控制 Prompt 强化流程纪律；步骤动态明确标注 `**当前步骤**: SX — name`；Flow 文档天然包含完整步骤信息可供参考
 - 注入指纹哈希碰撞 → 缓解：三要素（flow + step + regulation）碰撞概率极低；即使碰撞也仅导致一次多余注入，不影响功能
-- Prompt cache 失效 → 缓解：分层注入 + 指纹去重 + 惰性裁剪三重策略，目标命中率 80%+
+- Prompt cache 失效 → 缓解：前缀固定 + 指纹去重 + 惰性裁剪三重策略，目标命中率 92-95%
+- 首轮注入 Token 较大（~4,500T vs 旧方案 ~2,000T）→ 缓解：仅首轮，后续轮次因缓存命中率提升有净节省（7 步总消耗 -18%）
 
 ### 影响范围
 
@@ -779,9 +729,12 @@ interface IMemorySystem {
 ### 已实现功能
 
 - Flow 文档解析（Markdown → FlowDefinition，含步骤属性、FSM 图、HiL 标记）
-- 三明治上下文注入（Layer 1 全局视野 + Layer 2 当前步骤 + Layer 3 前瞻窗口）
+- **三明治上下文注入（Layer 1 全局视野 + Layer 2 当前步骤 + Layer 3 前瞻窗口）** — ⚠️ **待重构**：此功能已实现但基于旧设计，需按本 Spec 更新为"前缀固定 + 尾部变量"策略
 - 注入指纹去重（同一步骤内跳过重复注入）
 - 消息裁剪（tiktoken 估算 + 惰性策略 + 保护机制）
+- 完整三步裁剪管道（tagMessagesByStep / assignDepthLevel / pruneByDepth）
+- StepTransition 时间线追踪
+- FlowMetrics 数据采集（recordStepEntry / recordStepExit）
 - **Hook 驱动的自动任务创建**（`command.execute.before` → `autoStartTaskFromCommand`，替代 LLM Tool 调用）
 - **Command→Flow 映射**（`buildCommandFlowMap` / `resolveFlowFromCommand`，从安装的 Flow 文档自动扫描）
 - 任务启动/步骤跳转（含重复任务检查，`pm_task_start` tool 降级为手动兜底）
@@ -795,13 +748,18 @@ interface IMemorySystem {
 - **步骤0 强制前置** — 命令文件不再包含 `pm_task_start` 调用指令
 - **`pm_task_start` tool** — 保留但降级为手动兜底（"系统通常会自动创建"）
 
+### 待重构功能（高优先级）
+
+- **上下文注入策略**：从三明治三层结构（Layer 1/2/3）重构为"前缀固定 + 尾部变量"两层结构
+  - 新增：`buildInjectionContext`、`buildStaticControlPrompt`、`buildStepDynamic`
+  - 移除：`buildInjectionLayers`、`buildGlobalOverview`、`buildCurrentStepDetail`、`buildLookaheadWindow`
+  - 改动：`InjectionPlan` 类型 → `InjectedContext` 类型（`staticPrefix` + `stepDynamic`）
+
 ### 未实现功能
 
-- 完整三步裁剪管道（tagMessagesByStep / assignDepthLevel）
-- StepTransition 时间线追踪
-- FlowMetrics 数据采集（recordStepEntry / recordStepExit ）
-- HiL 步骤注入差异化策略
+- HiL 步骤注入差异化策略（assignDepthLevel 中 HiL 深度 +1）
 - 注入内容过大时的优先级截断机制
+- **调试日志支持**：`debug.logFullRequest` 配置 → system.transform 末尾 logger.debug()
 
 ### 技术笔记
 
@@ -809,3 +767,66 @@ interface IMemorySystem {
 - Flow 解析器基于正则匹配 Markdown 结构
 - 注入指纹通过 MD5(flow:step:regulations) 计算
 - Command→Flow 映射缓存在内存中（`commandFlowCache`），session 创建时自动清空
+
+---
+
+## 调试支持
+
+### 设计动机
+
+上下文注入策略（全量 Flow 注入 + Regulation 条件注入）的正确性依赖开发者能观察到实际注入内容。为此，在 `system.transform` 注入完成后、LLM 调用之前，通过 `logger.debug()` 输出完整的请求上下文。
+
+### 配置
+
+在 `PluginConfig` 中新增 `debug` 字段：
+
+```typescript
+interface PluginConfig {
+  // ... 现有字段
+  debug?: {
+    /** 在 system.transform 末尾输出完整请求上下文（默认 false） */
+    logFullRequest?: boolean;
+  };
+}
+```
+
+`.vibe-pm.json` 配置示例：
+
+```jsonc
+{
+  "debug": {
+    "logFullRequest": true
+  }
+}
+```
+
+### 实现
+
+```typescript
+async injectContext(input, output): Promise<void> {
+  // ... 现有注入逻辑（组装 staticPrefix + stepDynamic）...
+
+  // 注入到 system prompt
+  output.system = [staticPrefix, stepDynamic, ...output.system];
+
+  // 调试日志：输出完整请求上下文
+  if (this.config.debug?.logFullRequest) {
+    logger.debug("=== vibe-pm LLM Request Context ===");
+    logger.debug(`Session: ${sessionId}`);
+    logger.debug(`Flow: ${task.flow}, Step: ${task.currentStep}`);
+    logger.debug("--- System Prompt ---");
+    logger.debug(output.system.join("\n"));
+    logger.debug("================================");
+  }
+}
+```
+
+### 日志输出位置
+
+日志通过 Plugin Core 的 `logger.debug()` 输出（`[vibe-pm]` 前缀）。用户在 OpenCode 调试控制台或日志文件中可查看完整注入内容，用于验证：
+
+- Constitution 是否完整注入
+- Flow 文档是否全量注入
+- 控制 Prompt（静态纪律）是否正确
+- 当前步骤状态是否准确
+- Regulation 是否按条件注入

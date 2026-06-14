@@ -1,7 +1,7 @@
 /**
  * Flow Engine — vibe-pm 核心业务层
  *
- * Flow 文档解析、三明治上下文注入、消息裁剪、步骤流转协调。
+ * Flow 文档解析、前缀固定 + 尾部变量上下文注入、消息裁剪、步骤流转协调。
  * 使用 @opencode-ai/plugin SDK 的 hook 类型。
  */
 
@@ -17,6 +17,7 @@ import type { Task } from "../memory/types.js";
 import type {
   FlowDefinition,
   StepDefinition,
+  InjectedContext,
   InjectionPlan,
   StepTaggedMessage,
   DepthAssignedMessage,
@@ -96,6 +97,8 @@ export class FlowEngine {
   private config: PluginConfig;
   /** 当前活跃的 session ID，由 onMessage 更新 */
   currentSessionId: string | null = null;
+  /** 待注入的 flow：command.execute.before 设置 → injectContext 消费 */
+  private pendingFlowInjects = new Map<string, string>();
 
   constructor(
     private memory: MemorySystem,
@@ -124,41 +127,52 @@ export class FlowEngine {
     if (!sessionId) return;
 
     const task = await this.memory.getActiveTask(sessionId);
-    if (!task) return;
+    if (!task) {
+      this.injectFlowFromPending(sessionId, output);
+      return;
+    }
 
     const flowDef = await this.parseFlow(task.flow);
     const currentStep = flowDef.steps.find((s) => s.id === task.currentStep);
     if (!currentStep) return;
 
-    // 注入指纹去重
+    // 注入指纹去重（仅步骤动态部分参与）
     const regNames = currentStep.regulations;
     if (!shouldInject(sessionId, task.flow, task.currentStep, regNames)) {
       return;
     }
 
-    // 读取 Constitution 和 Step 指定的 Regulation
+    // 读取固定前缀内容
     const constitution = this.readRegulation("constitution.md");
+    const flowRaw = await this.readFlowContent(task.flow);
     const regulations = this.readRegulations(regNames);
 
-    // 构建三明治注入
-    const plan = this.buildInjectionLayers(
+    // 构建前缀固定 + 尾部变量注入
+    const ctx = this.buildInjectionContext(
       flowDef,
       task,
-      currentStep,
       constitution,
+      flowRaw,
       regulations,
     );
 
-    // 注入到 system prompt（流程上下文前置，优先级高于系统默认行为）
+    // 前置注入到 system prompt：固定前缀 → 步骤动态 → 原始 system prompt
     const parts: string[] = [];
-    parts.push(plan.layer1, plan.layer2);
-    if (plan.layer3) {
-      parts.push(plan.layer3);
-    }
+    parts.push(ctx.staticPrefix, ctx.stepDynamic);
     if (output.system.length > 0) {
       parts.push(...output.system);
     }
     output.system = parts;
+
+    // 调试日志
+    if (this.config.debug?.logFullRequest) {
+      logger.debug("=== vibe-pm LLM Request Context ===");
+      logger.debug(`Session: ${sessionId}`);
+      logger.debug(`Flow: ${task.flow}, Step: ${task.currentStep}`);
+      logger.debug("--- System Prompt ---");
+      logger.debug(output.system.join("\n"));
+      logger.debug("================================");
+    }
   }
 
   async transformMessages(
@@ -168,14 +182,17 @@ export class FlowEngine {
     const sessionId = input.sessionID;
     if (!sessionId) return;
 
+    const messages = output.messages;
+    if (!Array.isArray(messages) || messages.length === 0) return;
+
+    // 注入 Flow 引用到用户消息中（用户级权威，非系统级建议）
+    this.injectFlowRefIntoUserMessage(sessionId, output);
+
     const task = await this.memory.getActiveTask(sessionId);
     if (!task) return;
 
     // 裁剪未启用
     if (!this.config.contextInjection.pruneIrrelevant) return;
-
-    const messages = output.messages;
-    if (!Array.isArray(messages) || messages.length === 0) return;
 
     const maxTokens = this.config.contextInjection.maxStepTokens;
     if (maxTokens <= 0) return; // 不限制
@@ -224,6 +241,21 @@ export class FlowEngine {
   }
 
   async readFlowContent(flowName: string): Promise<string> {
+    const flowDir = path.join(this.projectDir, "docs", "flow");
+    const candidates = [
+      path.join(flowDir, `${flowName}.md`),
+      path.join(flowDir, `[flow]${flowName}.md`),
+    ];
+
+    for (const c of candidates) {
+      if (fs.existsSync(c)) {
+        return fs.readFileSync(c, "utf-8");
+      }
+    }
+    throw new FlowNotFoundError(flowName);
+  }
+
+  private readFlowContentSync(flowName: string): string {
     const flowDir = path.join(this.projectDir, "docs", "flow");
     const candidates = [
       path.join(flowDir, `${flowName}.md`),
@@ -568,91 +600,65 @@ export class FlowEngine {
     return names.map((n) => this.readRegulation(n));
   }
 
-  private buildInjectionLayers(
+  private buildInjectionContext(
     flowDef: FlowDefinition,
     task: Task,
-    currentStep: StepDefinition,
     constitution: string,
+    flowRawContent: string,
     regulations: string[],
-  ): InjectionPlan {
-    // Layer 1: 全局视野
-    const layer1 = this.buildGlobalOverview(flowDef, constitution, task);
+  ): InjectedContext {
+    // 固定前缀（缓存稳定，整个流程中不变）
+    const staticPrefix = [
+      `<constitution>\n${constitution}\n</constitution>`,
+      `\n<flow-document flow="${task.flow}">\n${flowRawContent}\n</flow-document>`,
+      `\n<flow-control>\n${this.buildStaticControlPrompt()}\n</flow-control>`,
+    ].join("");
 
-    // Layer 2: 当前步骤详情
-    const layer2 = this.buildCurrentStepDetail(
-      currentStep,
-      task,
-      regulations,
+    // 步骤动态（尾部可变，步骤推进时更新）
+    const stepDynamic = this.buildStepDynamic(flowDef, task, regulations);
+
+    return { staticPrefix, stepDynamic, regulations };
+  }
+
+  private buildStaticControlPrompt(): string {
+    return [
+      "## ⚠️ FLOW MANDATE — OVERRIDES ALL OTHER BEHAVIORS",
+      "You are executing a predefined workflow. Step sequence is MANDATORY.",
+      "",
+      "**NEVER** skip ahead to code implementation before reaching the implementation step.",
+      "**NEVER** bypass Human-in-loop steps. They are MANDATORY gates.",
+      "**NEVER** skip from analysis/research directly to coding — follow the step sequence.",
+      "Use pm_task_set_step to advance ONLY after completing the current step.",
+      "Human-in-loop steps require question/confirm tools. Ask ONE question at a time.",
+      "The full Flow document above defines all steps. Follow it strictly.",
+    ].join("\n");
+  }
+
+  private buildStepDynamic(
+    flowDef: FlowDefinition,
+    task: Task,
+    regulations: string[],
+  ): string {
+    const parts: string[] = [];
+    const currentStep = flowDef.steps.find((s) => s.id === task.currentStep);
+
+    // 当前步骤状态
+    parts.push(
+      `\n<current-step id="${task.currentStep}" name="${task.currentStepName}">`,
     );
-
-    // Layer 3: 前瞻窗口（条件注入）
-    let layer3: string | null = null;
-    if (!currentStep.humanInLoop) {
-      const currentIdx = flowDef.steps.findIndex(
-        (s) => s.id === task.currentStep,
-      );
-      const lookaheadSteps: StepDefinition[] = [];
-      let lookahead = currentIdx + 1;
-      while (
-        lookahead < flowDef.steps.length &&
-        !flowDef.steps[lookahead].humanInLoop &&
-        lookaheadSteps.length < 2
-      ) {
-        lookaheadSteps.push(flowDef.steps[lookahead]);
-        lookahead++;
+    parts.push(`\n**当前步骤**: ${task.currentStep} — ${task.currentStepName}`);
+    if (currentStep) {
+      parts.push(`\n**目标**: ${currentStep.goal}`);
+      if (currentStep.humanInLoop) {
+        parts.push(
+          "\n⛔ **本步骤是 Human-in-loop！** 使用 question/confirm 工具。每次只问 1 个问题。",
+        );
       }
-      if (lookaheadSteps.length > 0) {
-        layer3 = this.buildLookaheadWindow(lookaheadSteps);
-      }
-    }
-
-    return { layer1, layer2, layer3 };
-  }
-
-  private buildGlobalOverview(
-    flowDef: FlowDefinition,
-    constitution: string,
-    task: Task,
-  ): string {
-    const parts: string[] = [];
-
-    parts.push(`<constitution>\n${constitution}\n</constitution>`);
-
-    if (flowDef.fsmDiagram) {
-      parts.push(
-        `\n<fsm-diagram flow="${task.flow}">\n${flowDef.fsmDiagram}\n</fsm-diagram>`,
-      );
-    }
-
-    parts.push("\n<step-overview>");
-    parts.push(`\n**当前步骤: ${task.currentStep} - ${task.currentStepName}**`);
-    for (const step of flowDef.steps) {
-      const isHiL = step.humanInLoop ? " ⚠️[需用户介入]" : "";
-      const shortGoal =
-        step.goal.length > 60 ? step.goal.slice(0, 60) + "..." : step.goal;
-      parts.push(`\n- ${step.id}: ${step.name} — ${shortGoal}${isHiL}`);
-    }
-    parts.push("\n</step-overview>");
-
-    return parts.join("");
-  }
-
-  private buildCurrentStepDetail(
-    step: StepDefinition,
-    task: Task,
-    regulations: string[],
-  ): string {
-    const parts: string[] = [];
-
-    parts.push(`\n<current-step id="${step.id}" name="${step.name}">`);
-    parts.push(`\n**目标**: ${step.goal}`);
-    parts.push(`\n**推荐 Agent**: ${step.agent}`);
-    parts.push("\n---");
-    for (const [i, instr] of step.instructions.entries()) {
-      parts.push(`\n${i + 1}. ${instr}`);
+      parts.push(`\n**完成后**: ${currentStep.onComplete}`);
     }
     parts.push("\n</current-step>");
 
+    // Task 状态
     parts.push("\n<task-state>");
     parts.push(`\n- Session ID: ${task.sessionId}`);
     parts.push(`\n- Flow: ${task.flow}`);
@@ -662,42 +668,11 @@ export class FlowEngine {
     if (task.planRef) parts.push(`\n- 计划文档: ${task.planRef}`);
     parts.push("\n</task-state>");
 
+    // Step 指定的 Regulation（条件注入）
     for (const reg of regulations) {
       parts.push(`\n<regulation>\n${reg}\n</regulation>`);
     }
 
-    parts.push("\n<fsm-instructions>");
-    parts.push("\n你正在执行 Flow 文档中定义的流程。");
-    parts.push(`\n- 当前处于 **Step ${task.currentStep}: ${step.name}**`);
-    if (step.humanInLoop) {
-      parts.push(
-        "\n- ⚠️⚠️⚠️ **本步骤需要用户介入！** 你必须使用 question / confirm 阻塞式工具向用户提问。每次只问 1 个问题，收到回复前不得继续。⚠️⚠️⚠️",
-      );
-    }
-    parts.push(`\n- ${step.onComplete}`);
-    parts.push("\n- 请严格按照 Flow 文档中的「完成后」描述推进步骤");
-    parts.push("\n- 非 Human-in-loop 步骤完成后自行判断并推进");
-    parts.push(
-      "\n- 当你要推进步骤时，使用 pm_task_set_step 工具或明确告知",
-    );
-    parts.push("\n</fsm-instructions>");
-
-    return parts.join("");
-  }
-
-  private buildLookaheadWindow(steps: StepDefinition[]): string {
-    const parts: string[] = [];
-    parts.push("\n<lookahead-window>");
-    parts.push("\n> 以下步骤可在本对话中连续执行（非 HiL）：");
-    for (const step of steps) {
-      parts.push(`\n\n### Step ${step.id}: ${step.name}`);
-      parts.push(`\n**目标**: ${step.goal}`);
-      for (const [i, instr] of step.instructions.entries()) {
-        parts.push(`\n${i + 1}. ${instr}`);
-      }
-      parts.push(`\n**完成后**: ${step.onComplete}`);
-    }
-    parts.push("\n</lookahead-window>");
     return parts.join("");
   }
 
@@ -770,6 +745,9 @@ export class FlowEngine {
       return null;
     }
 
+    // 无论任务创建是否成功，都记录 pending，确保 injectContext 能注入 flow 上下文
+    this.pendingFlowInjects.set(sessionId, flowName);
+
     const existing = await this.memory.getActiveTask(sessionId);
     if (existing) {
       logger.info(
@@ -800,6 +778,169 @@ export class FlowEngine {
 
   closeInactiveTask(sessionId: string): Promise<void> {
     return this.memory.closeTask(sessionId);
+  }
+
+  /**
+   * 将 flow 文档内容注入到 command.execute.before 的 output.parts 中。
+   * 这是对「system.transform 先于 command.execute.before 触发」的补偿：
+   * 首轮 LLM 调用时，system.transform 中的 injectContext 还拿不到任务和 pendingFlowInjects，
+   * 因此通过 command output parts 携带 flow 内容，确保 LLM 能获取流程上下文。
+   */
+  async injectFlowToCommandParts(
+    sessionId: string,
+    command: string,
+    output: { parts: unknown[] },
+  ): Promise<void> {
+    const flowName = this.resolveFlowFromCommand(command);
+    if (!flowName) return;
+
+    try {
+      const flowRaw = await this.readFlowContent(flowName);
+      if (!flowRaw) return;
+
+      output.parts.push({
+        type: "text",
+        text: `\n<flow-document flow="${flowName}">\n${flowRaw}\n</flow-document>`,
+      });
+    } catch {
+      // Flow 文档不存在或读取失败 → 不注入
+    }
+  }
+
+  private injectFlowFromPending(
+    sessionId: string,
+    output: SystemTransformOutput,
+  ): void {
+    const flowName = this.pendingFlowInjects.get(sessionId);
+    if (!flowName) return;
+
+    let flowDef: FlowDefinition;
+    let flowRaw: string;
+    try {
+      flowDef = this.parseFlowSync(flowName);
+      flowRaw = this.readFlowContentSync(flowName);
+    } catch {
+      this.pendingFlowInjects.delete(sessionId);
+      return;
+    }
+
+    const firstStep = flowDef.steps[0];
+    if (!firstStep) {
+      this.pendingFlowInjects.delete(sessionId);
+      return;
+    }
+
+    const constitution = this.readRegulation("constitution.md");
+
+    // 固定前缀：Constitution + Flow 全文 + 控制 Prompt（静态）
+    const staticPrefixParts: string[] = [];
+    staticPrefixParts.push(
+      `<constitution>\n${constitution}\n</constitution>`,
+    );
+    staticPrefixParts.push(
+      `\n<flow-document flow="${flowName}">\n${flowRaw}\n</flow-document>`,
+    );
+    staticPrefixParts.push(
+      `\n<flow-control>\n${this.buildStaticControlPrompt()}\n</flow-control>`,
+    );
+
+    // 步骤动态：前 N 步预览（默认 2 步）
+    const maxPreviewSteps = 2;
+    const previewSteps = flowDef.steps.slice(0, maxPreviewSteps);
+    const stepDynamicParts: string[] = [];
+
+    for (const step of previewSteps) {
+      stepDynamicParts.push(`\n<step id="${step.id}" name="${step.name}">`);
+      stepDynamicParts.push(`\n**目标**: ${step.goal}`);
+      stepDynamicParts.push(`\n**推荐 Agent**: ${step.agent}`);
+      stepDynamicParts.push("\n---");
+      for (const [i, instr] of step.instructions.entries()) {
+        stepDynamicParts.push(`\n${i + 1}. ${instr}`);
+      }
+      if (step.humanInLoop) {
+        stepDynamicParts.push(
+          "\n\n⚠️⚠️⚠️ **本步骤需要用户介入！** 你必须使用 question / confirm 阻塞式工具向用户提问。每次只问 1 个问题，收到回复前不得继续。⚠️⚠️⚠️",
+        );
+      }
+      stepDynamicParts.push(`\n**完成后**: ${step.onComplete}`);
+      stepDynamicParts.push(`\n</step>`);
+    }
+
+    stepDynamicParts.push("\n<step-reminder>");
+    stepDynamicParts.push("\n**当前步骤是 S1。严格按 Flow 文档中的步骤顺序执行。**");
+    stepDynamicParts.push(
+      "\nAdvance steps using pm_task_set_step only after completing the current step.",
+    );
+    stepDynamicParts.push("\n</step-reminder>");
+
+    // 前置注入到 system prompt：固定前缀 → 步骤动态 → 原始 system prompt
+    const parts: string[] = [];
+    parts.push(
+      staticPrefixParts.join(""),
+      stepDynamicParts.join(""),
+    );
+    if (output.system.length > 0) {
+      parts.push(...output.system);
+    }
+    output.system = parts;
+
+    // 不删除 pending，留给 transformMessages 中的 injectFlowRefIntoUserMessage 消费
+  }
+
+  /** parseFlow 的同步版本，用于 hook 中无需 await 的场景 */
+  private parseFlowSync(flowName: string): FlowDefinition {
+    const flowDir = path.join(this.projectDir, "docs", "flow");
+    const candidates = [
+      path.join(flowDir, `${flowName}.md`),
+      path.join(flowDir, `[flow]${flowName}.md`),
+    ];
+
+    let filePath = "";
+    for (const c of candidates) {
+      if (fs.existsSync(c)) {
+        filePath = c;
+        break;
+      }
+    }
+
+    if (!filePath) {
+      throw new FlowNotFoundError(flowName);
+    }
+
+    const raw = fs.readFileSync(filePath, "utf-8");
+    return this.parseFlowMarkdown(flowName, raw);
+  }
+
+  /**
+   * 在用户消息中附加 Flow 文件引用，使流程指令获得用户级权威性。
+   * LLM 对用户消息的遵循度远高于系统注入的上下文。
+   */
+  private injectFlowRefIntoUserMessage(
+    sessionId: string,
+    output: MessagesTransformOutput,
+  ): void {
+    const flowName = this.pendingFlowInjects.get(sessionId);
+    if (!flowName) return;
+
+    const flowPath = `docs/flow/[flow]${flowName}.md`;
+    const directive =
+      `\n\n---\n` +
+      `⚠️ 本次任务必须严格按照 \`${flowPath}\` 中定义的流程步骤执行。\n` +
+      `不得跳过任何步骤，特别是标记为 ⚠️ 的 Human-in-loop 步骤必须使用 question/confirm 工具与用户交互。`;
+
+    const messages = output.messages;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i] as { info?: { role?: string }; parts?: Array<{ type?: string; text?: string }> };
+      if (msg.info?.role === "user" && msg.parts?.length) {
+        const lastPart = msg.parts[msg.parts.length - 1];
+        if (lastPart.type === "text") {
+          lastPart.text = (lastPart.text ?? "") + directive;
+        }
+        break;
+      }
+    }
+
+    this.pendingFlowInjects.delete(sessionId);
   }
 
   // ═══════════════════════════════════════════
