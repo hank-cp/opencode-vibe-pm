@@ -58,9 +58,21 @@ export const VibePMPlugin: Plugin = async (
       registerCommands(opencodeConfig),
 
     // 可执行工具
-    tool: registerTools(pluginCtx),
+    tool: registerTools(pluginCtx, engine),
 
-    // 消息到达 → 检查任务状态
+    // 命令执行前 → 自动创建任务（Hook 驱动，替代 LLM Tool 调用）
+    "command.execute.before": async (input, _output) => {
+      const cmd = (input as { command?: string; sessionID?: string; arguments?: string });
+      if (cmd.sessionID && cmd.command) {
+        await engine.autoStartTaskFromCommand(
+          cmd.sessionID,
+          cmd.command,
+          cmd.arguments ?? "",
+        );
+      }
+    },
+
+    // 消息到达 → 记录当前 session
     "chat.message": async (input, _output) =>
       engine.onMessage(input),
 
@@ -75,12 +87,11 @@ export const VibePMPlugin: Plugin = async (
     // 生命周期事件
     event: async ({ event }) => {
       if (event.type === "session.created") {
-        // Stub: 记录会话创建
+        engine.clearCommandFlowCache();
       }
       if (event.type === "session.idle") {
-        await engine.onSessionIdle(
-          (event.properties?.sessionID as string) ?? "",
-        );
+        const sid = (event.properties?.sessionID as string) ?? "";
+        if (sid) await engine.closeInactiveTask(sid);
       }
     },
   };

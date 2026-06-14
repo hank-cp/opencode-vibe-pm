@@ -5,9 +5,36 @@
  * 关联 Spec: vibe-pm-plugin-core.md
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { Config, IPluginContext, ToolContext } from "../../src/core/types.js";
 import { registerCommands, registerTools } from "../../src/core/commands.js";
+
+// Mock FlowEngine for tool tests
+function createMockEngine(sessionId: string | null = null) {
+  return {
+    currentSessionId: sessionId,
+    startTask: vi.fn().mockResolvedValue({
+      sessionId: "test",
+      flow: "research",
+      currentStep: "S1",
+      currentStepName: "理解需求",
+      summary: "测试任务",
+      startAt: new Date().toISOString(),
+    }),
+    setStep: vi.fn().mockResolvedValue(undefined),
+    getCurrentStep: vi.fn().mockResolvedValue({ id: "S2", name: "设计方案" }),
+    clearInjectionFingerprint: vi.fn(),
+    closeTask: vi.fn().mockResolvedValue({
+      sessionId: "test",
+      flow: "research",
+      currentStep: "S3",
+      currentStepName: "测试步骤",
+      summary: "测试任务",
+      startAt: new Date().toISOString(),
+      closed: true,
+    }),
+  } as any;
+}
 
 describe("registerCommands", () => {
   let config: Config;
@@ -82,7 +109,8 @@ describe("registerTools", () => {
   };
 
   it("register_executable_tools: 注册 5 个可执行工具", () => {
-    const tools = registerTools(mockCtx);
+    const engine = createMockEngine();
+    const tools = registerTools(mockCtx, engine);
 
     const toolNames = Object.keys(tools);
     expect(toolNames).toHaveLength(5);
@@ -98,12 +126,75 @@ describe("registerTools", () => {
     expect(toolNames).not.toContain("pm_config");
   });
 
-  it("stub_tool_returns_message: stub 工具返回占位消息", async () => {
-    const tools = registerTools(mockCtx);
+  it("pm_task_start_creates_task: 任务创建返回成功消息", async () => {
+    const engine = createMockEngine("test");
+    const tools = registerTools(mockCtx, engine);
 
-    const result = await tools.pm_task_start.execute({}, mockToolCtx);
-    expect(result).toContain("[vibe-pm]");
-    expect(result).toContain("/pm-task-start");
-    expect(result).toContain("stub");
+    const result = await tools.pm_task_start.execute(
+      { flow: "research", summary: "测试摘要" },
+      mockToolCtx,
+    );
+    expect(result).toContain("[vibe-pm] ✅ 任务已手动创建");
+    expect(result).toContain("research");
+    expect(result).toContain("测试任务");
+    expect(engine.startTask).toHaveBeenCalledWith({
+      sessionId: "test",
+      flow: "research",
+      summary: "测试摘要",
+    });
+  });
+
+  it("pm_task_start_no_session: 无 session 时返回错误", async () => {
+    const engine = createMockEngine(null);
+    const tools = registerTools(mockCtx, engine);
+
+    const result = await tools.pm_task_start.execute(
+      { flow: "research", summary: "测试" },
+      mockToolCtx,
+    );
+    expect(result).toContain("错误");
+    expect(result).toContain("Session ID");
+  });
+
+  it("pm_task_set_step_jumps: 步骤跳转返回成功消息", async () => {
+    const engine = createMockEngine("test");
+    const tools = registerTools(mockCtx, engine);
+
+    const result = await tools.pm_task_set_step.execute(
+      { step: "S2" },
+      mockToolCtx,
+    );
+    expect(result).toContain("[vibe-pm] ✅ 已跳转到步骤");
+    expect(result).toContain("S2");
+    expect(engine.setStep).toHaveBeenCalledWith("test", "S2");
+  });
+
+  it("pm_task_refresh_clears_fingerprint: 刷新清除注入指纹", async () => {
+    const engine = createMockEngine("test");
+    const tools = registerTools(mockCtx, engine);
+
+    const result = await tools.pm_task_refresh.execute({}, mockToolCtx);
+    expect(result).toContain("[vibe-pm] ✅");
+    expect(result).toContain("注入指纹");
+    expect(engine.clearInjectionFingerprint).toHaveBeenCalledWith("test");
+  });
+
+  it("pm_task_close_closes_task: 关闭任务返回摘要", async () => {
+    const engine = createMockEngine("test");
+    const tools = registerTools(mockCtx, engine);
+
+    const result = await tools.pm_task_close.execute({}, mockToolCtx);
+    expect(result).toContain("[vibe-pm] ✅ 任务已关闭");
+    expect(result).toContain("research");
+    expect(engine.closeTask).toHaveBeenCalledWith("test");
+  });
+
+  it("pm_task_close_no_active_task: 无活跃任务时返回提示", async () => {
+    const engine = createMockEngine("test");
+    engine.closeTask = vi.fn().mockResolvedValue(null);
+    const tools = registerTools(mockCtx, engine);
+
+    const result = await tools.pm_task_close.execute({}, mockToolCtx);
+    expect(result).toContain("无需关闭");
   });
 });

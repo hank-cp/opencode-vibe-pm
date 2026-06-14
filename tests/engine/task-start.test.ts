@@ -103,4 +103,44 @@ describe("Task Start", () => {
     expect(updated!.currentStep).toBe("S3");
     expect(updated!.currentStepName).toContain("审查");
   });
+
+  it("resolve_flow_from_command: 命令解析为 flow 名", () => {
+    const flowName = engine.resolveFlowFromCommand("pm-test");
+    expect(flowName).toBe("test-flow");
+  });
+
+  it("resolve_unknown_command: 未知命令返回 null", () => {
+    expect(engine.resolveFlowFromCommand("pm-unknown")).toBeNull();
+  });
+
+  it("autostart_creates_task: 自动创建任务成功", async () => {
+    const stepId = await engine.autoStartTaskFromCommand(
+      "ses_auto",
+      "pm-test",
+      "自动创建测试任务",
+    );
+
+    expect(stepId).toBe("S1");
+
+    const task = await memory.getActiveTask("ses_auto");
+    expect(task).not.toBeNull();
+    expect(task!.flow).toBe("test-flow");
+    expect(task!.summary).toBe("自动创建测试任务");
+  });
+
+  it("autostart_skips_existing_task: 已有任务时跳过", async () => {
+    await engine.startTask({
+      sessionId: "ses_existing",
+      flow: "test-flow",
+      summary: "已存在的任务",
+    });
+
+    const result = await engine.autoStartTaskFromCommand(
+      "ses_existing",
+      "pm-test",
+      "不应创建",
+    );
+
+    expect(result).toBeNull();
+  });
 });

@@ -117,16 +117,15 @@ function generateCommandFile(
 
   parts.push("### 执行步骤\n");
   parts.push(
-    "0. **⚠️ 强制前置：调用 `pm_task_start` 工具创建任务。这是最高优先级操作——未成功创建任务前，禁止执行任何代码实现、文件编辑或其他工具操作。任务创建后，系统会自动注入 Flow 步骤指导。**",
+    "任务已由系统自动创建，Flow 步骤指导将在下一轮对话中自动注入。请：",
   );
   parts.push("1. 与用户确认任务目标和摘要");
   parts.push("2. 收集上述输入要求中列出的必填项");
-  parts.push(`3. 调用 \`/pm-task-start\` 启动任务（如步骤 0 未完成则补充调用）：`);
-  parts.push(`   - flow: \`${meta.id}\``);
-  parts.push("   - summary: 用户确认的任务摘要");
-  parts.push("   - specRef: 关联的 Spec 文档路径（如有）");
-  parts.push("   - planRef: 关联的 Plan 文档路径（如有）");
-  parts.push(`4. 按照 Flow 文档 \`${meta.id}\` 中定义的步骤逐步执行`);
+  parts.push(`3. 按照 Flow 文档 \`${meta.id}\` 中定义的步骤逐步执行`);
+  parts.push("");
+  parts.push(
+    "> 如果系统未能自动创建任务，使用 `/pm-task-start` 手动创建。",
+  );
 
   return parts.join("\n") + "\n";
 }

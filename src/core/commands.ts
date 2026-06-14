@@ -3,7 +3,7 @@
  *
  * 通过 config hook（声明式）和 tool hook（可执行）注册全部 8 个 /pm-* 命令。
  * 使用 @opencode-ai/plugin SDK 的 tool() 工厂函数。
- * 当前阶段：可执行命令为 stub 实现，返回占位提示。
+ * 可执行命令调用 FlowEngine 和 MemorySystem 实现真实业务逻辑。
  */
 
 import { tool } from "@opencode-ai/plugin";
@@ -14,6 +14,8 @@ import type {
   Config,
 } from "./types.js";
 import { scanTemplates, installTemplate } from "../template/index.js";
+import type { FlowEngine } from "../engine/index.js";
+import type { MemorySystem } from "../memory/index.js";
 
 // ─── 命令清单 ───
 
@@ -106,6 +108,7 @@ export function registerCommands(opencodeConfig: Config): void {
  */
 export function registerTools(
   ctx: IPluginContext,
+  engine: FlowEngine,
 ): Record<string, ToolDefinition> {
   const tools: Record<string, ToolDefinition> = {};
 
@@ -114,25 +117,143 @@ export function registerTools(
 
     if (cmd.name === "pm-install-flow") {
       tools.pm_install_flow = createInstallFlowTool(ctx);
-    } else {
-      tools[cmd.name.replace(/-/g, "_")] = createStubTool(cmd);
+    } else if (cmd.name === "pm-task-start") {
+      tools.pm_task_start = createTaskStartTool(engine);
+    } else if (cmd.name === "pm-task-set-step") {
+      tools.pm_task_set_step = createTaskSetStepTool(engine);
+    } else if (cmd.name === "pm-task-refresh") {
+      tools.pm_task_refresh = createTaskRefreshTool(engine);
+    } else if (cmd.name === "pm-task-close") {
+      tools.pm_task_close = createTaskCloseTool(engine);
     }
   }
 
   return tools;
 }
 
-// ─── Stub 工具实现 ───
+// ─── 真实工具实现 ───
 
-function createStubTool(cmd: CommandMeta): ToolDefinition {
+function createTaskStartTool(engine: FlowEngine): ToolDefinition {
   return tool({
-    description: cmd.description,
-    args: {},
+    description: "Start a new task under a flow",
+    args: {
+      flow: tool.schema.string().describe("流程名称"),
+      summary: tool.schema.string().describe("任务摘要（一句话描述任务目标）"),
+      specRef: tool.schema.string().optional().describe("关联的 Spec 文档路径"),
+      planRef: tool.schema.string().optional().describe("关联的 Plan 文档路径"),
+    } as any,
+    async execute(
+      args: { flow: string; summary: string; specRef?: string; planRef?: string },
+      _toolCtx: ToolContext,
+    ): Promise<string> {
+      const sessionId = engine.currentSessionId;
+      if (!sessionId) {
+        return "[vibe-pm] 错误：无法获取当前 Session ID。请在新对话中重试。";
+      }
+
+      try {
+        const task = await engine.startTask({
+          sessionId,
+          flow: args.flow,
+          summary: args.summary,
+          specRef: args.specRef,
+          planRef: args.planRef,
+        });
+
+        return [
+          `[vibe-pm] ✅ 任务已手动创建（系统通常会自动创建，此工具为兜底）`,
+          `- 流程: ${task.flow}`,
+          `- 当前步骤: ${task.currentStep} - ${task.currentStepName}`,
+          `- 摘要: ${task.summary}`,
+          `- 开始时间: ${task.startAt}`,
+        ].join("\n");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "未知错误";
+        return `[vibe-pm] ❌ 任务创建失败：${msg}`;
+      }
+    },
+  });
+}
+
+function createTaskSetStepTool(engine: FlowEngine): ToolDefinition {
+  return tool({
+    description: "Manually jump to a specific step",
+    args: {
+      step: tool.schema.string().describe("目标步骤 ID，如 S1、S2"),
+    } as any,
+    async execute(
+      args: { step: string },
+      _toolCtx: ToolContext,
+    ): Promise<string> {
+      const sessionId = engine.currentSessionId;
+      if (!sessionId) {
+        return "[vibe-pm] 错误：无法获取当前 Session ID。";
+      }
+
+      try {
+        await engine.setStep(sessionId, args.step);
+        const step = await engine.getCurrentStep(sessionId);
+        const stepInfo = step
+          ? `${step.id} - ${step.name}`
+          : args.step;
+        return `[vibe-pm] ✅ 已跳转到步骤 ${stepInfo}。`;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "未知错误";
+        return `[vibe-pm] ❌ 步骤跳转失败：${msg}`;
+      }
+    },
+  });
+}
+
+function createTaskRefreshTool(engine: FlowEngine): ToolDefinition {
+  return tool({
+    description: "Re-inject context for the current step",
+    args: {} as any,
     async execute(
       _args: Record<string, never>,
-      _ctx: ToolContext,
+      _toolCtx: ToolContext,
     ): Promise<string> {
-      return `[vibe-pm] /${cmd.name} - stub: 该命令尚未实现。`;
+      const sessionId = engine.currentSessionId;
+      if (!sessionId) {
+        return "[vibe-pm] 错误：无法获取当前 Session ID。";
+      }
+
+      engine.clearInjectionFingerprint(sessionId);
+      return "[vibe-pm] ✅ 已清除注入指纹，下次对话将重新注入当前步骤上下文。";
+    },
+  });
+}
+
+function createTaskCloseTool(engine: FlowEngine): ToolDefinition {
+  return tool({
+    description: "Close the current task and trigger analysis",
+    args: {} as any,
+    async execute(
+      _args: Record<string, never>,
+      _toolCtx: ToolContext,
+    ): Promise<string> {
+      const sessionId = engine.currentSessionId;
+      if (!sessionId) {
+        return "[vibe-pm] 错误：无法获取当前 Session ID。";
+      }
+
+      try {
+        const task = await engine.closeTask(sessionId);
+        if (!task) {
+          return "[vibe-pm] 当前无活跃任务，无需关闭。";
+        }
+
+        return [
+          `[vibe-pm] ✅ 任务已关闭`,
+          `- 流程: ${task.flow}`,
+          `- 最终步骤: ${task.currentStep} - ${task.currentStepName}`,
+          `- 摘要: ${task.summary}`,
+          `- 开始时间: ${task.startAt}`,
+        ].join("\n");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "未知错误";
+        return `[vibe-pm] ❌ 任务关闭失败：${msg}`;
+      }
     },
   });
 }

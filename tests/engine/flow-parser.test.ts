@@ -108,4 +108,19 @@ describe("Flow Parser", () => {
     expect(content).toContain("# Flow: test-flow");
     expect(content).toContain("stateDiagram-v2");
   });
+
+  it("parse_flow_with_prefix: [flow]前缀文件名可正确解析", async () => {
+    const srcFlow = path.join(process.cwd(), "docs", "flow", "test-flow.md");
+    const prefixedPath = path.join(tmpDir, "docs", "flow", "[flow]test-flow.md");
+    fs.copyFileSync(srcFlow, prefixedPath);
+
+    const flow = await engine.parseFlow("test-flow");
+    expect(flow.name).toBe("test-flow");
+
+    const flows = await engine.listFlows();
+    expect(flows).toContain("test-flow");
+
+    const content = await engine.readFlowContent("test-flow");
+    expect(content).toContain("# Flow: test-flow");
+  });
 });

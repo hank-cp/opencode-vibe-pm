@@ -20,6 +20,7 @@ import type {
   InjectionPlan,
   StepTaggedMessage,
   DepthAssignedMessage,
+  StepTransition,
   StartTaskParams,
 } from "./types.js";
 import {
@@ -61,6 +62,10 @@ function estimateTokens(text: string): number {
 
 const lastInjectedFingerprint = new Map<string, string>();
 
+// ─── 步骤转换时间线 ───
+
+const stepTransitions = new Map<string, StepTransition[]>();
+
 function computeFingerprint(
   flow: string,
   step: string,
@@ -89,6 +94,8 @@ function shouldInject(
 export class FlowEngine {
   private projectDir: string;
   private config: PluginConfig;
+  /** 当前活跃的 session ID，由 onMessage 更新 */
+  currentSessionId: string | null = null;
 
   constructor(
     private memory: MemorySystem,
@@ -106,9 +113,7 @@ export class FlowEngine {
   async onMessage(input: ChatMessageInput): Promise<void> {
     const sessionId = input.sessionID;
     if (!sessionId) return;
-
-    const task = await this.memory.getActiveTask(sessionId);
-    if (!task) return; // 无活跃任务 → 透传
+    this.currentSessionId = sessionId;
   }
 
   async injectContext(
@@ -119,10 +124,7 @@ export class FlowEngine {
     if (!sessionId) return;
 
     const task = await this.memory.getActiveTask(sessionId);
-    if (!task) {
-      this.injectFlowReminder(sessionId, output);
-      return;
-    }
+    if (!task) return;
 
     const flowDef = await this.parseFlow(task.flow);
     const currentStep = flowDef.steps.find((s) => s.id === task.currentStep);
@@ -182,9 +184,10 @@ export class FlowEngine {
     const currentTokens = estimateTokens(JSON.stringify(messages));
     if (currentTokens < maxTokens * 0.8) return;
 
-    // 消息裁剪
+    // 消息裁剪（传入 sessionId 用于步骤归属）
     const pruned = this.pruneMessages(
       messages as Array<{ role: string; content: string | null }>,
+      sessionId,
     );
     output.messages = pruned as MessagesTransformOutput["messages"];
   }
@@ -201,7 +204,7 @@ export class FlowEngine {
     const flowDir = path.join(this.projectDir, "docs", "flow");
     const candidates = [
       path.join(flowDir, `${flowName}.md`),
-      path.join(flowDir, `[flow]_${flowName}.md`),
+      path.join(flowDir, `[flow]${flowName}.md`),
     ];
 
     let filePath = "";
@@ -224,7 +227,7 @@ export class FlowEngine {
     const flowDir = path.join(this.projectDir, "docs", "flow");
     const candidates = [
       path.join(flowDir, `${flowName}.md`),
-      path.join(flowDir, `[flow]_${flowName}.md`),
+      path.join(flowDir, `[flow]${flowName}.md`),
     ];
 
     for (const c of candidates) {
@@ -242,7 +245,7 @@ export class FlowEngine {
     return fs
       .readdirSync(flowDir)
       .filter((f) => f.endsWith(".md"))
-      .map((f) => f.replace(/^\[flow\]_/, "").replace(/\.md$/, ""));
+      .map((f) => f.replace(/^\[flow\]/, "").replace(/\.md$/, ""));
   }
 
   // ═══════════════════════════════════════════
@@ -268,6 +271,19 @@ export class FlowEngine {
     if (!firstStep) {
       throw new FlowParseError(params.flow, "Flow has no steps defined");
     }
+
+    // 记录初始步骤转换
+    this.recordStepTransition(params.sessionId, firstStep.id, firstStep.name);
+
+    // 记录初始步骤进入指标
+    await this.memory.recordStepEntry(
+      params.sessionId,
+      params.flow,
+      firstStep.id,
+      firstStep.name,
+      0,
+      0,
+    );
 
     // 创建 Task
     try {
@@ -306,6 +322,27 @@ export class FlowEngine {
     const step = flowDef.steps.find((s) => s.id === stepId);
     if (!step) return;
 
+    const prevStep = task.currentStep;
+    const prevStepName = task.currentStepName;
+
+    // 记录步骤转换时间线
+    this.recordStepTransition(sessionId, stepId, step.name);
+
+    // 记录上一步的退出指标
+    if (prevStep !== stepId) {
+      await this.memory.recordStepExit(sessionId, prevStep, 0, 0);
+    }
+
+    // 记录新步骤进入指标
+    await this.memory.recordStepEntry(
+      sessionId,
+      task.flow,
+      stepId,
+      step.name,
+      0,
+      0,
+    );
+
     await this.memory.updateStep(sessionId, step.id, step.name);
   }
 
@@ -315,6 +352,36 @@ export class FlowEngine {
 
     const flowDef = await this.parseFlow(task.flow);
     return flowDef.steps.find((s) => s.id === task.currentStep) ?? null;
+  }
+
+  /** 清除指定 session 的注入指纹，强制下次重新注入 */
+  clearInjectionFingerprint(sessionId: string): void {
+    lastInjectedFingerprint.delete(sessionId);
+  }
+
+  /** 关闭当前任务并返回被关闭的 Task */
+  async closeTask(sessionId: string): Promise<Task | null> {
+    const task = await this.memory.getActiveTask(sessionId);
+    if (!task) return null;
+
+    await this.memory.closeTask(sessionId);
+    return { ...task, closed: true };
+  }
+
+  // ─── 步骤转换时间线 ───
+
+  private recordStepTransition(
+    sessionId: string,
+    stepId: string,
+    stepName: string,
+  ): void {
+    const transitions = stepTransitions.get(sessionId) ?? [];
+    transitions.push({
+      stepId,
+      stepName,
+      timestamp: Date.now(),
+    });
+    stepTransitions.set(sessionId, transitions);
   }
 
   // ═══════════════════════════════════════════
@@ -634,59 +701,224 @@ export class FlowEngine {
     return parts.join("");
   }
 
-  private injectFlowReminder(
+  // ═══════════════════════════════════════════
+  // 命令驱动的自动任务创建（Hook 驱动，非 Tool 驱动）
+  // ═══════════════════════════════════════════
+
+  private commandFlowCache: Map<string, string> | null = null;
+
+  /**
+   * 从已安装的 Flow 文档中扫描 Command → Flow 映射。
+   * 结果缓存在内存中，仅在插件的 Flow 文档发生变更时需 clear 缓存。
+   */
+  private buildCommandFlowMap(): Map<string, string> {
+    if (this.commandFlowCache) return this.commandFlowCache;
+
+    const map = new Map<string, string>();
+    const flowDir = path.join(this.projectDir, "docs", "flow");
+    if (!fs.existsSync(flowDir)) {
+      this.commandFlowCache = map;
+      return map;
+    }
+
+    for (const file of fs.readdirSync(flowDir)) {
+      if (!file.endsWith(".md")) continue;
+      try {
+        const raw = fs.readFileSync(path.join(flowDir, file), "utf-8");
+        const cmdMatch = raw.match(/\*\*Command\*\*:\s*`?(.+?)`?\s*$/m);
+        if (cmdMatch) {
+          const cmd = cmdMatch[1].trim().replace(/^\//, "");
+          const flowName = file.replace(/^\[flow\]/, "").replace(/\.md$/, "");
+          map.set(cmd, flowName);
+        }
+      } catch {
+        // 文件读取失败 → 跳过
+      }
+    }
+
+    this.commandFlowCache = map;
+    return map;
+  }
+
+  clearCommandFlowCache(): void {
+    this.commandFlowCache = null;
+  }
+
+  /**
+   * 根据 slash 命令名解析对应的 Flow 名称。
+   * 如 "pm-bug-fix" → "bug-fix"，"pm-new-feature" → "new-feature"。
+   */
+  resolveFlowFromCommand(command: string): string | null {
+    const map = this.buildCommandFlowMap();
+    return map.get(command) ?? null;
+  }
+
+  /**
+   * 当用户触发 /pm-* 命令时，自动创建任务（由 command.execute.before hook 调用）。
+   * 如果已有活跃任务则跳过（不报错，保持现有任务）。
+   */
+  async autoStartTaskFromCommand(
     sessionId: string,
-    output: SystemTransformOutput,
-  ): void {
-    if (!shouldInject(sessionId, "__global__", "__reminder__", [])) return;
+    command: string,
+    args: string,
+  ): Promise<string | null> {
+    const flowName = this.resolveFlowFromCommand(command);
+    if (!flowName) return null;
 
-    const reminder = `<flow-reminder>
-如果用户触发了 /pm-* 命令（如 /pm-new-feature、/pm-bug-fix、/pm-research、/pm-large-refactor 等），你必须按以下优先级执行：
+    const existing = await this.memory.getActiveTask(sessionId);
+    if (existing) return null;
 
-1. **最高优先级**：调用 \`pm_task_start\` 工具创建任务。
-   - 参数：flow（流程名）、summary（任务摘要）、specRef/planRef（如有）
-   - 未成功创建任务前，禁止执行代码实现、文件编辑或跳过流程
-2. 任务创建后，下一次消息时系统会自动注入当前步骤的详细指导（FSM 状态图、步骤指令、需引用的 Regulation、Human-in-loop 警告）
-3. 严格按照注入的步骤执行，不要跳过 Human-in-loop 步骤直接实现
+    try {
+      const task = await this.startTask({
+        sessionId,
+        flow: flowName,
+        summary: args || `${command} 任务`,
+        specRef: undefined,
+        planRef: undefined,
+      });
+      return task.currentStep;
+    } catch (err) {
+      logger.error(`autoStartTaskFromCommand failed for ${command}`, {
+        error: String(err),
+      });
+      return null;
+    }
+  }
 
-当前无活跃任务，如果你收到了 /pm-* 命令，先从步骤 0 开始。
-</flow-reminder>`;
-
-    output.system = [...output.system, reminder];
+  closeInactiveTask(sessionId: string): Promise<void> {
+    return this.memory.closeTask(sessionId);
   }
 
   // ═══════════════════════════════════════════
-  // 消息裁剪
+  // 消息裁剪 — 三步管道
   // ═══════════════════════════════════════════
 
   private pruneMessages(
     messages: Array<{ role: string; content: string | null }>,
+    sessionId?: string,
   ): Array<{ role: string; content: string | null }> {
     const maxTokens = this.config.contextInjection.maxStepTokens;
-
-    // 简化裁剪：从旧到新，保留最近消息
     const minRecent = 3;
-    const result = [...messages];
-    let totalTokens = estimateTokens(JSON.stringify(result));
 
-    // 从最旧的消息开始裁剪
-    for (let i = 0; i < result.length - minRecent; i++) {
-      if (totalTokens <= maxTokens) break;
+    // Step 1: 步骤归属分类
+    const tagged = this.tagMessagesByStep(messages, sessionId);
 
-      const oldTokens = estimateTokens(JSON.stringify(result[i]));
+    // Step 2: 深度层级分配
+    const depthAssigned = this.assignDepthLevel(tagged);
 
-      // 保留用户消息
-      if (result[i].role === "user") continue;
+    // Step 3: Token 约束执行
+    return this.pruneByDepth(depthAssigned, maxTokens, minRecent);
+  }
 
-      // 替换为占位符
-      result[i] = {
-        role: result[i].role,
-        content: "[前置步骤消息已裁剪]",
-      };
+  private tagMessagesByStep(
+    messages: Array<{ role: string; content: string | null }>,
+    sessionId?: string,
+  ): StepTaggedMessage[] {
+    const transitions = sessionId
+      ? stepTransitions.get(sessionId) ?? []
+      : [];
+    const currentStepId =
+      transitions.length > 0
+        ? transitions[transitions.length - 1].stepId
+        : "";
 
-      totalTokens = estimateTokens(JSON.stringify(result));
+    if (transitions.length === 0) {
+      return messages.map((msg) => ({
+        message: msg as { role: string; content: string | null; [key: string]: unknown },
+        stepId: currentStepId,
+        stepDistance: 0,
+      }));
     }
 
-    return result;
+    // 为每条消息分配所属步骤（按消息在数组中的位置近似分配）
+    // 实际使用时基于 stepTransition 时间戳更精确，此处用位置近似
+    const totalMsgs = messages.length;
+    const totalSteps = transitions.length;
+    const msgsPerStep = Math.max(1, Math.floor(totalMsgs / totalSteps));
+
+    return messages.map((msg, idx) => {
+      const stepIdx = Math.min(
+        Math.floor(idx / msgsPerStep),
+        totalSteps - 1,
+      );
+      const stepId = transitions[stepIdx].stepId;
+      const currentIdx = totalSteps - 1;
+      const stepDistance = currentIdx - stepIdx;
+
+      return {
+        message: msg as { role: string; content: string | null; [key: string]: unknown },
+        stepId,
+        stepDistance: Math.max(0, stepDistance),
+      };
+    });
+  }
+
+  private assignDepthLevel(
+    tagged: StepTaggedMessage[],
+  ): DepthAssignedMessage[] {
+    return tagged.map((msg) => {
+      let depth: number;
+      if (msg.stepDistance <= 0) depth = 0;
+      else if (msg.stepDistance === 1) depth = 1;
+      else if (msg.stepDistance === 2) depth = 2;
+      else depth = 3;
+
+      return { ...msg, depth };
+    });
+  }
+
+  private pruneByDepth(
+    messages: DepthAssignedMessage[],
+    maxTokens: number,
+    minRecent: number,
+  ): Array<{ role: string; content: string | null }> {
+    const PRUNE_PLACEHOLDER = "[前置步骤消息已裁剪]";
+    const result = [...messages];
+    let estimatedTokens = estimateTokens(
+      JSON.stringify(result.map((m) => m.message)),
+    );
+
+    // 从高深度到低深度执行裁剪
+    for (let depth = 3; depth >= 1; depth--) {
+      if (estimatedTokens <= maxTokens) break;
+
+      for (let i = 0; i < result.length - minRecent; i++) {
+        const msg = result[i];
+        if (msg.depth !== depth) continue;
+        if (estimatedTokens <= maxTokens) break;
+
+        // 保护：用户消息最大深度 2
+        if (msg.message.role === "user" && depth >= 3) continue;
+
+        if (depth === 3) {
+          result[i] = {
+            ...msg,
+            message: {
+              role: msg.message.role,
+              content: PRUNE_PLACEHOLDER,
+            },
+          };
+        } else if (depth === 2) {
+          // 深度 2：工具输出替换为占位符，保留用户内容
+          if (msg.message.role !== "user") {
+            result[i] = {
+              ...msg,
+              message: {
+                role: msg.message.role,
+                content: PRUNE_PLACEHOLDER,
+              },
+            };
+          }
+        } else if (depth === 1) {
+          // 深度 1：保留，不做裁剪
+        }
+
+        estimatedTokens = estimateTokens(
+          JSON.stringify(result.map((m) => m.message)),
+        );
+      }
+    }
+
+    return result.map((m) => m.message);
   }
 }

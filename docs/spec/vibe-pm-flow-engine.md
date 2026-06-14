@@ -3,7 +3,7 @@
 **创建日期**: 2026-06-11
 **状态**: Implemented
 **输入来源**: XMind 设计文档 + Plugin Core Spec + Memory System Spec + Spec 评估报告 + 消息裁剪算法调研
-**最后更新**: 2026-06-12 — Flow Engine 实现完成
+**最后更新**: 2026-06-14 — 任务创建从 Tool 驱动迁移到 Hook 驱动
 
 ---
 
@@ -27,7 +27,50 @@ Flow Engine 是 vibe-pm 的核心业务层。它负责：解析 Flow 文档 → 
 
 ### 关键路径
 
-#### `/pm-task-start` — 启动任务
+#### 任务创建：Hook 驱动（自动）
+
+任务创建**不再依赖 LLM 调用 tool**——改由 `command.execute.before` hook 自动执行。
+
+```mermaid
+sequenceDiagram
+    participant User as 用户
+    participant OC as OpenCode
+    participant Hook as command.execute.before
+    participant FE as Flow Engine
+    participant Mem as Memory System
+    participant LLM as LLM
+
+    User->>OC: /pm-bug-fix "修复重启提示"
+    OC->>Hook: command="pm-bug-fix", arguments="修复重启提示"
+    Hook->>FE: autoStartTaskFromCommand(sessionId, command, args)
+    FE->>FE: resolveFlowFromCommand("pm-bug-fix") → "bug-fix"
+    FE->>Mem: getActiveTask(sessionId)
+
+    alt 已有活跃任务
+        Mem-->>FE: Task exists
+        FE-->>Hook: 跳过（保持现有任务）
+    else 无活跃任务
+        FE->>Mem: createTask({flow: "bug-fix", summary: "修复重启提示"})
+        Mem-->>FE: Task created (S1)
+        FE-->>Hook: ✅
+    end
+
+    Note over OC,LLM: === 后续处理 ===
+    OC->>LLM: 注入命令文件指令 + system prompt
+    Note right of LLM: 任务已由 Hook 自动创建<br/>LLM 无需调 pm_task_start
+
+    OC->>FE: system.transform → injectContext()
+    FE->>Mem: getActiveTask(sessionId) → Task found
+    FE->>FS: 读取 Flow 文档 + Constitution + Regulation
+    FE-->>OC: 注入三明治上下文 (Layer 1+2+3)
+    OC->>LLM: 含 Flow 步骤指导的上下文
+```
+
+**设计原理**：将任务创建从"LLM 主动调用 tool"改为"Hook 被动触发"，消除了 LLM 跳过调用的失败模式。`pm_task_start` tool 保留作为手动兜底。
+
+#### `/pm-task-start` — 手动兜底（已降级）
+
+当 Hook 未能自动创建任务时（如直接通过非命令方式启动），LLM 仍可通过 `pm_task_start` tool 手动创建。
 
 ```mermaid
 sequenceDiagram
@@ -40,53 +83,58 @@ sequenceDiagram
     
     alt 已有活跃任务
         Mem-->>Core: Task { flow, currentStep, summary }
-        Core-->>User: ❌ 错误: 当前 Session 已有活跃任务<br/>- 流程: {flow}<br/>- 当前步骤: {currentStep}<br/>- 摘要: {summary}<br/>请先 /pm-task-close 关闭当前任务
+        Core-->>User: ❌ 错误: 当前 Session 已有活跃任务
     else 无活跃任务
         Core->>Mem: createTask(newTask)
         Mem-->>Core: Task created
-        Core-->>User: ✅ 任务已创建，开始执行 S1
+        Core-->>User: ✅ 任务已手动创建（兜底）
     end
 ```
 
-#### 一次对话的完整处理
+#### 一次对话的完整处理（Hook 驱动架构）
 
 ```mermaid
 sequenceDiagram
+    participant User as 用户
     participant OC as OpenCode
+    participant CmdHook as command.execute.before
     participant FE as Flow Engine
     participant Mem as Memory System
     participant FS as File System
     participant LLM as LLM
 
+    User->>OC: /pm-bug-fix "修复 XX Bug"
+
+    Note over OC,FE: === command.execute.before 阶段（首次对话） ===
+    OC->>CmdHook: command="pm-bug-fix", arguments="修复 XX Bug"
+    CmdHook->>FE: autoStartTaskFromCommand(sessionId, command, args)
+    FE->>FE: resolveFlowFromCommand → "bug-fix"
+    FE->>Mem: createTask({flow: "bug-fix", ...})
+    Mem-->>FE: Task created (S1)
+
     Note over OC,LLM: === chat.message 阶段 ===
     OC->>FE: onMessage(sessionID)
-    FE->>Mem: getActiveTask(sessionID)
-    
-    alt 无活跃任务
-        FE-->>OC: 透传，不干预
-    else 有活跃任务
-        Note over OC,LLM: === system.transform 阶段 ===
-        OC->>FE: injectContext(sessionID)
-        FE->>FS: 读取 Flow 文档
-        FS-->>FE: Flow Markdown（含 FSM 状态图 + 全部步骤）
-        FE->>FS: 读取 Constitution
-        FE->>FS: 读取 Step 指定的 Regulation
-        FE->>Mem: 读取 Task 状态
-        Mem-->>FE: Task { currentStep, flow, summary, ... }
-        FE->>FE: 组装完整上下文注入包
-        FE-->>OC: 注入: 三明治上下文（Layer 1 全局视野 + Layer 2 当前步骤 + Layer 3 前瞻窗口）
+    FE->>FE: 设置 currentSessionId
 
-        Note over OC,LLM: === messages.transform 阶段 ===
-        OC->>FE: transformMessages(messages)
-        FE->>FE: 标识当前步骤相关消息
-        FE->>FE: 无关消息替换为占位符
-        FE-->>OC: 裁剪后的消息列表
+    Note over OC,LLM: === system.transform 阶段 ===
+    OC->>FE: injectContext(sessionID)
+    FE->>Mem: getActiveTask(sessionID) → Task found
+    FE->>FS: 读取 Flow 文档 /docs/flow/[flow]bug-fix.md
+    FS-->>FE: Flow Markdown（含 FSM 状态图 + 全部步骤）
+    FE->>FS: 读取 Constitution + Step 指定的 Regulation
+    FE->>Mem: 读取 Task 状态
+    FE->>FE: 组装三明治上下文（Layer 1+2+3）
+    FE-->>OC: 注入到 system prompt
 
-        Note over OC,LLM: === LLM 自主判断流转 ===
-        OC-->>LLM: 含三明治注入上下文（Layer 1+2+3）
-        LLM->>LLM: 根据 FSM 状态图和当前状态<br/>自主判断是否推进
-        LLM-->>Mem: 通过 tool 或自然语言<br/>更新 currentStep
-    end
+    Note over OC,LLM: === messages.transform 阶段 ===
+    OC->>FE: transformMessages(messages)
+    FE->>FE: 惰性裁剪（> 80% 阈值时）
+    FE-->>OC: 裁剪后的消息列表
+
+    Note over OC,LLM: === LLM 自主判断流转 ===
+    OC-->>LLM: 含三明治注入（Layer 1+2+3）+ 命令指令
+    LLM->>LLM: 根据 FSM 状态图和当前状态自主判断
+    LLM-->>Mem: 通过 pm_task_set_step tool 更新 currentStep
 ```
 
 ### 上下文注入（核心）
@@ -527,7 +575,15 @@ interface IFlowEngine {
   readFlowContent(flowName: string): Promise<string>;  // 返回原始 MD
   listFlows(): Promise<string[]>;
 
-  // --- 任务操作 ---
+  // --- 命令→Flow 映射 ---
+  resolveFlowFromCommand(command: string): string | null;
+  buildCommandFlowMap(): Map<string, string>;  // 从安装的 Flow 文档扫描
+
+  // --- 任务操作（Hook 驱动） ---
+  autoStartTaskFromCommand(sessionId: string, command: string, args: string): Promise<string | null>;
+  closeInactiveTask(sessionId: string): Promise<void>;
+
+  // --- 任务操作（Tool 手动兜底） ---
   startTask(params: {
     sessionId: string;
     flow: string;
@@ -716,9 +772,18 @@ interface IMemorySystem {
 - 三明治上下文注入（Layer 1 全局视野 + Layer 2 当前步骤 + Layer 3 前瞻窗口）
 - 注入指纹去重（同一步骤内跳过重复注入）
 - 消息裁剪（tiktoken 估算 + 惰性策略 + 保护机制）
-- 任务启动/步骤跳转（含重复任务检查）
+- **Hook 驱动的自动任务创建**（`command.execute.before` → `autoStartTaskFromCommand`，替代 LLM Tool 调用）
+- **Command→Flow 映射**（`buildCommandFlowMap` / `resolveFlowFromCommand`，从安装的 Flow 文档自动扫描）
+- 任务启动/步骤跳转（含重复任务检查，`pm_task_start` tool 降级为手动兜底）
 - Flow 文档发现（listFlows / readFlowContent）
-- Plugin Core stub FlowEngine 已替换
+- Session idle 自动关闭任务（`closeInactiveTask`）
+- `[flow]` 前缀文件名支持（与 `installTemplate` 命名一致）
+
+### 已移除/降级功能
+
+- **`injectFlowReminder`** — 不再需要，任务创建已由 Hook 自动执行
+- **步骤0 强制前置** — 命令文件不再包含 `pm_task_start` 调用指令
+- **`pm_task_start` tool** — 保留但降级为手动兜底（"系统通常会自动创建"）
 
 ### 未实现功能
 
@@ -733,3 +798,4 @@ interface IMemorySystem {
 - Token 估算使用 tiktoken cl100k_base 编码
 - Flow 解析器基于正则匹配 Markdown 结构
 - 注入指纹通过 MD5(flow:step:regulations) 计算
+- Command→Flow 映射缓存在内存中（`commandFlowCache`），session 创建时自动清空

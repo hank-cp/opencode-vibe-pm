@@ -133,8 +133,8 @@ describe("Command File Generation", () => {
     expect(content).toContain("用于测试命令文件生成的场景");
     expect(content).toContain("## 任务启动");
     expect(content).toContain("`/pm-test-cmd`");
-    expect(content).toContain("/pm-task-start");
-    expect(content).toContain("flow: `test-cmd`");
+    expect(content).toContain("任务已由系统自动创建");
+    expect(content).toContain("按照 Flow 文档 `test-cmd` 中定义的步骤逐步执行");
     expect(content).toContain("### 输入要求");
     expect(content).toContain("Spec 文档");
   });
@@ -222,9 +222,8 @@ describe("Command File Generation", () => {
     // 执行步骤
     expect(content).toContain("### 执行步骤");
     const stepContent = content.split("### 执行步骤")[1];
-    expect(stepContent).toContain("/pm-task-start");
-    expect(stepContent).toContain("flow: `struct-test`");
-    expect(stepContent).toContain("specRef");
-    expect(stepContent).toContain("planRef");
+    expect(stepContent).toContain("任务已由系统自动创建");
+    expect(stepContent).toContain("按照 Flow 文档 `struct-test`");
+    expect(stepContent).toContain("与用户确认任务目标和摘要");
   });
 });
