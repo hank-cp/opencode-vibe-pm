@@ -53,12 +53,6 @@ const COMMANDS: CommandMeta[] = [
     executable: true,
   },
   {
-    name: "pm-task-set-step",
-    description: "手动跳转到指定步骤",
-    template: "Manually jump to a specific step",
-    executable: true,
-  },
-  {
     name: "pm-task-refresh",
     description: "为当前步骤重新注入上下文",
     template: "Re-inject context for the current step",
@@ -115,13 +109,11 @@ export function registerTools(
   for (const cmd of COMMANDS) {
     if (!cmd.executable) continue;
 
-    if (cmd.name === "pm-install-flow") {
-      tools.pm_install_flow = createInstallFlowTool(ctx);
-    } else if (cmd.name === "pm-task-start") {
-      tools.pm_task_start = createTaskStartTool(engine);
-    } else if (cmd.name === "pm-task-set-step") {
-      tools.pm_task_set_step = createTaskSetStepTool(engine);
-    } else if (cmd.name === "pm-task-refresh") {
+      if (cmd.name === "pm-install-flow") {
+        tools.pm_install_flow = createInstallFlowTool(ctx);
+      } else if (cmd.name === "pm-task-start") {
+        tools.pm_task_start = createTaskStartTool(engine);
+      } else if (cmd.name === "pm-task-refresh") {
       tools.pm_task_refresh = createTaskRefreshTool(engine);
     } else if (cmd.name === "pm-task-close") {
       tools.pm_task_close = createTaskCloseTool(engine);
@@ -144,9 +136,9 @@ function createTaskStartTool(engine: FlowEngine): ToolDefinition {
     } as any,
     async execute(
       args: { flow: string; summary: string; specRef?: string; planRef?: string },
-      _toolCtx: ToolContext,
+      toolCtx: ToolContext,
     ): Promise<string> {
-      const sessionId = engine.currentSessionId;
+      const sessionId = toolCtx.sessionID;
       if (!sessionId) {
         return "[vibe-pm] 错误：无法获取当前 Session ID。请在新对话中重试。";
       }
@@ -175,54 +167,24 @@ function createTaskStartTool(engine: FlowEngine): ToolDefinition {
   });
 }
 
-function createTaskSetStepTool(engine: FlowEngine): ToolDefinition {
-  return tool({
-    description: "Manually jump to a specific step",
-    args: {
-      step: tool.schema.string().describe("目标步骤 ID，如 S1、S2"),
-    } as any,
-    async execute(
-      args: { step: string },
-      _toolCtx: ToolContext,
-    ): Promise<string> {
-      const sessionId = engine.currentSessionId;
-      if (!sessionId) {
-        return "[vibe-pm] 错误：无法获取当前 Session ID。";
-      }
-
-      try {
-        await engine.setStep(sessionId, args.step);
-        const step = await engine.getCurrentStep(sessionId);
-        const stepInfo = step
-          ? `${step.id} - ${step.name}`
-          : args.step;
-        return `[vibe-pm] ✅ 已跳转到步骤 ${stepInfo}。`;
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "未知错误";
-        return `[vibe-pm] ❌ 步骤跳转失败：${msg}`;
-      }
-    },
-  });
-}
-
 function createTaskRefreshTool(engine: FlowEngine): ToolDefinition {
   return tool({
     description: "Re-inject context for the current step",
     args: {} as any,
     async execute(
       _args: Record<string, never>,
-      _toolCtx: ToolContext,
+      toolCtx: ToolContext,
     ): Promise<string> {
-      const sessionId = engine.currentSessionId;
+      const sessionId = toolCtx.sessionID;
       if (!sessionId) {
         return "[vibe-pm] 错误：无法获取当前 Session ID。";
       }
 
-      engine.clearInjectionFingerprint(sessionId);
-      return "[vibe-pm] ✅ 已清除注入指纹，下次对话将重新注入当前步骤上下文。";
+      engine.clearSessionInject(sessionId);
+      return "[vibe-pm] ✅ 已清除注入记录，下次对话将重新注入流程上下文。";
     },
   });
-}
+}4
 
 function createTaskCloseTool(engine: FlowEngine): ToolDefinition {
   return tool({
@@ -230,9 +192,9 @@ function createTaskCloseTool(engine: FlowEngine): ToolDefinition {
     args: {} as any,
     async execute(
       _args: Record<string, never>,
-      _toolCtx: ToolContext,
+      toolCtx: ToolContext,
     ): Promise<string> {
-      const sessionId = engine.currentSessionId;
+      const sessionId = toolCtx.sessionID;
       if (!sessionId) {
         return "[vibe-pm] 错误：无法获取当前 Session ID。";
       }

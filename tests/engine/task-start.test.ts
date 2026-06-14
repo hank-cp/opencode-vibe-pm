@@ -90,21 +90,7 @@ describe("Task Start", () => {
     ).rejects.toThrow(FlowNotFoundError);
   });
 
-  it("setStep_jumps_to_step: 手动跳转步骤", async () => {
-    const task = await engine.startTask({
-      sessionId: "ses_jump",
-      flow: "test-flow",
-      summary: "跳转测试",
-    });
-
-    await engine.setStep("ses_jump", "S3");
-
-    const updated = await memory.getTask("ses_jump");
-    expect(updated!.currentStep).toBe("S3");
-    expect(updated!.currentStepName).toContain("审查");
-  });
-
-  it("resolve_flow_from_command: 命令解析为 flow 名", () => {
+  it("resolve_flow_from_command: 命令解析为 flow 名", async () => {
     const flowName = engine.resolveFlowFromCommand("pm-test");
     expect(flowName).toBe("test-flow");
   });

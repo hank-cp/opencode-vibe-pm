@@ -21,9 +21,8 @@ function createMockEngine(sessionId: string | null = null) {
       summary: "测试任务",
       startAt: new Date().toISOString(),
     }),
-    setStep: vi.fn().mockResolvedValue(undefined),
     getCurrentStep: vi.fn().mockResolvedValue({ id: "S2", name: "设计方案" }),
-    clearInjectionFingerprint: vi.fn(),
+    clearSessionInject: vi.fn(),
     closeTask: vi.fn().mockResolvedValue({
       sessionId: "test",
       flow: "research",
@@ -43,18 +42,17 @@ describe("registerCommands", () => {
     config = {} as Config;
   });
 
-  it("register_all_commands: 注册全部 8 个 /pm-* 命令", () => {
+  it("register_all_commands: 注册全部 7 个 /pm-* 命令", () => {
     registerCommands(config);
 
     const cmd = config.command as Record<string, { template: string; description?: string; agent?: string }> | undefined;
     expect(cmd).toBeDefined();
     const names = Object.keys(cmd!);
-    expect(names).toHaveLength(8);
+    expect(names).toHaveLength(7);
     expect(names).toContain("pm-install-flow");
     expect(names).toContain("pm-uninstall-flow");
     expect(names).toContain("pm-refine-flow");
     expect(names).toContain("pm-task-start");
-    expect(names).toContain("pm-task-set-step");
     expect(names).toContain("pm-task-refresh");
     expect(names).toContain("pm-task-close");
     expect(names).toContain("pm-config");
@@ -81,7 +79,7 @@ describe("registerCommands", () => {
     const cmd = config.command as Record<string, { template: string; description?: string; agent?: string }> | undefined;
     // 后者覆盖，不抛异常
     expect(cmd!["pm-task-start"].template).not.toBe("old template");
-    expect(Object.keys(cmd!)).toHaveLength(8);
+    expect(Object.keys(cmd!)).toHaveLength(7);
   });
 });
 
@@ -108,15 +106,14 @@ describe("registerTools", () => {
     ask: async () => {},
   };
 
-  it("register_executable_tools: 注册 5 个可执行工具", () => {
+  it("register_executable_tools: 注册 4 个可执行工具", () => {
     const engine = createMockEngine();
     const tools = registerTools(mockCtx, engine);
 
     const toolNames = Object.keys(tools);
-    expect(toolNames).toHaveLength(5);
+    expect(toolNames).toHaveLength(4);
     expect(toolNames).toContain("pm_install_flow");
     expect(toolNames).toContain("pm_task_start");
-    expect(toolNames).toContain("pm_task_set_step");
     expect(toolNames).toContain("pm_task_refresh");
     expect(toolNames).toContain("pm_task_close");
 
@@ -144,39 +141,27 @@ describe("registerTools", () => {
     });
   });
 
-  it("pm_task_start_no_session: 无 session 时返回错误", async () => {
-    const engine = createMockEngine(null);
+  it("pm_task_start_no_session: toolCtx 无 sessionID 时返回错误", async () => {
+    const engine = createMockEngine("test");
     const tools = registerTools(mockCtx, engine);
+    const noSessionCtx: ToolContext = { ...mockToolCtx, sessionID: "" };
 
     const result = await tools.pm_task_start.execute(
       { flow: "research", summary: "测试" },
-      mockToolCtx,
+      noSessionCtx,
     );
     expect(result).toContain("错误");
     expect(result).toContain("Session ID");
   });
 
-  it("pm_task_set_step_jumps: 步骤跳转返回成功消息", async () => {
-    const engine = createMockEngine("test");
-    const tools = registerTools(mockCtx, engine);
-
-    const result = await tools.pm_task_set_step.execute(
-      { step: "S2" },
-      mockToolCtx,
-    );
-    expect(result).toContain("[vibe-pm] ✅ 已跳转到步骤");
-    expect(result).toContain("S2");
-    expect(engine.setStep).toHaveBeenCalledWith("test", "S2");
-  });
-
-  it("pm_task_refresh_clears_fingerprint: 刷新清除注入指纹", async () => {
+  it("pm_task_refresh_clears_session: 刷新清除注入记录", async () => {
     const engine = createMockEngine("test");
     const tools = registerTools(mockCtx, engine);
 
     const result = await tools.pm_task_refresh.execute({}, mockToolCtx);
     expect(result).toContain("[vibe-pm] ✅");
-    expect(result).toContain("注入指纹");
-    expect(engine.clearInjectionFingerprint).toHaveBeenCalledWith("test");
+    expect(result).toContain("注入记录");
+    expect(engine.clearSessionInject).toHaveBeenCalledWith("test");
   });
 
   it("pm_task_close_closes_task: 关闭任务返回摘要", async () => {

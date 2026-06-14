@@ -159,19 +159,42 @@ export class MemorySystem implements IMemorySystem {
     step: string,
     stepName: string,
   ): Promise<void> {
-    await this.tasks
+    const result = await this.tasks
       .update({ sessionId, closed: false })
       .UpdateOne({
         currentStep: step,
         currentStepName: stepName,
       });
+
+    if ((result as AxioResult).statusCode !== 200) {
+      throw new Error(
+        `Failed to update step for session ${sessionId}: ${(result as AxioResult).message ?? "unknown error"}`,
+      );
+    }
   }
 
-  /** 关闭活跃任务（设置 closed = true）。 */
+  /** 关闭活跃任务（设置 closed = true）。若无活跃任务则静默跳过。 */
   async closeTask(sessionId: string): Promise<void> {
-    await this.tasks
-      .update({ sessionId, closed: false })
-      .UpdateOne({ closed: true });
+    try {
+      const result = await this.tasks
+        .update({ sessionId, closed: false })
+        .UpdateOne({ closed: true });
+
+      const status = (result as AxioResult).statusCode;
+      if (status !== 200) {
+        // 无匹配文档（已关闭或不存在）→ 不做任何事
+        const msg = (result as AxioResult).message ?? "";
+        if (msg.includes("No data found")) return;
+        throw new Error(
+          `Failed to close task for session ${sessionId}: ${msg || "unknown error"}`,
+        );
+      }
+    } catch (err) {
+      // closeTask 是 best-effort；调用方（如 session.idle）不应因关闭失败而中断
+      if (err instanceof Error && !err.message.startsWith("Failed to close")) {
+        throw err;
+      }
+    }
   }
 
   /** 查询所有未关闭的任务。 */

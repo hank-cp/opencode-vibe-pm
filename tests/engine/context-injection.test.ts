@@ -1,5 +1,5 @@
 /**
- * 上下文注入测试
+ * 上下文注入测试（简化版：Session 级一次性注入）
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
@@ -52,7 +52,7 @@ describe("Context Injection", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("inject_prefix_fixed_with_step_dynamic: 含固定前缀 + 步骤动态", async () => {
+  it("inject_session_level_context: 活跃任务时注入 session 级别上下文", async () => {
     await engine.startTask({
       sessionId: "ses_ci1",
       flow: "test-flow",
@@ -65,16 +65,15 @@ describe("Context Injection", () => {
     await engine.injectContext(input, output);
 
     const fullSystem = output.system.join("\n");
-    // 固定前缀：Constitution + Flow 全文 + 控制 Prompt
     expect(fullSystem).toContain("<constitution>");
     expect(fullSystem).toContain("<flow-document");
     expect(fullSystem).toContain("<flow-control>");
-    // 步骤动态：当前步骤 + Task 状态
-    expect(fullSystem).toContain("<current-step");
     expect(fullSystem).toContain("<task-state>");
+    // 不再有步骤动态内容
+    expect(fullSystem).not.toContain("<current-step");
   });
 
-  it("inject_full_flow_document: Flow 文档全量注入包含所有步骤", async () => {
+  it("inject_full_flow_document: Flow 文档全文注入包含所有步骤", async () => {
     await engine.startTask({
       sessionId: "ses_full",
       flow: "test-flow",
@@ -86,18 +85,16 @@ describe("Context Injection", () => {
 
     await engine.injectContext(input, output);
 
-    // Flow 文档全文注入 → 应包含所有步骤名称
     const fullSystem = output.system.join("\n");
     expect(fullSystem).toContain("S1: 理解需求");
     expect(fullSystem).toContain("S2: 设计方案");
     expect(fullSystem).toContain("S3:");
     expect(fullSystem).toContain("S4: 实现");
-    // 同时包含 Mermaid FSM 图（在完整 Flow 文档内）
     expect(fullSystem).toContain("stateDiagram");
   });
 
   it("no_inject_without_task_or_pending: 无活跃任务且无 pending 时不修改输出", async () => {
-    const input = { sessionID: "ses_noop" };
+    const input = { sessionID: "ses_noop2" };
     const output = { system: ["original"] };
 
     await engine.injectContext(input, output);
@@ -106,26 +103,19 @@ describe("Context Injection", () => {
   });
 
   it("inject_from_pending_without_task: 无任务但有 pending flow 时注入上下文", async () => {
-    const sessionId = "ses_pending";
-    // 模拟 command.execute.before 设置了 pending
+    const sessionId = "ses_pending2";
     (engine as any).pendingFlowInjects.set(sessionId, "test-flow");
 
     const output = { system: ["original"] };
     await engine.injectContext({ sessionID: sessionId }, output);
 
-    // 应有注入内容（前缀固定 + 步骤动态）
     const fullSystem = output.system.join("\n");
     expect(fullSystem).toContain("<constitution>");
     expect(fullSystem).toContain("<flow-document");
     expect(fullSystem).toContain("<flow-control>");
-    expect(fullSystem).toContain("S1");
-    expect(fullSystem).toContain("<step-reminder>");
 
-    // pending 不会在 injectContext 中消费，留给 transformMessages 处理
-    expect((engine as any).pendingFlowInjects.has(sessionId)).toBe(true);
-
-    // 手动清理
-    (engine as any).pendingFlowInjects.delete(sessionId);
+    // pending 在 injectFlowFromPending 末尾被清理
+    expect((engine as any).pendingFlowInjects.has(sessionId)).toBe(false);
   });
 
   it("no_inject_without_session: 无 sessionID 不注入", async () => {
@@ -137,61 +127,45 @@ describe("Context Injection", () => {
     expect(output.system).toEqual(["original"]);
   });
 
-  it("inject_regulation_conditional: Regulation 按条件注入", async () => {
-    // S1 (理解需求) 无 regulation 引用 → 不应注入 regulation
+  it("inject_session_dedup: 同一 session 只注入一次", async () => {
     await engine.startTask({
-      sessionId: "ses_reg1",
+      sessionId: "ses_dedup",
       flow: "test-flow",
-      summary: "Regulation 条件测试 S1",
+      summary: "去重测试",
     });
 
+    // 第一次注入
     const output1 = { system: [] as string[] };
-    await engine.injectContext({ sessionID: "ses_reg1" }, output1);
+    await engine.injectContext({ sessionID: "ses_dedup" }, output1);
     const sys1 = output1.system.join("\n");
-    expect(sys1).not.toContain("<regulation>");
+    expect(sys1).toContain("<flow-document");
 
-    // 推进到 S2 (设计方案)，引用 coding_style.md
-    await engine.setStep("ses_reg1", "S2");
-
-    const output2 = { system: [] as string[] };
-    await engine.injectContext({ sessionID: "ses_reg1" }, output2);
-    const sys2 = output2.system.join("\n");
-    expect(sys2).toContain("<regulation>");
-    // coding_style.md 内容应在 regulation 标签内
-    expect(sys2).toContain("TypeScript");
+    // 第二次注入 — 应被去重跳过
+    const output2 = { system: ["original"] };
+    await engine.injectContext({ sessionID: "ses_dedup" }, output2);
+    expect(output2.system).toEqual(["original"]);
   });
 
-  it("inject_control_prompt_split: 控制 Prompt 静态纪律在固定前缀中", async () => {
+  it("clear_session_inject_allows_reinject: 清除后可以重新注入", async () => {
     await engine.startTask({
-      sessionId: "ses_ctrl",
+      sessionId: "ses_clear",
       flow: "test-flow",
-      summary: "控制 Prompt 分离测试",
+      summary: "清除后重新注入",
     });
 
-    const output = { system: [] as string[] };
-    await engine.injectContext({ sessionID: "ses_ctrl" }, output);
+    // 第一次注入
+    const output1 = { system: [] as string[] };
+    await engine.injectContext({ sessionID: "ses_clear" }, output1);
+    expect(output1.system.join("\n")).toContain("<flow-document");
 
-    const fullSystem = output.system.join("\n");
+    // 清除注入记录
+    engine.clearSessionInject("ses_clear");
 
-    // 静态纪律在固定前缀的 <flow-control> 中
-    const flowControlIdx = fullSystem.indexOf("<flow-control>");
-
-    // 当前步骤信息在 <current-step> 中（步骤动态）
-    const currentStepIdx = fullSystem.indexOf("<current-step");
-
-    // 固定前缀应在步骤动态之前
-    expect(flowControlIdx).toBeLessThan(currentStepIdx);
-
-    // 静态纪律内容：FLOW MANDATE, NEVER skip, NEVER bypass
-    const prefixSection = fullSystem.substring(0, currentStepIdx);
-    expect(prefixSection).toContain("FLOW MANDATE");
-    expect(prefixSection).toContain("NEVER");
-    expect(prefixSection).toContain("skip ahead");
-    expect(prefixSection).toContain("bypass Human-in-loop");
-
-    // 步骤动态内容：当前步骤、完成后
-    const dynamicSection = fullSystem.substring(currentStepIdx);
-    expect(dynamicSection).toContain("当前步骤");
-    expect(dynamicSection).toContain("完成后");
+    // 再次注入应该生效
+    const output2 = { system: ["after-clear"] };
+    await engine.injectContext({ sessionID: "ses_clear" }, output2);
+    const sys2 = output2.system.join("\n");
+    expect(sys2).toContain("<flow-document");
+    expect(sys2).toContain("after-clear");
   });
 });

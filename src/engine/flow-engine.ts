@@ -7,7 +7,6 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as crypto from "node:crypto";
 import { get_encoding } from "tiktoken";
 import { MemorySystem } from "../memory/index.js";
 import { DuplicateTaskError } from "../memory/errors.js";
@@ -18,10 +17,8 @@ import type {
   FlowDefinition,
   StepDefinition,
   InjectedContext,
-  InjectionPlan,
   StepTaggedMessage,
   DepthAssignedMessage,
-  StepTransition,
   StartTaskParams,
 } from "./types.js";
 import {
@@ -59,36 +56,9 @@ function estimateTokens(text: string): number {
   return tokenizer.encode(text).length;
 }
 
-// ─── 注入指纹去重 ───
+// ─── Session 级别注入去重 ───
 
-const lastInjectedFingerprint = new Map<string, string>();
-
-// ─── 步骤转换时间线 ───
-
-const stepTransitions = new Map<string, StepTransition[]>();
-
-function computeFingerprint(
-  flow: string,
-  step: string,
-  regulations: string[],
-): string {
-  return crypto
-    .createHash("md5")
-    .update(`${flow}:${step}:${regulations.join(",")}`)
-    .digest("hex");
-}
-
-function shouldInject(
-  sessionId: string,
-  flow: string,
-  step: string,
-  regulations: string[],
-): boolean {
-  const fp = computeFingerprint(flow, step, regulations);
-  if (lastInjectedFingerprint.get(sessionId) === fp) return false;
-  lastInjectedFingerprint.set(sessionId, fp);
-  return true;
-}
+const injectedSessions = new Set<string>();
 
 // ─── FlowEngine ───
 
@@ -132,39 +102,22 @@ export class FlowEngine {
       return;
     }
 
-    const flowDef = await this.parseFlow(task.flow);
-    const currentStep = flowDef.steps.find((s) => s.id === task.currentStep);
-    if (!currentStep) return;
+    // Session 级去重：每个 session 只注入一次
+    if (injectedSessions.has(sessionId)) return;
+    injectedSessions.add(sessionId);
 
-    // 注入指纹去重（仅步骤动态部分参与）
-    const regNames = currentStep.regulations;
-    if (!shouldInject(sessionId, task.flow, task.currentStep, regNames)) {
-      return;
-    }
-
-    // 读取固定前缀内容
     const constitution = this.readRegulation("constitution.md");
     const flowRaw = await this.readFlowContent(task.flow);
-    const regulations = this.readRegulations(regNames);
 
-    // 构建前缀固定 + 尾部变量注入
-    const ctx = this.buildInjectionContext(
-      flowDef,
-      task,
-      constitution,
-      flowRaw,
-      regulations,
-    );
+    const ctx = this.buildContext(constitution, task, flowRaw);
 
-    // 前置注入到 system prompt：固定前缀 → 步骤动态 → 原始 system prompt
     const parts: string[] = [];
-    parts.push(ctx.staticPrefix, ctx.stepDynamic);
+    parts.push(ctx.systemPrefix);
     if (output.system.length > 0) {
       parts.push(...output.system);
     }
     output.system = parts;
 
-    // 调试日志
     if (this.config.debug?.logFullRequest) {
       logger.debug("=== vibe-pm LLM Request Context ===");
       logger.debug(`Session: ${sessionId}`);
@@ -185,9 +138,6 @@ export class FlowEngine {
     const messages = output.messages;
     if (!Array.isArray(messages) || messages.length === 0) return;
 
-    // 注入 Flow 引用到用户消息中（用户级权威，非系统级建议）
-    this.injectFlowRefIntoUserMessage(sessionId, output);
-
     const task = await this.memory.getActiveTask(sessionId);
     if (!task) return;
 
@@ -201,10 +151,9 @@ export class FlowEngine {
     const currentTokens = estimateTokens(JSON.stringify(messages));
     if (currentTokens < maxTokens * 0.8) return;
 
-    // 消息裁剪（传入 sessionId 用于步骤归属）
+    // 消息裁剪
     const pruned = this.pruneMessages(
       messages as Array<{ role: string; content: string | null }>,
-      sessionId,
     );
     output.messages = pruned as MessagesTransformOutput["messages"];
   }
@@ -304,19 +253,6 @@ export class FlowEngine {
       throw new FlowParseError(params.flow, "Flow has no steps defined");
     }
 
-    // 记录初始步骤转换
-    this.recordStepTransition(params.sessionId, firstStep.id, firstStep.name);
-
-    // 记录初始步骤进入指标
-    await this.memory.recordStepEntry(
-      params.sessionId,
-      params.flow,
-      firstStep.id,
-      firstStep.name,
-      0,
-      0,
-    );
-
     // 创建 Task
     try {
       return await this.memory.createTask({
@@ -346,38 +282,6 @@ export class FlowEngine {
     }
   }
 
-  async setStep(sessionId: string, stepId: string): Promise<void> {
-    const task = await this.memory.getActiveTask(sessionId);
-    if (!task) return;
-
-    const flowDef = await this.parseFlow(task.flow);
-    const step = flowDef.steps.find((s) => s.id === stepId);
-    if (!step) return;
-
-    const prevStep = task.currentStep;
-    const prevStepName = task.currentStepName;
-
-    // 记录步骤转换时间线
-    this.recordStepTransition(sessionId, stepId, step.name);
-
-    // 记录上一步的退出指标
-    if (prevStep !== stepId) {
-      await this.memory.recordStepExit(sessionId, prevStep, 0, 0);
-    }
-
-    // 记录新步骤进入指标
-    await this.memory.recordStepEntry(
-      sessionId,
-      task.flow,
-      stepId,
-      step.name,
-      0,
-      0,
-    );
-
-    await this.memory.updateStep(sessionId, step.id, step.name);
-  }
-
   async getCurrentStep(sessionId: string): Promise<StepDefinition | null> {
     const task = await this.memory.getActiveTask(sessionId);
     if (!task) return null;
@@ -386,9 +290,9 @@ export class FlowEngine {
     return flowDef.steps.find((s) => s.id === task.currentStep) ?? null;
   }
 
-  /** 清除指定 session 的注入指纹，强制下次重新注入 */
-  clearInjectionFingerprint(sessionId: string): void {
-    lastInjectedFingerprint.delete(sessionId);
+  /** 清除指定 session 的注入记录，允许下次重新注入 */
+  clearSessionInject(sessionId: string): void {
+    injectedSessions.delete(sessionId);
   }
 
   /** 关闭当前任务并返回被关闭的 Task */
@@ -398,22 +302,6 @@ export class FlowEngine {
 
     await this.memory.closeTask(sessionId);
     return { ...task, closed: true };
-  }
-
-  // ─── 步骤转换时间线 ───
-
-  private recordStepTransition(
-    sessionId: string,
-    stepId: string,
-    stepName: string,
-  ): void {
-    const transitions = stepTransitions.get(sessionId) ?? [];
-    transitions.push({
-      stepId,
-      stepName,
-      timestamp: Date.now(),
-    });
-    stepTransitions.set(sessionId, transitions);
   }
 
   // ═══════════════════════════════════════════
@@ -596,84 +484,28 @@ export class FlowEngine {
     return `[Regulation ${filename} not found]`;
   }
 
-  private readRegulations(names: string[]): string[] {
-    return names.map((n) => this.readRegulation(n));
-  }
-
-  private buildInjectionContext(
-    flowDef: FlowDefinition,
-    task: Task,
+  private buildContext(
     constitution: string,
+    task: Task,
     flowRawContent: string,
-    regulations: string[],
   ): InjectedContext {
-    // 固定前缀（缓存稳定，整个流程中不变）
-    const staticPrefix = [
+    const systemPrefix = [
       `<constitution>\n${constitution}\n</constitution>`,
       `\n<flow-document flow="${task.flow}">\n${flowRawContent}\n</flow-document>`,
-      `\n<flow-control>\n${this.buildStaticControlPrompt()}\n</flow-control>`,
+      `\n<flow-control>\n${this.buildControlPrompt()}\n</flow-control>`,
+      `\n<task-state>\n- Flow: ${task.flow}\n- 摘要: ${task.summary}\n- 开始时间: ${task.startAt}\n</task-state>`,
     ].join("");
 
-    // 步骤动态（尾部可变，步骤推进时更新）
-    const stepDynamic = this.buildStepDynamic(flowDef, task, regulations);
-
-    return { staticPrefix, stepDynamic, regulations };
+    return { systemPrefix };
   }
 
-  private buildStaticControlPrompt(): string {
+  private buildControlPrompt(): string {
     return [
-      "## ⚠️ FLOW MANDATE — OVERRIDES ALL OTHER BEHAVIORS",
-      "You are executing a predefined workflow. Step sequence is MANDATORY.",
-      "",
-      "**NEVER** skip ahead to code implementation before reaching the implementation step.",
-      "**NEVER** bypass Human-in-loop steps. They are MANDATORY gates.",
-      "**NEVER** skip from analysis/research directly to coding — follow the step sequence.",
-      "Use pm_task_set_step to advance ONLY after completing the current step.",
-      "Human-in-loop steps require question/confirm tools. Ask ONE question at a time.",
-      "The full Flow document above defines all steps. Follow it strictly.",
+      "## 流程指南",
+      "上方注入了完整的 Flow 文档，请按文档中的步骤顺序执行。",
+      "标记为 ⚠️ 的步骤是 Human-in-loop，请使用 question/confirm 工具与用户交互。",
+      "使用 pm_task_set_step 工具可以记录当前步骤进度。",
     ].join("\n");
-  }
-
-  private buildStepDynamic(
-    flowDef: FlowDefinition,
-    task: Task,
-    regulations: string[],
-  ): string {
-    const parts: string[] = [];
-    const currentStep = flowDef.steps.find((s) => s.id === task.currentStep);
-
-    // 当前步骤状态
-    parts.push(
-      `\n<current-step id="${task.currentStep}" name="${task.currentStepName}">`,
-    );
-    parts.push(`\n**当前步骤**: ${task.currentStep} — ${task.currentStepName}`);
-    if (currentStep) {
-      parts.push(`\n**目标**: ${currentStep.goal}`);
-      if (currentStep.humanInLoop) {
-        parts.push(
-          "\n⛔ **本步骤是 Human-in-loop！** 使用 question/confirm 工具。每次只问 1 个问题。",
-        );
-      }
-      parts.push(`\n**完成后**: ${currentStep.onComplete}`);
-    }
-    parts.push("\n</current-step>");
-
-    // Task 状态
-    parts.push("\n<task-state>");
-    parts.push(`\n- Session ID: ${task.sessionId}`);
-    parts.push(`\n- Flow: ${task.flow}`);
-    parts.push(`\n- 任务摘要: ${task.summary}`);
-    parts.push(`\n- 开始时间: ${task.startAt}`);
-    if (task.specRef) parts.push(`\n- Spec 文档: ${task.specRef}`);
-    if (task.planRef) parts.push(`\n- 计划文档: ${task.planRef}`);
-    parts.push("\n</task-state>");
-
-    // Step 指定的 Regulation（条件注入）
-    for (const reg of regulations) {
-      parts.push(`\n<regulation>\n${reg}\n</regulation>`);
-    }
-
-    return parts.join("");
   }
 
   // ═══════════════════════════════════════════
@@ -814,131 +646,36 @@ export class FlowEngine {
     const flowName = this.pendingFlowInjects.get(sessionId);
     if (!flowName) return;
 
-    let flowDef: FlowDefinition;
     let flowRaw: string;
     try {
-      flowDef = this.parseFlowSync(flowName);
       flowRaw = this.readFlowContentSync(flowName);
     } catch {
       this.pendingFlowInjects.delete(sessionId);
       return;
     }
 
-    const firstStep = flowDef.steps[0];
-    if (!firstStep) {
-      this.pendingFlowInjects.delete(sessionId);
-      return;
-    }
+    if (injectedSessions.has(sessionId)) return;
+    injectedSessions.add(sessionId);
 
     const constitution = this.readRegulation("constitution.md");
 
-    // 固定前缀：Constitution + Flow 全文 + 控制 Prompt（静态）
-    const staticPrefixParts: string[] = [];
-    staticPrefixParts.push(
+    const prefixParts: string[] = [];
+    prefixParts.push(
       `<constitution>\n${constitution}\n</constitution>`,
     );
-    staticPrefixParts.push(
+    prefixParts.push(
       `\n<flow-document flow="${flowName}">\n${flowRaw}\n</flow-document>`,
     );
-    staticPrefixParts.push(
-      `\n<flow-control>\n${this.buildStaticControlPrompt()}\n</flow-control>`,
+    prefixParts.push(
+      `\n<flow-control>\n${this.buildControlPrompt()}\n</flow-control>`,
     );
 
-    // 步骤动态：前 N 步预览（默认 2 步）
-    const maxPreviewSteps = 2;
-    const previewSteps = flowDef.steps.slice(0, maxPreviewSteps);
-    const stepDynamicParts: string[] = [];
-
-    for (const step of previewSteps) {
-      stepDynamicParts.push(`\n<step id="${step.id}" name="${step.name}">`);
-      stepDynamicParts.push(`\n**目标**: ${step.goal}`);
-      stepDynamicParts.push(`\n**推荐 Agent**: ${step.agent}`);
-      stepDynamicParts.push("\n---");
-      for (const [i, instr] of step.instructions.entries()) {
-        stepDynamicParts.push(`\n${i + 1}. ${instr}`);
-      }
-      if (step.humanInLoop) {
-        stepDynamicParts.push(
-          "\n\n⚠️⚠️⚠️ **本步骤需要用户介入！** 你必须使用 question / confirm 阻塞式工具向用户提问。每次只问 1 个问题，收到回复前不得继续。⚠️⚠️⚠️",
-        );
-      }
-      stepDynamicParts.push(`\n**完成后**: ${step.onComplete}`);
-      stepDynamicParts.push(`\n</step>`);
-    }
-
-    stepDynamicParts.push("\n<step-reminder>");
-    stepDynamicParts.push("\n**当前步骤是 S1。严格按 Flow 文档中的步骤顺序执行。**");
-    stepDynamicParts.push(
-      "\nAdvance steps using pm_task_set_step only after completing the current step.",
-    );
-    stepDynamicParts.push("\n</step-reminder>");
-
-    // 前置注入到 system prompt：固定前缀 → 步骤动态 → 原始 system prompt
     const parts: string[] = [];
-    parts.push(
-      staticPrefixParts.join(""),
-      stepDynamicParts.join(""),
-    );
+    parts.push(prefixParts.join(""));
     if (output.system.length > 0) {
       parts.push(...output.system);
     }
     output.system = parts;
-
-    // 不删除 pending，留给 transformMessages 中的 injectFlowRefIntoUserMessage 消费
-  }
-
-  /** parseFlow 的同步版本，用于 hook 中无需 await 的场景 */
-  private parseFlowSync(flowName: string): FlowDefinition {
-    const flowDir = path.join(this.projectDir, "docs", "flow");
-    const candidates = [
-      path.join(flowDir, `${flowName}.md`),
-      path.join(flowDir, `[flow]${flowName}.md`),
-    ];
-
-    let filePath = "";
-    for (const c of candidates) {
-      if (fs.existsSync(c)) {
-        filePath = c;
-        break;
-      }
-    }
-
-    if (!filePath) {
-      throw new FlowNotFoundError(flowName);
-    }
-
-    const raw = fs.readFileSync(filePath, "utf-8");
-    return this.parseFlowMarkdown(flowName, raw);
-  }
-
-  /**
-   * 在用户消息中附加 Flow 文件引用，使流程指令获得用户级权威性。
-   * LLM 对用户消息的遵循度远高于系统注入的上下文。
-   */
-  private injectFlowRefIntoUserMessage(
-    sessionId: string,
-    output: MessagesTransformOutput,
-  ): void {
-    const flowName = this.pendingFlowInjects.get(sessionId);
-    if (!flowName) return;
-
-    const flowPath = `docs/flow/[flow]${flowName}.md`;
-    const directive =
-      `\n\n---\n` +
-      `⚠️ 本次任务必须严格按照 \`${flowPath}\` 中定义的流程步骤执行。\n` +
-      `不得跳过任何步骤，特别是标记为 ⚠️ 的 Human-in-loop 步骤必须使用 question/confirm 工具与用户交互。`;
-
-    const messages = output.messages;
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const msg = messages[i] as { info?: { role?: string }; parts?: Array<{ type?: string; text?: string }> };
-      if (msg.info?.role === "user" && msg.parts?.length) {
-        const lastPart = msg.parts[msg.parts.length - 1];
-        if (lastPart.type === "text") {
-          lastPart.text = (lastPart.text ?? "") + directive;
-        }
-        break;
-      }
-    }
 
     this.pendingFlowInjects.delete(sessionId);
   }
@@ -949,62 +686,23 @@ export class FlowEngine {
 
   private pruneMessages(
     messages: Array<{ role: string; content: string | null }>,
-    sessionId?: string,
   ): Array<{ role: string; content: string | null }> {
     const maxTokens = this.config.contextInjection.maxStepTokens;
     const minRecent = 3;
 
-    // Step 1: 步骤归属分类
-    const tagged = this.tagMessagesByStep(messages, sessionId);
-
-    // Step 2: 深度层级分配
+    const tagged = this.tagMessagesByStep(messages);
     const depthAssigned = this.assignDepthLevel(tagged);
-
-    // Step 3: Token 约束执行
     return this.pruneByDepth(depthAssigned, maxTokens, minRecent);
   }
 
   private tagMessagesByStep(
     messages: Array<{ role: string; content: string | null }>,
-    sessionId?: string,
   ): StepTaggedMessage[] {
-    const transitions = sessionId
-      ? stepTransitions.get(sessionId) ?? []
-      : [];
-    const currentStepId =
-      transitions.length > 0
-        ? transitions[transitions.length - 1].stepId
-        : "";
-
-    if (transitions.length === 0) {
-      return messages.map((msg) => ({
-        message: msg as { role: string; content: string | null; [key: string]: unknown },
-        stepId: currentStepId,
-        stepDistance: 0,
-      }));
-    }
-
-    // 为每条消息分配所属步骤（按消息在数组中的位置近似分配）
-    // 实际使用时基于 stepTransition 时间戳更精确，此处用位置近似
-    const totalMsgs = messages.length;
-    const totalSteps = transitions.length;
-    const msgsPerStep = Math.max(1, Math.floor(totalMsgs / totalSteps));
-
-    return messages.map((msg, idx) => {
-      const stepIdx = Math.min(
-        Math.floor(idx / msgsPerStep),
-        totalSteps - 1,
-      );
-      const stepId = transitions[stepIdx].stepId;
-      const currentIdx = totalSteps - 1;
-      const stepDistance = currentIdx - stepIdx;
-
-      return {
-        message: msg as { role: string; content: string | null; [key: string]: unknown },
-        stepId,
-        stepDistance: Math.max(0, stepDistance),
-      };
-    });
+    return messages.map((msg) => ({
+      message: msg as { role: string; content: string | null; [key: string]: unknown },
+      stepId: "",
+      stepDistance: 0,
+    }));
   }
 
   private assignDepthLevel(

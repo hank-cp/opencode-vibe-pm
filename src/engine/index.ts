@@ -3,6 +3,5 @@ export { DuplicateActiveTaskError, FlowNotFoundError, FlowParseError } from "./e
 export type {
   FlowDefinition,
   StepDefinition,
-  InjectionPlan,
   StartTaskParams,
 } from "./types.js";
