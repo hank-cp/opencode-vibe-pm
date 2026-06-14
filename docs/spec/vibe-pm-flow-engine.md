@@ -3,7 +3,7 @@
 **创建日期**: 2026-06-11
 **状态**: Implemented
 **输入来源**: XMind 设计文档 + Plugin Core Spec + Memory System Spec + Spec 评估报告 + 消息裁剪算法调研
-**最后更新**: 2026-06-14 — 任务创建从 Tool 驱动迁移到 Hook 驱动
+**最后更新**: 2026-06-14 — 流程上下文注入顺序：前置到 system prompt 开头
 
 ---
 
@@ -317,6 +317,16 @@ function buildLookaheadWindow(steps: StepDefinition[]): string {
 | 5 | Layer 3 | 前瞻窗口（1-2 个连续非 HiL 步骤） | 条件注入，HiL 步骤时省略 |
 
 > **设计理由**：三明治注入在"精准注入"和"完整注入"之间取得平衡——Layer 1 提供全局视野支持规划（~900T，缓存稳定），Layer 2 提供精准执行指令（~900T），Layer 3 仅在连续执行场景下展开前瞻窗口（0~600T）。相较完整 Flow 注入（7 步 3500T），节省 40-50% 上下文；相较精准注入，保留了跨步骤执行能力。
+
+#### System Prompt 输出顺序
+
+流程上下文**前置**于原始 system prompt，确保流程指令优先级高于 LLM 的默认行为指令。最终顺序：
+
+```
+[Layer 1] → [Layer 2] → [Layer 3?] → [原始 system prompt...]
+```
+
+设计理由：LLM 更容易遵循 prompt 开头的指令。将流程上下文放在前面，使"按流程步骤执行"成为最高优先级，防止 LLM 的"意图检测→直接实现"行为覆盖流程指令。
 
 ### 缓存策略
 

@@ -109,8 +109,17 @@ describe("Task Start", () => {
     expect(flowName).toBe("test-flow");
   });
 
+  it("resolve_flow_from_command_with_slash: 带 / 前缀的命令也能解析", () => {
+    const flowName = engine.resolveFlowFromCommand("/pm-test");
+    expect(flowName).toBe("test-flow");
+  });
+
   it("resolve_unknown_command: 未知命令返回 null", () => {
     expect(engine.resolveFlowFromCommand("pm-unknown")).toBeNull();
+  });
+
+  it("resolve_unknown_command_with_slash: 带 / 前缀的未知命令返回 null", () => {
+    expect(engine.resolveFlowFromCommand("/pm-unknown")).toBeNull();
   });
 
   it("autostart_creates_task: 自动创建任务成功", async () => {

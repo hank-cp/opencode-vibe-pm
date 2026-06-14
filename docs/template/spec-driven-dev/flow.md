@@ -1,9 +1,9 @@
-# 新功能开发
+# Spec-Driven 开发
 
-**Template ID**: `new-feature`
+**Template ID**: `spec-driven-dev`
 **Category**: development
-**Description**: 复杂任务的标准化开发流程（编码/测试/验收/合流，13步）
-**Command**: `/pm-new-feature`
+**Description**: Spec 驱动的标准化开发流程（理解/设计/编码/测试/验收/合流，12步）
+**Command**: `/pm-spec-driven-dev`
 **Version**: 1.0.0
 
 ---
@@ -212,6 +212,9 @@ stateDiagram-v2
 1. 保存交付报告到 Plan
 2. 更新 Spec 文档
 3. 运行最终验证
-4. 提示 commit 信息
+4. 使用 `question` 工具询问用户：「是否执行 `git commit`？」
+   - 若用户选择「是」：执行 `git add -A && git commit`，使用本次开发的总结作为 commit message
+   - 若用户选择「否」：跳过提交
+   - ⚠️ 用户选择不影响任务结束
 
 **完成后**：任务结束

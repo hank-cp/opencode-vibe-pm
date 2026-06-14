@@ -177,11 +177,13 @@ stateDiagram-v2
 
 ### S9: 合流
 
-**目标**：最终验证并提交。
-**引用 Regulation**：checklist.md
+**目标**：最终验证，收尾文档，询问是否提交。
 
-1. 运行最终 tsc + 测试
-2. 更新 Spec 文档（如需要）
-3. 提示 commit 信息
+1. 运行最终类型检查和测试（`tsc --noEmit` + 运行测试）
+2. 更新 Spec 和 Plan 文档（如需要）
+3. 使用 `question` 工具询问用户：「是否执行 `git commit`？」
+   - 若用户选择「是」：执行 `git add -A && git commit`，使用本次修复的总结作为 commit message
+   - 若用户选择「否」：跳过提交
+   - ⚠️ 用户选择不影响任务结束
 
 **完成后**：任务结束

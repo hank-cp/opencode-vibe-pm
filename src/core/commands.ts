@@ -265,7 +265,7 @@ function createInstallFlowTool(ctx: IPluginContext): ToolDefinition {
     description: "Install a flow from template library",
     args: {
       templateId: tool.schema.string().optional().describe(
-        "Template ID to install (e.g. 'new-feature', 'bug-fix', 'research', 'large-refactor'). If omitted, lists available templates.",
+        "Template ID to install (e.g. 'spec-driven-dev', 'bug-fix', 'research', 'large-refactor'). If omitted, lists available templates.",
       ),
     } as any,
     async execute(

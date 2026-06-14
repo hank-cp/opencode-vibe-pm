@@ -149,14 +149,14 @@ export class FlowEngine {
       regulations,
     );
 
-    // 注入到 system prompt（SDK 格式：string[]）
+    // 注入到 system prompt（流程上下文前置，优先级高于系统默认行为）
     const parts: string[] = [];
-    if (output.system.length > 0) {
-      parts.push(...output.system);
-    }
     parts.push(plan.layer1, plan.layer2);
     if (plan.layer3) {
       parts.push(plan.layer3);
+    }
+    if (output.system.length > 0) {
+      parts.push(...output.system);
     }
     output.system = parts;
   }
@@ -746,11 +746,13 @@ export class FlowEngine {
 
   /**
    * 根据 slash 命令名解析对应的 Flow 名称。
-   * 如 "pm-bug-fix" → "bug-fix"，"pm-new-feature" → "new-feature"。
+   * 如 "pm-bug-fix" → "bug-fix"，"pm-spec-driven-dev" → "spec-driven-dev"。
    */
   resolveFlowFromCommand(command: string): string | null {
     const map = this.buildCommandFlowMap();
-    return map.get(command) ?? null;
+    // Strip leading / to match buildCommandFlowMap's key format
+    const cleanCommand = command.replace(/^\//, "");
+    return map.get(cleanCommand) ?? null;
   }
 
   /**
@@ -763,10 +765,18 @@ export class FlowEngine {
     args: string,
   ): Promise<string | null> {
     const flowName = this.resolveFlowFromCommand(command);
-    if (!flowName) return null;
+    if (!flowName) {
+      logger.warn(`autoStartTaskFromCommand: no flow for command "${command}"`);
+      return null;
+    }
 
     const existing = await this.memory.getActiveTask(sessionId);
-    if (existing) return null;
+    if (existing) {
+      logger.info(
+        `autoStartTaskFromCommand: session ${sessionId} already has active task, skipping`,
+      );
+      return null;
+    }
 
     try {
       const task = await this.startTask({
@@ -776,6 +786,9 @@ export class FlowEngine {
         specRef: undefined,
         planRef: undefined,
       });
+      logger.info(
+        `autoStartTaskFromCommand: created task for "${command}" → flow "${flowName}", step ${task.currentStep}`,
+      );
       return task.currentStep;
     } catch (err) {
       logger.error(`autoStartTaskFromCommand failed for ${command}`, {
