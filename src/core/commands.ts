@@ -53,6 +53,12 @@ const COMMANDS: CommandMeta[] = [
     executable: true,
   },
   {
+    name: "pm-task-set-step",
+    description: "手动跳转到指定步骤",
+    template: "Manually jump to a specific step",
+    executable: true,
+  },
+  {
     name: "pm-task-refresh",
     description: "为当前步骤重新注入上下文",
     template: "Re-inject context for the current step",
@@ -113,6 +119,8 @@ export function registerTools(
         tools.pm_install_flow = createInstallFlowTool(ctx);
       } else if (cmd.name === "pm-task-start") {
         tools.pm_task_start = createTaskStartTool(engine);
+      } else if (cmd.name === "pm-task-set-step") {
+        tools.pm_task_set_step = createTaskSetStepTool(engine);
       } else if (cmd.name === "pm-task-refresh") {
       tools.pm_task_refresh = createTaskRefreshTool(engine);
     } else if (cmd.name === "pm-task-close") {
@@ -167,6 +175,36 @@ function createTaskStartTool(engine: FlowEngine): ToolDefinition {
   });
 }
 
+function createTaskSetStepTool(engine: FlowEngine): ToolDefinition {
+  return tool({
+    description: "Manually jump to a specific step",
+    args: {
+      step: tool.schema.string().describe("目标步骤 ID，如 S1、S2"),
+    } as any,
+    async execute(
+      args: { step: string },
+      toolCtx: ToolContext,
+    ): Promise<string> {
+      const sessionId = toolCtx.sessionID;
+      if (!sessionId) {
+        return "[vibe-pm] 错误：无法获取当前 Session ID。";
+      }
+
+      try {
+        await engine.setStep(sessionId, args.step);
+        const step = await engine.getCurrentStep(sessionId);
+        const stepInfo = step
+          ? `${step.id} - ${step.name}`
+          : args.step;
+        return `[vibe-pm] ✅ 已跳转到步骤 ${stepInfo}。`;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "未知错误";
+        return `[vibe-pm] ❌ 步骤跳转失败：${msg}`;
+      }
+    },
+  });
+}
+
 function createTaskRefreshTool(engine: FlowEngine): ToolDefinition {
   return tool({
     description: "Re-inject context for the current step",
@@ -184,7 +222,7 @@ function createTaskRefreshTool(engine: FlowEngine): ToolDefinition {
       return "[vibe-pm] ✅ 已清除注入记录，下次对话将重新注入流程上下文。";
     },
   });
-}4
+}
 
 function createTaskCloseTool(engine: FlowEngine): ToolDefinition {
   return tool({
@@ -237,7 +275,7 @@ function createInstallFlowTool(ctx: IPluginContext): ToolDefinition {
       if (args.templateId) {
         try {
           installTemplate(ctx.projectDir, args.templateId);
-          return `[vibe-pm] 流程 "${args.templateId}" 已成功安装。\n\n已安装到：\n- docs/flow/[flow]${args.templateId}.md\n- 对应的 Command 文件已生成到 .opencode/commands/\n\n你可以使用对应的 /pm-* 命令启动任务。`;
+          return `[vibe-pm] 流程 "${args.templateId}" 已成功安装。\n\n已安装到：\n- docs/flow/[flow]${args.templateId}.md\n- 对应的 Command 文件已生成到 .opencode/commands/\n\n⚠️ 新的流程命令需要重启 OpenCode 后才能使用。\n\n重启后可使用对应的 /pm-* 命令启动任务。`;
         } catch (err) {
           const msg =
             err instanceof Error ? err.message : "未知错误";

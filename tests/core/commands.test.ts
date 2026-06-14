@@ -22,6 +22,7 @@ function createMockEngine(sessionId: string | null = null) {
       startAt: new Date().toISOString(),
     }),
     getCurrentStep: vi.fn().mockResolvedValue({ id: "S2", name: "设计方案" }),
+    setStep: vi.fn().mockResolvedValue(undefined),
     clearSessionInject: vi.fn(),
     closeTask: vi.fn().mockResolvedValue({
       sessionId: "test",
@@ -42,17 +43,18 @@ describe("registerCommands", () => {
     config = {} as Config;
   });
 
-  it("register_all_commands: 注册全部 7 个 /pm-* 命令", () => {
+  it("register_all_commands: 注册全部 8 个 /pm-* 命令", () => {
     registerCommands(config);
 
     const cmd = config.command as Record<string, { template: string; description?: string; agent?: string }> | undefined;
     expect(cmd).toBeDefined();
     const names = Object.keys(cmd!);
-    expect(names).toHaveLength(7);
+    expect(names).toHaveLength(8);
     expect(names).toContain("pm-install-flow");
     expect(names).toContain("pm-uninstall-flow");
     expect(names).toContain("pm-refine-flow");
     expect(names).toContain("pm-task-start");
+    expect(names).toContain("pm-task-set-step");
     expect(names).toContain("pm-task-refresh");
     expect(names).toContain("pm-task-close");
     expect(names).toContain("pm-config");
@@ -79,7 +81,7 @@ describe("registerCommands", () => {
     const cmd = config.command as Record<string, { template: string; description?: string; agent?: string }> | undefined;
     // 后者覆盖，不抛异常
     expect(cmd!["pm-task-start"].template).not.toBe("old template");
-    expect(Object.keys(cmd!)).toHaveLength(7);
+    expect(Object.keys(cmd!)).toHaveLength(8);
   });
 });
 
@@ -106,14 +108,15 @@ describe("registerTools", () => {
     ask: async () => {},
   };
 
-  it("register_executable_tools: 注册 4 个可执行工具", () => {
+  it("register_executable_tools: 注册 5 个可执行工具", () => {
     const engine = createMockEngine();
     const tools = registerTools(mockCtx, engine);
 
     const toolNames = Object.keys(tools);
-    expect(toolNames).toHaveLength(4);
+    expect(toolNames).toHaveLength(5);
     expect(toolNames).toContain("pm_install_flow");
     expect(toolNames).toContain("pm_task_start");
+    expect(toolNames).toContain("pm_task_set_step");
     expect(toolNames).toContain("pm_task_refresh");
     expect(toolNames).toContain("pm_task_close");
 

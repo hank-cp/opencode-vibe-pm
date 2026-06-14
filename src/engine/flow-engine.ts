@@ -290,6 +290,27 @@ export class FlowEngine {
     return flowDef.steps.find((s) => s.id === task.currentStep) ?? null;
   }
 
+  /** 设置当前步骤，并更新任务状态和恢复注入 */
+  async setStep(sessionId: string, step: string): Promise<void> {
+    const task = await this.memory.getActiveTask(sessionId);
+    if (!task) {
+      throw new Error(`No active task found for session ${sessionId}`);
+    }
+
+    const flowDef = await this.parseFlow(task.flow);
+    const stepDef = flowDef.steps.find((s) => s.id === step);
+    if (!stepDef) {
+      throw new Error(
+        `Step "${step}" not found in flow "${task.flow}"`,
+      );
+    }
+
+    await this.memory.updateStep(sessionId, step, stepDef.name);
+
+    // 清除注入记录，允许下次对话重新注入最新步骤信息
+    this.clearSessionInject(sessionId);
+  }
+
   /** 清除指定 session 的注入记录，允许下次重新注入 */
   clearSessionInject(sessionId: string): void {
     injectedSessions.delete(sessionId);
@@ -492,19 +513,24 @@ export class FlowEngine {
     const systemPrefix = [
       `<constitution>\n${constitution}\n</constitution>`,
       `\n<flow-document flow="${task.flow}">\n${flowRawContent}\n</flow-document>`,
-      `\n<flow-control>\n${this.buildControlPrompt()}\n</flow-control>`,
+      `\n<flow-control>\n${this.buildControlPrompt(task)}\n</flow-control>`,
       `\n<task-state>\n- Flow: ${task.flow}\n- 摘要: ${task.summary}\n- 开始时间: ${task.startAt}\n</task-state>`,
     ].join("");
 
     return { systemPrefix };
   }
 
-  private buildControlPrompt(): string {
+  private buildControlPrompt(task?: Task): string {
     return [
-      "## 流程指南",
-      "上方注入了完整的 Flow 文档，请按文档中的步骤顺序执行。",
-      "标记为 ⚠️ 的步骤是 Human-in-loop，请使用 question/confirm 工具与用户交互。",
-      "使用 pm_task_set_step 工具可以记录当前步骤进度。",
+      "## 流程执行规则（强制性）",
+      "",
+      "你必须严格按上方 Flow 文档定义的步骤顺序执行，不得跳过或合并步骤。",
+      "",
+      "### 执行规则",
+      `1. 进入新步骤时 - 必须调用 \`pm_task_set_step\` 工具记录步骤进度（参数 step: "S2" 等）`,
+      `2. 当前步骤完成后 - 查看该步骤的"**完成后**"说明，确定下一步骤后先调用 pm_task_set_step 再执行`,
+      "3. Human-in-loop 步骤（标记 ⚠️）- 必须使用 question/confirm 工具等待用户确认，未收到确认不得继续",
+      "4. 禁止行为: 禁止跳过步骤、禁止合并多步、禁止在确认前执行后续步骤",
     ].join("\n");
   }
 
