@@ -18,6 +18,10 @@ import { DuplicateTaskError } from "./errors.js";
 
 // ─── AxioDB 返回类型 ───
 
+/**
+ * AxioDB 查询执行结果的结构。
+ * `data.documents` 通常包含匹配到的文档数组。
+ */
 interface AxioResult {
   statusCode: number;
   data: unknown;
@@ -28,10 +32,7 @@ interface AxioResult {
 
 /**
  * 从 AxioDB 查询结果中提取文档数组。
- * 当 statusCode 非 200 或无有效文档时返回空数组，避免调用方处理 null。
- *
- * @param result - AxioDB query 的原始返回结果
- * @returns 文档数组，无效结果时返回 `[]`
+ * 返回空数组作为安全兜底，而非抛出异常。
  */
 function unwrapArray(result: AxioResult): unknown[] {
   if (result.statusCode !== 200) return [];
@@ -44,10 +45,7 @@ function unwrapArray(result: AxioResult): unknown[] {
 
 /**
  * 从 AxioDB 查询结果中提取第一条文档。
- * 无结果时返回 `null`，由调用方自行判空。
- *
- * @param result - AxioDB query 的原始返回结果
- * @returns 第一条文档，无效结果时返回 `null`
+ * 无匹配时返回 null。
  */
 function unwrapSingle(result: AxioResult): unknown | null {
   if (result.statusCode !== 200) return null;
@@ -58,42 +56,52 @@ function unwrapSingle(result: AxioResult): unknown | null {
   return null;
 }
 
-/**
- * 生成 UUID v4 作为 Discussion / FlowMetrics 等实体的唯一标识。
- */
+/** 生成 UUID v4，用于 Discussion 和 FlowMetrics 文档的 id 字段。 */
 function generateId(): string {
   return crypto.randomUUID();
 }
 
 // ─── Collection 类型别名 ───
 
+/**
+ * AxioDB collection 实例的类型。
+ * 通过类型推导避免直接依赖 AxioDB 内部类型。
+ */
 type AxioCollection = Awaited<
   ReturnType<Awaited<ReturnType<AxioDB["createDB"]>>["createCollection"]>
 >;
 
 // ─── MemorySystem ───
 
+/**
+ * vibe-pm 的结构化记忆层。
+ *
+ * 基于 AxioDB 管理三类数据：
+ * - tasks：FSM 驱动的任务状态
+ * - discussions：非紧急讨论项（碎片时间友好，异步审阅）
+ * - flowMetrics：按步骤采集的 Token 消耗、停留时间等指标
+ */
 export class MemorySystem implements IMemorySystem {
-  /** Task 集合：管理任务生命周期（创建、更新步骤、关闭） */
   private tasks!: AxioCollection;
-  /** Discussion 集合：存储修复过程中产生的讨论项，按 session 关联 */
   private discussions!: AxioCollection;
-  /** FlowMetrics 集合：记录每个步骤的进入次数、Token 消耗、停留时间等指标 */
   private flowMetrics!: AxioCollection;
 
   /**
-   * 初始化 MemorySystem，创建 AxioDB 数据库及三个集合。
-   * 必须在使用任何 CRUD 操作前调用。
+   * 初始化数据库连接与集合。
    *
-   * @param dataDir - AxioDB 数据存储目录路径
+   * 在指定目录下创建 AxioDB 实例，并建立 tasks / discussions / flowMetrics 三个 collection。
+   * 使用前必须调用一次。
+   *
+   * @param dataDir AxioDB 数据文件存储目录（通常为 `.vibe-pm/`）
    */
   async init(dataDir: string): Promise<void> {
     const db = new AxioDB({
       CustomPath: dataDir,
-      RootName: "vibe-pm",
+      // "." 让 AxioDB 不额外创建 RootName 子目录，数据直接放在 dataDir 下
+      RootName: ".",
     });
 
-    const appDb = await db.createDB("vibe-pm");
+    const appDb = await db.createDB("data");
     this.tasks = await appDb.createCollection("tasks");
     this.discussions = await appDb.createCollection("discussions");
     this.flowMetrics = await appDb.createCollection("flowMetrics");
@@ -104,11 +112,10 @@ export class MemorySystem implements IMemorySystem {
   // ═══════════════════════════════════════════
 
   /**
-   * 创建新 Task。同一 session 在同一时刻只能有一个活跃 Task。
+   * 创建新任务。
    *
-   * @param input - 任务输入（sessionId, flow, summary 等）
-   * @returns 创建的 Task 对象
-   * @throws {DuplicateTaskError} 该 session 已存在活跃 Task 时抛出
+   * 同一 session 不允许同时存在多个活跃任务 ——
+   * 若已有未关闭的 Task，抛出 {@link DuplicateTaskError}。
    */
   async createTask(input: CreateTaskInput): Promise<Task> {
     // 检查是否已有 active task
@@ -126,12 +133,7 @@ export class MemorySystem implements IMemorySystem {
     return task;
   }
 
-  /**
-   * 按 sessionId 获取 Task（不区分是否已关闭）。
-   *
-   * @param sessionId - 会话 ID
-   * @returns Task 对象，不存在时返回 `null`
-   */
+  /** 按 sessionId 查询任务。无匹配时返回 null。 */
   async getTask(sessionId: string): Promise<Task | null> {
     const result = (await this.tasks
       .query({ sessionId })
@@ -141,13 +143,7 @@ export class MemorySystem implements IMemorySystem {
     return unwrapSingle(result) as Task | null;
   }
 
-  /**
-   * 获取 session 当前活跃（未关闭）的 Task。
-   * 同一 session 最多一个活跃 Task。
-   *
-   * @param sessionId - 会话 ID
-   * @returns 活跃的 Task，不存在时返回 `null`
-   */
+  /** 查询 session 下未关闭的活跃任务。无匹配时返回 null。 */
   async getActiveTask(sessionId: string): Promise<Task | null> {
     const result = (await this.tasks
       .query({ sessionId, closed: false })
@@ -157,14 +153,7 @@ export class MemorySystem implements IMemorySystem {
     return unwrapSingle(result) as Task | null;
   }
 
-  /**
-   * 更新会话当前活跃 Task 的步骤信息。
-   * 仅更新 closed=false 的 Task。
-   *
-   * @param sessionId - 会话 ID
-   * @param step - 步骤编号（如 'S1', 'S2'）
-   * @param stepName - 步骤名称（如 '理解 Bug 描述'）
-   */
+  /** 更新当前活跃任务的步骤信息（步骤 ID + 名称）。 */
   async updateStep(
     sessionId: string,
     step: string,
@@ -178,23 +167,14 @@ export class MemorySystem implements IMemorySystem {
       });
   }
 
-  /**
-   * 关闭 session 的活跃 Task（设置 closed=true）。
-   * 关闭后可创建新 Task。
-   *
-   * @param sessionId - 会话 ID
-   */
+  /** 关闭活跃任务（设置 closed = true）。 */
   async closeTask(sessionId: string): Promise<void> {
     await this.tasks
       .update({ sessionId, closed: false })
       .UpdateOne({ closed: true });
   }
 
-  /**
-   * 列出所有未关闭的 Task，用于查看当前进行中的任务。
-   *
-   * @returns 活跃 Task 数组
-   */
+  /** 查询所有未关闭的任务。 */
   async listActiveTasks(): Promise<Task[]> {
     const result = (await this.tasks
       .query({ closed: false })
@@ -208,11 +188,9 @@ export class MemorySystem implements IMemorySystem {
   // ═══════════════════════════════════════════
 
   /**
-   * 创建一条 Discussion（讨论项），用于记录修复过程中的观察和改进建议。
-   * 若未传入 taskSummary，会自动从关联的活跃 Task 中提取。
+   * 创建讨论项。
    *
-   * @param input - 讨论项输入（fromSessionId, priority, issue 等）
-   * @returns 创建的 Discussion 对象
+   * 若未传入 `taskSummary`，自动从关联 Task 的 `summary` 字段填充。
    */
   async createDiscussion(input: CreateDiscussionInput): Promise<Discussion> {
     // 若未传 taskSummary，从关联 Task 自动填充
@@ -241,12 +219,7 @@ export class MemorySystem implements IMemorySystem {
     return discussion;
   }
 
-  /**
-   * 获取指定 session 的所有 Discussion。
-   *
-   * @param sessionId - 会话 ID
-   * @returns Discussion 数组
-   */
+  /** 查询指定 session 关联的所有讨论项。 */
   async getDiscussions(sessionId: string): Promise<Discussion[]> {
     const result = (await this.discussions
       .query({ fromSessionId: sessionId })
@@ -256,10 +229,9 @@ export class MemorySystem implements IMemorySystem {
   }
 
   /**
-   * 获取所有尚未决策的 Discussion（decision 字段为空）。
-   * 由于 AxioDB 不支持 $exists 查询，改为全量拉取后 JS 过滤。
+   * 查询所有未解决的讨论项。
    *
-   * @returns 未决策的 Discussion 数组
+   * 判断依据：decision 字段为空（即尚未做出决定）。
    */
   async getUnresolvedDiscussions(): Promise<Discussion[]> {
     const result = (await this.discussions
@@ -271,12 +243,7 @@ export class MemorySystem implements IMemorySystem {
     return all.filter((d) => !d.decision);
   }
 
-  /**
-   * 对指定 Discussion 做出决策，标记为已解决。
-   *
-   * @param id - Discussion 的唯一标识
-   * @param decision - 决策内容
-   */
+  /** 为指定讨论项设置决定内容，并记录解决时间。 */
   async resolveDiscussion(id: string, decision: string): Promise<void> {
     await this.discussions
       .update({ id })
@@ -287,13 +254,10 @@ export class MemorySystem implements IMemorySystem {
   }
 
   /**
-   * 获取 Discussion 列表，支持按优先级和是否已解决过滤。
-   * 过滤逻辑在 JS 侧完成，非数据库查询条件。
+   * 按条件列出讨论项。
    *
-   * @param filter - 可选过滤条件
-   * @param filter.priority - 按优先级过滤（'high' | 'medium' | 'low'）
-   * @param filter.unresolved - 仅返回未决策项
-   * @returns 过滤后的 Discussion 数组
+   * @param filter.priority 按优先级过滤
+   * @param filter.unresolved 仅返回未解决项
    */
   async listDiscussions(
     filter?: { priority?: string; unresolved?: boolean },
@@ -319,15 +283,11 @@ export class MemorySystem implements IMemorySystem {
   // ═══════════════════════════════════════════
 
   /**
-   * 记录一次步骤进入事件。如已有此 session+step 的记录则累加计数和 Token；
-   * 否则创建新记录。
+   * 记录进入步骤事件。
    *
-   * @param sessionId - 会话 ID
-   * @param flow - 流程名称
-   * @param step - 步骤编号
-   * @param stepName - 步骤名称
-   * @param tokensConsumed - 本次消耗的 Token 数
-   * @param userInputTokens - 用户输入占用的 Token 数
+   * 两次调用逻辑：
+   * - 该 session+step 已有记录 → 累加 `stepInCount` 和 `tokensConsumed`
+   * - 无记录 → 创建新的 FlowMetrics 文档，同时回填 `taskSummary`
    */
   async recordStepEntry(
     sessionId: string,
@@ -382,13 +342,10 @@ export class MemorySystem implements IMemorySystem {
   }
 
   /**
-   * 记录步骤退出事件，累加停留时间和人工介入时间。
-   * 仅在有已存在的 session+step 记录时才更新（无记录时静默跳过）。
+   * 记录退出步骤事件。
    *
-   * @param sessionId - 会话 ID
-   * @param step - 步骤编号
-   * @param dwellTime - 本次在该步骤停留的时间（ms）
-   * @param humanInterventionTime - 本次人工介入时间（ms）
+   * 累加 `dwellTime` 和 `humanInterventionTime`。
+   * 如果找不到对应的进入记录（异常情况），静默跳过。
    */
   async recordStepExit(
     sessionId: string,
@@ -415,12 +372,7 @@ export class MemorySystem implements IMemorySystem {
     }
   }
 
-  /**
-   * 获取指定 session 的所有流程指标记录。
-   *
-   * @param sessionId - 会话 ID
-   * @returns FlowMetrics 数组
-   */
+  /** 查询指定 session 的所有步骤指标记录。 */
   async getFlowMetrics(sessionId: string): Promise<FlowMetrics[]> {
     const result = (await this.flowMetrics
       .query({ sessionId })
@@ -429,12 +381,7 @@ export class MemorySystem implements IMemorySystem {
     return unwrapArray(result) as FlowMetrics[];
   }
 
-  /**
-   * 获取指定流程的所有指标记录（跨 session 汇总）。
-   *
-   * @param flow - 流程名称
-   * @returns FlowMetrics 数组
-   */
+  /** 查询指定流程的所有步骤指标记录（跨 session 汇总）。 */
   async getFlowMetricsByFlow(flow: string): Promise<FlowMetrics[]> {
     const result = (await this.flowMetrics
       .query({ flow })

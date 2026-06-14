@@ -23,10 +23,8 @@ describe("Data File", () => {
   });
 
   it("init_creates_data_on_first_run: 首次运行创建数据目录", () => {
-    const dbDir = path.join(tmpDir, "vibe-pm");
-    expect(fs.existsSync(dbDir)).toBe(true);
-    const appDir = path.join(dbDir, "vibe-pm");
-    expect(fs.existsSync(appDir)).toBe(true);
+    const dataDir = path.join(tmpDir, "data");
+    expect(fs.existsSync(dataDir)).toBe(true);
   });
 
   it("can_create_and_query_after_init: init 后可以正常 CRUD", async () => {
