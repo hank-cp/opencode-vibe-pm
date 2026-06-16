@@ -1,7 +1,7 @@
 import * as path from "node:path";
 import { loadConfig, ensureDefaultConfig } from "./config.js";
 import { registerCommands, registerTools } from "./commands.js";
-import { logger } from "./logger.js";
+import { logger, initLogger } from "./logger.js";
 import { MemorySystem } from "../memory/index.js";
 import { FlowEngine } from "../engine/index.js";
 import type { Plugin, PluginInput, Hooks, IPluginContext, Config } from "./types.js";
@@ -11,6 +11,7 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
   const config = loadConfig(ctx.directory);
   const dataDir = path.resolve(ctx.directory, config.dataDir);
   const pluginCtx: IPluginContext = { config, projectDir: ctx.directory, dataDir };
+  initLogger(ctx.client);
   logger.info(`vibe-pm initializing in ${ctx.directory}`);
 
   const memory = new MemorySystem();

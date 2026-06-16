@@ -1,30 +1,35 @@
 /**
  * 日志工具
  *
- * 写入文件而非 console，避免破坏 TUI。
- * 日志路径: ~/.config/vibe-pm/logs/daily/YYYY-MM-DD.log
- *
- * 参考: opencode-dynamic-context-pruning/lib/logger.ts
+ * 通过 OpenCode SDK 的 app.log() 写入宿主日志系统。
+ * 公共接口不变：logger.debug / info / warn / error。
  */
 
-import { writeFile, mkdir } from "node:fs/promises";
-import { join } from "node:path";
-import { existsSync } from "node:fs";
-import { homedir } from "node:os";
 import type { ILogger } from "./types.js";
 
-// ─── 日志目录 ───
+// ─── LogClient 最小接口 ───
 
-const LOG_DIR = join(
-  process.env.XDG_CONFIG_HOME || join(homedir(), ".config"),
-  "vibe-pm",
-  "logs",
-  "daily",
-);
+interface LogClient {
+  app: {
+    log(options: {
+      body?: {
+        service: string;
+        level: "debug" | "info" | "warn" | "error";
+        message: string;
+        extra?: Record<string, unknown>;
+      };
+    }): Promise<unknown>;
+  };
+}
 
-// ─── 启用/禁用 ───
+// ─── 状态 ───
 
+let client: LogClient | null = null;
 let enabled = true;
+
+export function initLogger(c: LogClient): void {
+  client = c;
+}
 
 export function setLogEnabled(v: boolean): void {
   enabled = v;
@@ -57,26 +62,19 @@ function getCallerFile(): string {
   }
 }
 
-/**
- * 将附加数据格式化为 key=value 字符串。
- * 支持: 对象、Error、字符串、基础类型。
- */
-function formatData(data?: unknown): string {
-  if (data === undefined || data === null) return "";
-  if (typeof data === "string") return data;
-  if (data instanceof Error) return `error=${data.message}`;
-  if (typeof data === "object") {
-    const parts: string[] = [];
-    for (const [k, v] of Object.entries(data as Record<string, unknown>)) {
-      if (v === undefined || v === null) continue;
-      const str = typeof v === "object" ? JSON.stringify(v) : String(v);
-      if (str.length < 100) {
-        parts.push(`${k}=${str}`);
-      }
-    }
-    return parts.join(" ");
+function toExtra(data?: unknown): Record<string, unknown> | undefined {
+  if (data === undefined || data === null) return undefined;
+  if (data instanceof Error) {
+    return { error: data.message, stack: data.stack };
   }
-  return String(data);
+  if (typeof data === "object") {
+    return Object.fromEntries(
+      Object.entries(data as Record<string, unknown>).filter(
+        ([, v]) => v !== undefined && v !== null,
+      ),
+    );
+  }
+  return { detail: String(data) };
 }
 
 // ─── 写入 ───
@@ -86,23 +84,20 @@ async function write(
   message: unknown,
   data?: unknown,
 ): Promise<void> {
-  if (!enabled) return;
+  if (!enabled || !client) return;
 
   try {
-    if (!existsSync(LOG_DIR)) {
-      await mkdir(LOG_DIR, { recursive: true });
-    }
+    const service = getCallerFile();
+    const msg = typeof message === "string" ? message : String(message);
 
-    const timestamp = new Date().toISOString();
-    const component = getCallerFile();
-    const dataStr = formatData(data);
-    const line = `${timestamp} ${level.padEnd(5)} ${component}: ${message}${dataStr ? " | " + dataStr : ""}\n`;
-
-    const logFile = join(
-      LOG_DIR,
-      `${new Date().toISOString().split("T")[0]}.log`,
-    );
-    await writeFile(logFile, line, { flag: "a" });
+    await client.app.log({
+      body: {
+        service,
+        level: level.toLowerCase() as "debug" | "info" | "warn" | "error",
+        message: msg,
+        extra: toExtra(data),
+      },
+    });
   } catch {
     // 静默失败 —— 日志不应导致应用崩溃
   }
