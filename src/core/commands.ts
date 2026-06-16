@@ -141,7 +141,7 @@ function createTaskStartTool(engine: FlowEngine): ToolDefinition {
       summary: tool.schema.string().describe("任务摘要（一句话描述任务目标）"),
       specRef: tool.schema.string().optional().describe("关联的 Spec 文档路径"),
       planRef: tool.schema.string().optional().describe("关联的 Plan 文档路径"),
-    } as any,
+    },
     async execute(
       args: { flow: string; summary: string; specRef?: string; planRef?: string },
       toolCtx: ToolContext,
@@ -180,7 +180,7 @@ function createTaskSetStepTool(engine: FlowEngine): ToolDefinition {
     description: "Manually jump to a specific step",
     args: {
       step: tool.schema.string().describe("目标步骤 ID，如 S1、S2"),
-    } as any,
+    },
     async execute(
       args: { step: string },
       toolCtx: ToolContext,
@@ -204,7 +204,7 @@ function createTaskSetStepTool(engine: FlowEngine): ToolDefinition {
 function createTaskRefreshTool(_engine: FlowEngine): ToolDefinition {
   return tool({
     description: "Re-inject context for the current step",
-    args: {} as any,
+    args: {},
     async execute(
       _args: Record<string, never>,
       _toolCtx: ToolContext,
@@ -217,7 +217,7 @@ function createTaskRefreshTool(_engine: FlowEngine): ToolDefinition {
 function createTaskCloseTool(engine: FlowEngine): ToolDefinition {
   return tool({
     description: "Close the current task and trigger analysis",
-    args: {} as any,
+    args: {},
     async execute(
       _args: Record<string, never>,
       toolCtx: ToolContext,
@@ -257,7 +257,7 @@ function createInstallFlowTool(ctx: IPluginContext): ToolDefinition {
       templateId: tool.schema.string().optional().describe(
         "Template ID to install (e.g. 'spec-driven-dev', 'bug-fix', 'research', 'large-refactor'). If omitted, lists available templates.",
       ),
-    } as any,
+    },
     async execute(
       args: { templateId?: string },
       _toolCtx: ToolContext,

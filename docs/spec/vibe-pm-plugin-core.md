@@ -3,7 +3,7 @@
 **创建日期**: 2026-06-11
 **状态**: Implemented
 **输入来源**: XMind 设计文档 + OpenCode 插件 API 调研
-**最后更新**: 2026-06-12 — Plugin Core 实现完成
+**最后更新**: 2026-06-17 — 重构：LLM 主导流程控制，Hook 精简（移除 chat.message/system.transform），文件日志，模块直连
 
 ---
 
@@ -31,19 +31,19 @@ sequenceDiagram
     participant OC as OpenCode
     participant PC as Plugin Core
     participant Config as Config Manager
-    participant Engine as Flow Engine
-    participant Memory as Memory System
+    participant Mem as MemorySystem
+    participant Engine as FlowEngine
 
     OC->>PC: Plugin 初始化
     PC->>Config: ensureDefaultConfig() 创建 .vibe-pm.json（如不存在）
     Config-->>PC: 配置就绪
-    PC->>Config: 加载 .vibe-pm.json
+    PC->>Config: loadConfig() 加载配置
     Config-->>PC: PluginConfig
-    PC->>Memory: 初始化 AxioDB (dataDir)
-    Memory-->>PC: 就绪
-    PC->>Engine: 初始化 Flow Engine
+    PC->>Mem: new MemorySystem().init(dataDir)
+    Mem-->>PC: AxioDB 就绪
+    PC->>Engine: new FlowEngine(memory, projectDir)
     Engine-->>PC: 就绪
-    PC->>OC: 注册 hooks (tool/event/config/chat.*)
+    PC->>OC: 注册 hooks (config/tool/messages.transform/event)
 ```
 
 启动时确保 `.vibe-pm.json` 存在（不存在则创建默认配置）。目录结构（`docs/flow/` 等）由 `/pm-install-flow` 按需创建。
@@ -113,54 +113,55 @@ graph TD
     Init["Plugin 初始化"]
     Event["event hook"]
     Config["config hook"]
-    ChatMsg["chat.message"]
-    SysTransform["system.transform"]
     MsgTransform["messages.transform"]
-    Idle["session.idle"]
 
     Init --> Config
     Config --> Event
-    Event -->|"session.created"| ChatMsg
-    ChatMsg --> SysTransform
-    SysTransform --> MsgTransform
-    MsgTransform -->|"LLM 处理"| Idle
-    Idle -->|"触发分析"| Event
+    Event -->|"session.created"| MsgTransform
+    MsgTransform -->|"检测 flow → 创建任务 → 注入 <pm-control-rules>"| MsgTransform
 ```
 
 Plugin Core 负责将各模块的实现函数绑定到对应钩子：
 
 ```typescript
-export const VibePMPlugin: Plugin = async (ctx) => {
+export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => {
+  ensureDefaultConfig(ctx.directory);
   const config = loadConfig(ctx.directory);
-  const memory = await initMemory(config.dataDir);
+  const dataDir = path.resolve(ctx.directory, config.dataDir);
+  const pluginCtx: IPluginContext = { config, projectDir: ctx.directory, dataDir };
+
+  const memory = new MemorySystem();
+  await memory.init(dataDir);
   const engine = new FlowEngine(memory, ctx.directory);
 
   return {
-    // 1. 命令注册
-    config: (opencodeConfig) => registerCommands(opencodeConfig),
+    // 1. 命令注册（声明式）
+    config: async (c: Config) => { registerCommands(c); },
 
-    // 2. 工具注册（可执行命令 + 流程工具）
-    tool: registerTools(memory, engine),
+    // 2. 工具注册（可执行命令）
+    tool: registerTools(pluginCtx, engine),
 
-    // 3. 消息到达 → 检查任务状态
-    "chat.message": (input, output) => engine.onMessage(input, output),
-
-    // 4. 系统提示注入
-    "experimental.chat.system.transform": (input, output) =>
-      engine.injectContext(input, output),
-
-    // 5. 消息裁剪
-    "experimental.chat.messages.transform": (input, output) =>
-      engine.transformMessages(input, output),
-
-    // 6. 生命周期事件
-    event: ({ event }) => {
-      if (event.type === "session.created") {
-        memory.initSession(event.properties.sessionID);
+    // 3. 消息转换：检测 flow 命令 → 自动创建任务 → 注入 <pm-control-rules>
+    "experimental.chat.messages.transform": async (_input, output) => {
+      for (const msg of output.messages) {
+        const info = msg.info as { role?: string; id?: string; sessionID?: string };
+        if (info.role !== "user") continue;
+        const parts = msg.parts as { type: string; text: string }[];
+        const flow = engine.detectFlowCmd(parts.filter(p => p.type === "text").map(p => p.text).join("\n"));
+        if (flow && info.sessionID) {
+          await engine.ensureTaskAndInject(info.sessionID, flow, parts, info.id ?? "", info.sessionID);
+          return;
+        }
       }
-      if (event.type === "session.idle") {
-        engine.onSessionIdle(event.properties.sessionID);
+      // 无 flow 命令 → 清理旧控制提示
+      for (const msg of output.messages) {
+        engine.removeControlPrompt(msg.parts as { type: string; text: string }[]);
       }
+    },
+
+    // 4. 生命周期事件：清除命令映射缓存
+    event: async ({ event }) => {
+      if (event.type === "session.created") engine.clearCommandFlowCache();
     },
   };
 };
@@ -222,7 +223,7 @@ const DEFAULT_CONFIG: PluginConfig = {
 
 ### 日志系统
 
-使用 `console.warn` / `console.error` + `[vibe-pm]` 统一前缀，零外部依赖。
+文件日志，通过 `ILogger` 接口（debug/info/warn/error），异步写入 `~/.config/vibe-pm/logs/daily/YYYY-MM-DD.log`。按日滚动，静默失败不阻塞应用。文件日志取代 console 输出，避免破坏 OpenCode TUI。
 
 ---
 
@@ -240,7 +241,7 @@ interface IPluginContext {
 
 ### 模块注册接口
 
-模块通过 `ModuleHooks`（`Partial<Hooks>`）贡献钩子子集。Plugin Core 加载所有模块的 hooks 后合并注册到 OpenCode。
+`ModuleHooks` 和 `ModuleInit` 类型定义保留在 `types.ts` 中，以备将来扩展。当前 Plugin Core 直接实例化模块（见上），不使用注册模式。
 
 ```typescript
 import type { Hooks } from "@opencode-ai/plugin";
@@ -254,7 +255,7 @@ type ModuleInit = (ctx: IPluginContext) => ModuleHooks;
 
 ### 模块接入机制
 
-各模块通过普通 TypeScript `import`/`export` 接入。Plugin Core 直接 import 各模块的 `ModuleInit` 函数，调用后获得 `ModuleHooks` 并合并。无需注册表、DI 容器或动态扫描机制。
+Plugin Core 直接通过 `new` 实例化 `MemorySystem` 和 `FlowEngine`，不通过 `ModuleInit`/`ModuleHooks` 注册模式。`ModuleHooks` 和 `ModuleInit` 类型定义保留在 `types.ts` 中，以备将来扩展。
 
 ---
 
@@ -280,10 +281,10 @@ type ModuleInit = (ctx: IPluginContext) => ModuleHooks;
 
 | 动作指令 | 测试方法 | Given | When | Then | Notes |
 |----------|----------|-------|------|------|-------|
-| 新增 | `init_creates_data_dir` | 项目目录下无 `.vibe-pm/` | Plugin 初始化 | 创建 `.vibe-pm/` 目录和空的 `data.json` | 首次安装 |
-| 新增 | `init_registers_all_hooks` | 正常配置 | Plugin 初始化 | 返回的 hooks 对象包含 config, tool, chat.message, system.transform, messages.transform, event | 完整性检查 |
-| 新增 | `init_module_failure_skips` | 某模块 init 抛异常 | Plugin 初始化 | 跳过该模块，其他模块正常注册，记录 error 日志 | 故障隔离 |
-| 新增 | `no_active_task_passthrough` | 当前 session 无活跃 Task | `chat.message` 钩子触发 | output 不做任何修改 | 无任务时不干预 |
+| 新增 | `init_creates_data_dir` | 项目目录下无 `.vibe-pm/` | Plugin 初始化 | 创建 `.vibe-pm/` 目录和数据文件 | 首次安装 |
+| 新增 | `init_registers_all_hooks` | 正常配置 | Plugin 初始化 | 返回的 hooks 对象包含 config, tool, messages.transform, event | 完整性检查 |
+| 新增 | `init_creates_config_if_missing` | `.vibe-pm.json` 不存在 | Plugin 初始化 | 自动创建默认配置文件 | 首次使用的项目 |
+| 新增 | `no_active_task_passthrough` | 当前 session 无活跃 Task + 无 flow 命令 | `messages.transform` 钩子触发 | 清理旧控制提示，不做注入 | 无任务时不干预 |
 
 ### plugin-commands.test.ts
 
@@ -302,11 +303,11 @@ type ModuleInit = (ctx: IPluginContext) => ModuleHooks;
 
 | 场景 | 预期行为 |
 |------|---------|
-| `.vibe-pm.json` 不存在 | 使用默认配置，提示用户运行 `/pm-init` |
-| `.vibe-pm/data.json` 不存在 | 自动创建空数据库文件 |
-| 会话无活跃任务 | chat.message / transform 钩子不做干预，透传 |
+| `.vibe-pm.json` 不存在 | 自动创建默认配置文件 |
+| `.vibe-pm/data.json` 不存在 | MemorySystem 自动创建空数据库 |
+| 会话无活跃任务 + 检测到 flow 命令 | 自动创建任务 + 注入 `<pm-control-rules>` |
+| 会话无活跃任务 + 无 flow 命令 | messages.transform 清理旧控制提示，不做注入 |
 | 配置项格式错误 | 使用默认值，记录 warning 日志 |
-| 模块初始化失败 | 跳过该模块，记录 error，不阻塞其他模块 |
 | 命令重复注册 | 后者覆盖前者 |
 
 ---
@@ -327,8 +328,7 @@ type ModuleInit = (ctx: IPluginContext) => ModuleHooks;
 
 ### 已知风险
 
-- `experimental.chat.messages.transform` 和 `experimental.chat.system.transform` 在后续 OpenCode 版本中可能被移除或合并
-- 消息裁剪可能误删关键上下文，需要可配置的裁剪白名单
+- `experimental.chat.messages.transform` 在后续 OpenCode 版本中可能被移除或合并
 
 ### 影响范围
 
@@ -343,20 +343,8 @@ type ModuleInit = (ctx: IPluginContext) => ModuleHooks;
 ### 已实现功能
 
 - Plugin Core 入口（`VibePMPlugin`）+ 启动时自动创建默认配置
-- 配置管理（`loadConfig` + `DEFAULT_CONFIG` + `initEnvironment`，支持深度合并/自动创建）
+- 配置管理（`loadConfig` + `DEFAULT_CONFIG` + `ensureDefaultConfig`，支持深度合并/自动创建）
 - 8 个 `/pm-*` 命令注册（config hook + tool hook）
-- 日志系统（`[vibe-pm]` 前缀）
-- 核心类型定义（`PluginConfig`, `IPluginContext`, `ModuleInit`, `ModuleHooks`，OpenCode 交互类型来自 SDK）
-
-### 未实现功能
-
-- 4 个可执行命令的实际逻辑（当前返回占位消息）
-- TUI 集成（终端显示当前任务状态）
-
-### 占位代码清单
-
-| 位置 | 说明 | 预期替换时间 |
-|------|------|-------------|
-| `src/core/plugin.ts` — `initMemory()` | AxioDB 初始化的 stub | Memory System 实现时 |
-| `src/core/plugin.ts` — `FlowEngine` 类 | 流程引擎的 stub | Flow Engine 实现时 |
-| `src/core/commands.ts` — `createStubTool()` | 命令执行的 stub，返回占位消息 | 各命令实现时 |
+- 文件日志系统（`ILogger` → 按日滚动）
+- FlowEngine 集成（任务自动创建 + `<pm-control-rules>` 注入 + 控制提示清理）
+- 核心类型定义（`PluginConfig`, `IPluginContext`, `ILogger`，OpenCode 交互类型来自 SDK）

@@ -2,7 +2,7 @@
 
 **创建日期**: 2026-06-11
 **状态**: Draft
-**最后更新**: 2026-06-16 — 重构：LLM 主导流程控制，文件引用替代内容注入
+**最后更新**: 2026-06-17 — 注入精简为单一 `<pm-control-rules>` 标签，任务由 messages.transform 自动创建
 
 ---
 
@@ -66,25 +66,22 @@ sequenceDiagram
     participant Mem as Memory System
     participant LLM as LLM
 
-    User->>Core: /pm-spec-driven-dev "重构"
-    Core->>Engine: autoStartTaskFromCommand
-    Engine->>Mem: 创建 Task
-    Core-->>LLM: 注入 <pm-constitution> <pm-flow-control> <pm-dictionary> 引用标签
+    User->>Core: 发送含 /pm-spec-driven-dev 的消息
+    Core->>Engine: detectFlowCmd(text) → "spec-driven-dev"
+    Core->>Engine: ensureTaskAndInject(sessionId, "spec-driven-dev", parts)
+    Engine->>Mem: getActiveTask(sessionId) → null
+    Engine->>Mem: createTask(spec-driven-dev, S1)
+    Core-->>LLM: 注入 <pm-control-rules> 流程执行规则
 
-    LLM->>LLM: Read docs/flow/[flow]spec-driven-dev.md
+    LLM->>LLM: 按 <pm-control-rules> 启动流程
     LLM->>LLM: Read docs/regulation/constitution.md
+    LLM->>LLM: Read docs/flow/[flow]spec-driven-dev.md
     LLM->>LLM: 按步骤执行，调 pm_task_set_step 记录进度
 ```
 
 ### 上下文注入内容
 
-每次对话注入以下**文件引用标签**（不含全文）：
-
-1. `<pm-constitution src="docs/regulation/constitution.md">` — 宪法文件路径 + 摘要
-2. `<pm-flow-control src="docs/flow/[flow]{name}.md">` — 流程文件路径 + 指令
-3. `<pm-dictionary src="docs/regulation/dictionary.md">` — 字典文件路径 + 摘要
-4. `<pm-control-rules>` — 流程执行强制约束
-5. `<task-state>` — 当前任务状态
+每次对话注入 `<pm-control-rules>` 控制提示，其中包含**文件引用**让 LLM 自行读取相关文档（不含全文）：
 
 ---
 
