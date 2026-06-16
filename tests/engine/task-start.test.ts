@@ -42,7 +42,7 @@ describe("Task Start", () => {
     tmpDir = createTestProject();
     memory = new MemorySystem();
     await memory.init(path.join(tmpDir, ".vibe-pm"));
-    engine = new FlowEngine(memory, tmpDir, DEFAULT_CONFIG);
+    engine = new FlowEngine(memory, tmpDir);
   });
 
   afterAll(() => {
@@ -106,5 +106,89 @@ describe("Task Start", () => {
 
   it("resolve_unknown_command_with_slash: 带 / 前缀的未知命令返回 null", () => {
     expect(engine.resolveFlowFromCommand("/pm-unknown")).toBeNull();
+  });
+});
+
+describe("buildControlPrompt", () => {
+  const engine = new FlowEngine(
+    new MemorySystem(),
+    "/fake/project",
+  );
+
+  it("constitution_is_supreme_rule: constitution 为最高优先级", () => {
+    const prompt = engine.buildControlPrompt("bug-fix");
+    expect(prompt).toContain("constitution.md（最高）");
+    expect(prompt).toContain("任何规则与 constitution 冲突时");
+    expect(prompt).toContain("以 constitution 为准");
+  });
+
+  it("contains_priority_hierarchy: 包含三级优先级体系", () => {
+    const prompt = engine.buildControlPrompt("bug-fix");
+    expect(prompt).toContain("优先级");
+    expect(prompt).toContain("constitution.md");
+    expect(prompt).toContain("本流程执行规则");
+    expect(prompt).toContain("其他指令");
+  });
+
+  it("contains_mode_conflict_handling: 处理 analyze-mode 冲突", () => {
+    const prompt = engine.buildControlPrompt("bug-fix");
+    expect(prompt).toContain("analyze-mode");
+    expect(prompt).toContain("CONTEXT GATHERING");
+    expect(prompt).toContain("S1 步骤");
+  });
+
+  it("contains_startup_sequence: 启动序列以 constitution 为先", () => {
+    const prompt = engine.buildControlPrompt("bug-fix");
+    expect(prompt).toContain("constitution.md");
+    expect(prompt).toContain("FSM 状态图");
+    expect(prompt).toContain("进入执行循环");
+    const startupSection = prompt.split("## 执行循环")[0];
+    expect(startupSection).not.toContain("pm_task_start");
+    expect(startupSection).not.toContain("pm_task_set_step");
+  });
+
+  it("contains_execution_loop: 包含执行循环（含 pm_task_set_step）", () => {
+    const prompt = engine.buildControlPrompt("bug-fix");
+    expect(prompt).toContain("S{n}");
+    expect(prompt).toContain("pm_task_set_step");
+    expect(prompt).toContain("⚠️ 标记");
+    expect(prompt).toContain("question/confirm");
+  });
+
+  it("contains_all_red_lines: 包含全部 8 条红线", () => {
+    const prompt = engine.buildControlPrompt("bug-fix");
+    expect(prompt).toMatch(/未读.*constitution.*就开始/);
+    expect(prompt).toMatch(/S1.*阶段.*编辑/);
+    expect(prompt).toContain("把用户请求直接当成编码任务");
+    expect(prompt).toContain("不调用 question/confirm 就直接执行");
+    expect(prompt).toContain("跳步");
+    expect(prompt).toContain("预读全流程后直奔编码步骤");
+    expect(prompt).toMatch(/创建 todo.*流程步骤/);
+    expect(prompt).toMatch(/行为与.*constitution.*冲突/);
+  });
+
+  it("contains_step_gates: 包含步骤门禁表", () => {
+    const prompt = engine.buildControlPrompt("bug-fix");
+    expect(prompt).toContain("S1（理解）");
+    expect(prompt).toContain("编辑/创建/删除文件");
+    expect(prompt).toContain("带 ⚠️");
+    expect(prompt).toContain("合流");
+  });
+
+  it("contains_flow_reference: 包含正确的 flow 文件引用", () => {
+    const prompt = engine.buildControlPrompt("bug-fix");
+    expect(prompt).toContain("docs/flow/[flow]bug-fix.md");
+  });
+
+  it("wraps_in_pm_control_rules_tags: 使用 pm-control-rules 标签包裹", () => {
+    const prompt = engine.buildControlPrompt("bug-fix");
+    expect(prompt).toMatch(/^<pm-control-rules>/);
+    expect(prompt).toMatch(/<\/pm-control-rules>$/);
+  });
+
+  it("prompt_mentions_flow_execution_failure_consequence: 提示词提及流程执行失败的后果", () => {
+    const prompt = engine.buildControlPrompt("bug-fix");
+    expect(prompt).toContain("红线");
+    expect(prompt).toContain("流程执行失败");
   });
 });

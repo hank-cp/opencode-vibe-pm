@@ -46,7 +46,7 @@ describe("Task CRUD", () => {
   it("getActiveTask_filters_closed: 只返回未关闭的任务", async () => {
     await memory.createTask(baseTask("active"));
     const closedTask = await memory.createTask(baseTask("closed"));
-    await memory.closeTask(closedTask.sessionId);
+    await memory.closeTask(closedTask.documentId);
 
     expect(await memory.getActiveTask("ses_active")).toBeDefined();
     expect(await memory.getActiveTask("ses_closed")).toBeNull();
@@ -54,7 +54,7 @@ describe("Task CRUD", () => {
 
   it("updateStep_updates_both: 同步更新步骤编号和名称", async () => {
     const task = await memory.createTask(baseTask("step"));
-    await memory.updateStep(task.sessionId, "S4", "设计方案");
+    await memory.updateStep(task.documentId, "S4", "设计方案");
     const updated = await memory.getTask(task.sessionId);
     expect(updated!.currentStep).toBe("S4");
     expect(updated!.currentStepName).toBe("设计方案");

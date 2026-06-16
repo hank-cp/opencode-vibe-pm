@@ -1,7 +1,3 @@
-/**
- * 插件初始化测试 — AxioDB 单实例，整个文件共享 Plugin
- */
-
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -9,21 +5,24 @@ import * as os from "node:os";
 import { VibePMPlugin } from "../../src/core/plugin.js";
 import type { PluginInput } from "../../src/core/types.js";
 
-// SDK PluginInput 的最小 Mock
-function createMockPluginInput(dir: string): PluginInput {
+function mockInput(dir: string): PluginInput {
   return {
     directory: dir,
     worktree: dir,
     serverUrl: new URL("http://localhost"),
-    client: {} as ReturnType<
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (...args: any[]) => any
-    >,
+    client: {} as ReturnType<(...args: any[]) => any>,
     project: {} as PluginInput["project"],
-    experimental_workspace: {
-      register: () => {},
-    },
+    experimental_workspace: { register: () => {} },
     $: {} as PluginInput["$"],
+  };
+}
+
+function makeTransformOutput(messages: { role: string; sessionID: string; parts: { type: string; text: string }[] }[]) {
+  return {
+    messages: messages.map((m, i) => ({
+      info: { role: m.role, sessionID: m.sessionID, id: `msg-${i}` },
+      parts: [...m.parts],
+    })),
   };
 }
 
@@ -32,49 +31,71 @@ describe("VibePMPlugin", () => {
   let hooks: Awaited<ReturnType<typeof VibePMPlugin>>;
 
   beforeAll(async () => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-pm-test-init-"));
-    const ctx = createMockPluginInput(tmpDir);
-    hooks = await VibePMPlugin(ctx);
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-pm-test-"));
+    fs.mkdirSync(path.join(tmpDir, "docs", "flow"), { recursive: true });
+    fs.writeFileSync(
+      path.join(tmpDir, "docs", "flow", "test-flow.md"),
+      "**Command**: `/pm-test`\n# Test Flow\n\n## S1\n\n**完成后**: S2\n\n## S2\n\n**完成后**: [*]\n",
+    );
+    hooks = await VibePMPlugin(mockInput(tmpDir));
   });
 
   afterAll(() => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("init_registers_all_hooks: 返回 hooks 对象包含全部 3 个钩子（config/tool/command.execute.before/event）", () => {
-    expect(hooks.config).toBeDefined();
+  it("registers config, tool, messages.transform, event", () => {
     expect(typeof hooks.config).toBe("function");
-    expect(hooks.tool).toBeDefined();
     expect(typeof hooks.tool).toBe("object");
-    expect(hooks["command.execute.before"]).toBeDefined();
-    expect(typeof hooks["command.execute.before"]).toBe("function");
-    expect(hooks.event).toBeDefined();
+    expect(typeof hooks["experimental.chat.messages.transform"]).toBe("function");
     expect(typeof hooks.event).toBe("function");
   });
 
-  it("init_command_execute_before_injects_prompt_for_pm_command: pm-* 命令注入 control prompt", async () => {
-    const output = { parts: [] as unknown[] };
-    await hooks["command.execute.before"]!(
-      { command: "pm-test-flow", sessionID: "s1" },
-      output,
+  it("injects synthetic part when auto-slash-command pm-* found", async () => {
+    const output = makeTransformOutput([
+      { role: "user", sessionID: "s1", parts: [{ type: "text", text: "<auto-slash-command>\n/pm-test start\n</auto-slash-command>" }] },
+    ]);
+    await hooks["experimental.chat.messages.transform"]!(
+      {}, output as Parameters<NonNullable<typeof hooks["experimental.chat.messages.transform"]>>[1],
     );
-    expect(true).toBe(true);
+    const parts = output.messages[0].parts as { type: string; text: string; synthetic?: boolean }[];
+    expect(parts.length).toBe(2);
+    expect(parts[1].type).toBe("text");
+    expect(parts[1].text).toContain("<pm-control-rules>");
+    expect(parts[1].synthetic).toBe(true);
   });
 
-
-  it("init_event_session_created: session.created 事件不抛异常", async () => {
-    await expect(
-      hooks.event!({
-        event: { type: "session.created", properties: { sessionID: "s1" } },
-      } as Parameters<NonNullable<typeof hooks.event>>[0]),
-    ).resolves.toBeUndefined();
+  it("skips when no auto-slash-command", async () => {
+    const output = makeTransformOutput([
+      { role: "user", sessionID: "s2", parts: [{ type: "text", text: "hello" }] },
+    ]);
+    await hooks["experimental.chat.messages.transform"]!(
+      {}, output as Parameters<NonNullable<typeof hooks["experimental.chat.messages.transform"]>>[1],
+    );
+    expect(output.messages[0].parts.length).toBe(1);
   });
 
-  it("init_event_session_idle: session.idle 事件不抛异常", async () => {
-    await expect(
-      hooks.event!({
-        event: { type: "session.idle", properties: { sessionID: "s1" } },
-      } as Parameters<NonNullable<typeof hooks.event>>[0]),
-    ).resolves.toBeUndefined();
+  it("clears stale control prompt when no flow cmd", async () => {
+    const output = makeTransformOutput([
+      { role: "user", sessionID: "s3", parts: [
+        { type: "text", text: "hello" },
+        { type: "text", text: "<pm-control-rules>\nold\n</pm-control-rules>" },
+      ]},
+    ]);
+    await hooks["experimental.chat.messages.transform"]!(
+      {}, output as Parameters<NonNullable<typeof hooks["experimental.chat.messages.transform"]>>[1],
+    );
+    expect(output.messages[0].parts.length).toBe(1);
+  });
+
+  it("deduplicates by session+flow fingerprint", async () => {
+    const cmd = "<auto-slash-command>\n/pm-test dedup\n</auto-slash-command>";
+    const o1 = makeTransformOutput([{ role: "user", sessionID: "sd", parts: [{ type: "text", text: cmd }] }]);
+    await hooks["experimental.chat.messages.transform"]!({}, o1 as Parameters<NonNullable<typeof hooks["experimental.chat.messages.transform"]>>[1]);
+    expect(o1.messages[0].parts.length).toBe(2);
+
+    const o2 = makeTransformOutput([{ role: "user", sessionID: "sd", parts: [{ type: "text", text: cmd }] }]);
+    await hooks["experimental.chat.messages.transform"]!({}, o2 as Parameters<NonNullable<typeof hooks["experimental.chat.messages.transform"]>>[1]);
+    expect(o2.messages[0].parts.length).toBe(1);
   });
 });

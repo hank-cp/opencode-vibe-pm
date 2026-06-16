@@ -7,6 +7,7 @@
 // ─── Task ───
 
 export interface Task {
+  documentId: string;
   sessionId: string;
   flow: string;
   currentStep: string;
@@ -80,8 +81,8 @@ export interface IMemorySystem {
   createTask(input: CreateTaskInput): Promise<Task>;
   getTask(sessionId: string): Promise<Task | null>;
   getActiveTask(sessionId: string): Promise<Task | null>;
-  updateStep(sessionId: string, step: string, stepName: string): Promise<void>;
-  closeTask(sessionId: string): Promise<void>;
+  updateStep(documentId: string, step: string, stepName: string): Promise<void>;
+  closeTask(documentId: string): Promise<void>;
   listActiveTasks(): Promise<Task[]>;
 
   // Discussion

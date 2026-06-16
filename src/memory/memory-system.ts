@@ -118,7 +118,6 @@ export class MemorySystem implements IMemorySystem {
    * 若已有未关闭的 Task，抛出 {@link DuplicateTaskError}。
    */
   async createTask(input: CreateTaskInput): Promise<Task> {
-    // 检查是否已有 active task
     const existing = await this.getActiveTask(input.sessionId);
     if (existing) {
       throw new DuplicateTaskError(input.sessionId);
@@ -126,6 +125,7 @@ export class MemorySystem implements IMemorySystem {
 
     const task: Task = {
       ...input,
+      documentId: generateId(),
       closed: false,
     };
 
@@ -153,14 +153,13 @@ export class MemorySystem implements IMemorySystem {
     return unwrapSingle(result) as Task | null;
   }
 
-  /** 更新当前活跃任务的步骤信息（步骤 ID + 名称）。 */
   async updateStep(
-    sessionId: string,
+    documentId: string,
     step: string,
     stepName: string,
   ): Promise<void> {
     const result = await this.tasks
-      .update({ sessionId, closed: false })
+      .update({ documentId })
       .UpdateOne({
         currentStep: step,
         currentStepName: stepName,
@@ -168,29 +167,26 @@ export class MemorySystem implements IMemorySystem {
 
     if ((result as AxioResult).statusCode !== 200) {
       throw new Error(
-        `Failed to update step for session ${sessionId}: ${(result as AxioResult).message ?? "unknown error"}`,
+        `Failed to update step for document ${documentId}: ${(result as AxioResult).message ?? "unknown error"}`,
       );
     }
   }
 
-  /** 关闭活跃任务（设置 closed = true）。若无活跃任务则静默跳过。 */
-  async closeTask(sessionId: string): Promise<void> {
+  async closeTask(documentId: string): Promise<void> {
     try {
       const result = await this.tasks
-        .update({ sessionId, closed: false })
+        .update({ documentId })
         .UpdateOne({ closed: true });
 
       const status = (result as AxioResult).statusCode;
       if (status !== 200) {
-        // 无匹配文档（已关闭或不存在）→ 不做任何事
         const msg = (result as AxioResult).message ?? "";
         if (msg.includes("No data found")) return;
         throw new Error(
-          `Failed to close task for session ${sessionId}: ${msg || "unknown error"}`,
+          `Failed to close task for document ${documentId}: ${msg || "unknown error"}`,
         );
       }
     } catch (err) {
-      // closeTask 是 best-effort；调用方（如 session.idle）不应因关闭失败而中断
       if (err instanceof Error && !err.message.startsWith("Failed to close")) {
         throw err;
       }
