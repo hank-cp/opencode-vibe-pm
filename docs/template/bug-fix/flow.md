@@ -119,7 +119,7 @@ stateDiagram-v2
 
 1. 最小化修复——只改根因代码
 2. 不引入无关重构
-3. tsc --noEmit 验证
+3. 运行项目构建/类型检查验证
 
 **完成后**：自动进入 S5
 
@@ -179,7 +179,7 @@ stateDiagram-v2
 
 **目标**：最终验证，收尾文档，询问是否提交。
 
-1. 运行最终类型检查和测试（`tsc --noEmit` + 运行测试）
+1. 运行最终构建校验和测试
 2. 更新 Spec 和 Plan 文档（如需要）
 3. 使用 `question` 工具询问用户：「是否执行 `git commit`？」
    - 若用户选择「是」：执行 `git add -A && git commit`，使用本次修复的总结作为 commit message

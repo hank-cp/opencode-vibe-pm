@@ -150,7 +150,7 @@ stateDiagram-v2
 **引用 Regulation**：coding_style.md、constitution.md
 
 1. 先建兼容层，再改内部实现
-2. 每个改动后 tsc --noEmit
+2. 每个改动后运行构建/类型检查
 3. 标记废弃 API（@deprecated）
 
 **完成后**：自动进入 S8
@@ -225,7 +225,7 @@ stateDiagram-v2
 
 **目标**：最终验证，收尾文档，询问是否提交。
 
-1. 运行最终类型检查和测试（`tsc --noEmit` + 运行测试）
+1. 运行最终构建校验和测试
 2. 更新 Spec 和 Migration 文档
 3. 使用 `question` 工具询问用户：「是否执行 `git commit`？」
    - 若用户选择「是」：执行 `git add -A && git commit`，使用本次重构的总结作为 commit message

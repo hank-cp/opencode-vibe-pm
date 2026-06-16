@@ -289,7 +289,7 @@ stateDiagram-v2
 **引用 Regulation**：coding_style.md、constitution.md
 
 1. 按 Plan 改动点逐个实现
-2. 每个改动后 tsc --noEmit
+2. 每个改动后运行构建/类型检查
 3. 遵循最小变更原则
 
 **完成后**：全部实现 → S9
@@ -318,7 +318,7 @@ stateDiagram-v2
 **引用 Regulation**：checklist.md
 
 1. Plan 任务是否全部实现
-2. tsc + 测试是否通过
+2. 构建 + 测试是否通过
 3. Spec 是否完整实现
 4. 有无多余重构
 
