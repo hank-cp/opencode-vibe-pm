@@ -130,11 +130,9 @@ describe("Command File Generation", () => {
 
     const content = fs.readFileSync(cmdPath, "utf-8");
     expect(content).toContain("# 测试命令");
-    expect(content).toContain("## 任务启动");
+    expect(content).toContain("## 流程控制");
     expect(content).toContain("`/pm-test-cmd`");
-    expect(content).toContain("自动创建任务");
-    expect(content).toContain("注入 Flow 步骤指导");
-    expect(content).toContain("/pm-task-start");
+    expect(content).toContain("docs/flow/[flow]test-cmd.md");
   });
 
   it("install_without_command_skips_file: 无 Command 字段时不生成文件", () => {
@@ -202,13 +200,8 @@ describe("Command File Generation", () => {
     const content = fs.readFileSync(cmdPath, "utf-8");
     const lines = content.split("\n");
 
-    // 标题
     expect(lines[0]).toBe("# 结构测试");
-
-    // 任务启动 section
-    expect(content).toContain("## 任务启动");
-    expect(content).toContain("自动创建任务");
-
-    expect(content).toContain("/pm-task-start");
+    expect(content).toContain("## 流程控制");
+    expect(content).toContain("docs/flow/[flow]struct-test.md");
   });
 });

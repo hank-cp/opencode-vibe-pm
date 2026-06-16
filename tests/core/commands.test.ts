@@ -10,20 +10,17 @@ import type { Config, IPluginContext, ToolContext } from "../../src/core/types.j
 import { registerCommands, registerTools } from "../../src/core/commands.js";
 
 // Mock FlowEngine for tool tests
-function createMockEngine(sessionId: string | null = null) {
+function createMockEngine() {
   return {
-    currentSessionId: sessionId,
     startTask: vi.fn().mockResolvedValue({
       sessionId: "test",
       flow: "research",
       currentStep: "S1",
-      currentStepName: "理解需求",
+      currentStepName: "就绪",
       summary: "测试任务",
       startAt: new Date().toISOString(),
     }),
-    getCurrentStep: vi.fn().mockResolvedValue({ id: "S2", name: "设计方案" }),
     setStep: vi.fn().mockResolvedValue(undefined),
-    clearSessionInject: vi.fn(),
     closeTask: vi.fn().mockResolvedValue({
       sessionId: "test",
       flow: "research",
@@ -127,7 +124,7 @@ describe("registerTools", () => {
   });
 
   it("pm_task_start_creates_task: 任务创建返回成功消息", async () => {
-    const engine = createMockEngine("test");
+    const engine = createMockEngine();
     const tools = registerTools(mockCtx, engine);
 
     const result = await tools.pm_task_start.execute(
@@ -145,7 +142,7 @@ describe("registerTools", () => {
   });
 
   it("pm_task_start_no_session: toolCtx 无 sessionID 时返回错误", async () => {
-    const engine = createMockEngine("test");
+    const engine = createMockEngine();
     const tools = registerTools(mockCtx, engine);
     const noSessionCtx: ToolContext = { ...mockToolCtx, sessionID: "" };
 
@@ -157,18 +154,15 @@ describe("registerTools", () => {
     expect(result).toContain("Session ID");
   });
 
-  it("pm_task_refresh_clears_session: 刷新清除注入记录", async () => {
-    const engine = createMockEngine("test");
-    const tools = registerTools(mockCtx, engine);
-
+  it("pm_task_refresh_returns_info: 刷新返回文件引用模式提示", async () => {
+    const tools = registerTools(mockCtx, createMockEngine());
     const result = await tools.pm_task_refresh.execute({}, mockToolCtx);
-    expect(result).toContain("[vibe-pm] ✅");
-    expect(result).toContain("注入记录");
-    expect(engine.clearSessionInject).toHaveBeenCalledWith("test");
+    expect(result).toContain("文件引用模式");
+    expect(result).toContain("docs/flow/");
   });
 
   it("pm_task_close_closes_task: 关闭任务返回摘要", async () => {
-    const engine = createMockEngine("test");
+    const engine = createMockEngine();
     const tools = registerTools(mockCtx, engine);
 
     const result = await tools.pm_task_close.execute({}, mockToolCtx);
@@ -178,7 +172,7 @@ describe("registerTools", () => {
   });
 
   it("pm_task_close_no_active_task: 无活跃任务时返回提示", async () => {
-    const engine = createMockEngine("test");
+    const engine = createMockEngine();
     engine.closeTask = vi.fn().mockResolvedValue(null);
     const tools = registerTools(mockCtx, engine);
 

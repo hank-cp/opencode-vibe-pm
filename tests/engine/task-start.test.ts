@@ -8,7 +8,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { MemorySystem } from "../../src/memory/memory-system.js";
 import { FlowEngine } from "../../src/engine/flow-engine.js";
-import { DuplicateActiveTaskError, FlowNotFoundError } from "../../src/engine/errors.js";
+import { FlowNotFoundError } from "../../src/engine/errors.js";
 import type { PluginConfig } from "../../src/core/types.js";
 
 const DEFAULT_CONFIG: PluginConfig = {
@@ -59,7 +59,7 @@ describe("Task Start", () => {
     expect(task.sessionId).toBe("ses_new");
     expect(task.flow).toBe("test-flow");
     expect(task.currentStep).toBe("S1");
-    expect(task.currentStepName).toContain("理解需求");
+    expect(task.currentStepName).toBe("就绪");
     expect(task.closed).toBe(false);
     expect(task.summary).toBe("测试任务创建");
   });
@@ -77,7 +77,7 @@ describe("Task Start", () => {
         flow: "test-flow",
         summary: "第二个任务",
       }),
-    ).rejects.toThrow(DuplicateActiveTaskError);
+    ).rejects.toThrow("already has active task");
   });
 
   it("start_task_rejects_missing_flow: 不存在的 Flow 抛异常", async () => {
@@ -106,36 +106,5 @@ describe("Task Start", () => {
 
   it("resolve_unknown_command_with_slash: 带 / 前缀的未知命令返回 null", () => {
     expect(engine.resolveFlowFromCommand("/pm-unknown")).toBeNull();
-  });
-
-  it("autostart_creates_task: 自动创建任务成功", async () => {
-    const stepId = await engine.autoStartTaskFromCommand(
-      "ses_auto",
-      "pm-test",
-      "自动创建测试任务",
-    );
-
-    expect(stepId).toBe("S1");
-
-    const task = await memory.getActiveTask("ses_auto");
-    expect(task).not.toBeNull();
-    expect(task!.flow).toBe("test-flow");
-    expect(task!.summary).toBe("自动创建测试任务");
-  });
-
-  it("autostart_skips_existing_task: 已有任务时跳过", async () => {
-    await engine.startTask({
-      sessionId: "ses_existing",
-      flow: "test-flow",
-      summary: "已存在的任务",
-    });
-
-    const result = await engine.autoStartTaskFromCommand(
-      "ses_existing",
-      "pm-test",
-      "不应创建",
-    );
-
-    expect(result).toBeNull();
   });
 });

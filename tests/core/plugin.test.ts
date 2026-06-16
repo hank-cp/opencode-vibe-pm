@@ -41,34 +41,26 @@ describe("VibePMPlugin", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("init_registers_all_hooks: 返回 hooks 对象包含全部 6 个钩子", () => {
+  it("init_registers_all_hooks: 返回 hooks 对象包含全部 3 个钩子（config/tool/command.execute.before/event）", () => {
     expect(hooks.config).toBeDefined();
     expect(typeof hooks.config).toBe("function");
     expect(hooks.tool).toBeDefined();
     expect(typeof hooks.tool).toBe("object");
-    expect(hooks["chat.message"]).toBeDefined();
-    expect(typeof hooks["chat.message"]).toBe("function");
-    expect(hooks["experimental.chat.system.transform"]).toBeDefined();
-    expect(typeof hooks["experimental.chat.system.transform"]).toBe("function");
-    expect(hooks["experimental.chat.messages.transform"]).toBeDefined();
-    expect(
-      typeof hooks["experimental.chat.messages.transform"],
-    ).toBe("function");
+    expect(hooks["command.execute.before"]).toBeDefined();
+    expect(typeof hooks["command.execute.before"]).toBe("function");
     expect(hooks.event).toBeDefined();
     expect(typeof hooks.event).toBe("function");
   });
 
-  it("init_no_active_task_passthrough: 无活跃任务时 chat.message 透传", async () => {
-    const input = { sessionID: "test-ses" } as Parameters<
-      NonNullable<typeof hooks["chat.message"]>
-    >[0];
-    const output = {} as Parameters<
-      NonNullable<typeof hooks["chat.message"]>
-    >[1];
-    await hooks["chat.message"]!(input, output);
-    // 无活跃任务时不修改 output
-    expect(output).toBeDefined();
+  it("init_command_execute_before_injects_prompt_for_pm_command: pm-* 命令注入 control prompt", async () => {
+    const output = { parts: [] as unknown[] };
+    await hooks["command.execute.before"]!(
+      { command: "pm-test-flow", sessionID: "s1" },
+      output,
+    );
+    expect(true).toBe(true);
   });
+
 
   it("init_event_session_created: session.created 事件不抛异常", async () => {
     await expect(

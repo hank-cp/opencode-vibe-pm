@@ -1,7 +1,7 @@
 /**
  * Template Manager
  *
- * 纯文件操作模块：模板扫描、安装（含 command 文件生成）、卸载（含 command 文件清理）。
+ * 纯文件操作模块：模板扫描、安装（含 command 文件生成、regulation 自动安装）、卸载（含 command 文件清理）。
  * 零外部依赖，按约定路径读写文件系统。
  */
 
@@ -17,6 +17,10 @@ const REGULATION_DIR = "regulation";
 const COMMANDS_DIR = ".opencode/commands";
 const CODING_STYLE_TEMPLATE = "coding-style-template.md";
 const CODING_STYLE_OUTPUT = "coding_style.md";
+const CONSTITUTION_TEMPLATE = "constitution-template.md";
+const CONSTITUTION_OUTPUT = "constitution.md";
+const DICTIONARY_TEMPLATE = "dictionary-template.md";
+const DICTIONARY_OUTPUT = "dictionary.md";
 
 // ─── 错误 ───
 
@@ -65,24 +69,17 @@ function parseTemplateMeta(raw: string, bundleDir: string): TemplateMeta | null 
   };
 }
 
-function generateCommandFile(
-  meta: TemplateMeta,
-  _flowRaw: string,
-): string {
-  const parts: string[] = [];
-
-  parts.push(`# ${meta.name}\n`);
-  parts.push("## 任务启动\n");
-  parts.push(
-    `当您触发 \`${meta.command}\` 命令时，系统将自动创建任务，`,
-  );
-  parts.push(`并注入 Flow 步骤指导（来自 \`docs/flow/[flow]${meta.id}.md\`）。`);
-  parts.push("");
-  parts.push(
-    "> 如果系统未能自动创建任务，可使用 \`/pm-task-start\` 手动创建。",
-  );
-
-  return parts.join("\n") + "\n";
+function generateCommandFile(meta: TemplateMeta): string {
+  const flowRef = `docs/flow/[flow]${meta.id}.md`;
+  return [
+    `# ${meta.name}`,
+    ``,
+    `## 流程控制`,
+    ``,
+    `当触发 \`${meta.command}\` 命令时，系统将注入文件引用标签。`,
+    ``,
+    `流程文件：\`${flowRef}\``,
+  ].join("\n") + "\n";
 }
 
 // ─── 语言检测 ───
@@ -935,26 +932,136 @@ export function installTemplate(
     }
   }
 
-  const codingStyleDest = path.join(regDir, CODING_STYLE_OUTPUT);
-  if (!fs.existsSync(codingStyleDest)) {
-    const languages = detectProjectLanguages(projectDir);
-    const content = generateCodingStyle(docsDir, languages);
-    if (content) {
-      fs.writeFileSync(codingStyleDest, content, "utf-8");
-    }
-  }
+  // 安装 Constitution（如缺失）
+  installConstitutionFromTemplate(docsDir, regDir);
+
+  // 安装 Dictionary（如缺失）
+  installDictionaryFromTemplate(docsDir, regDir);
+
+  // 安装 Coding Style（如缺失）
+  installCodingStyleFromTemplate(projectDir, docsDir, regDir);
+
+  // 写入 DCP 保护配置（如果 DCP 插件已安装）
+  writeDcpConfig(projectDir);
 
   // 生成 Command 文件到 .opencode/commands/
   if (meta.command) {
-    const flowRaw = fs.readFileSync(meta.flowPath, "utf-8");
     const cmdDir = getCommandsDir(projectDir);
     fs.mkdirSync(cmdDir, { recursive: true });
 
     const cmdFileName = stripLeadingSlash(meta.command) + ".md";
     const cmdPath = path.join(cmdDir, cmdFileName);
-    const cmdContent = generateCommandFile(meta, flowRaw);
+    const cmdContent = generateCommandFile(meta);
     fs.writeFileSync(cmdPath, cmdContent, "utf-8");
   }
+}
+
+// ─── Regulation 安装 ───
+
+function installRegulationFromTemplate(
+  docsDir: string,
+  regDir: string,
+  templateName: string,
+  outputName: string,
+): void {
+  const dest = path.join(regDir, outputName);
+  if (fs.existsSync(dest)) return;
+
+  const templatePath = path.join(docsDir, TEMPLATE_DIR, templateName);
+  if (!fs.existsSync(templatePath)) return;
+
+  fs.copyFileSync(templatePath, dest);
+}
+
+function installConstitutionFromTemplate(
+  docsDir: string,
+  regDir: string,
+): void {
+  installRegulationFromTemplate(
+    docsDir,
+    regDir,
+    CONSTITUTION_TEMPLATE,
+    CONSTITUTION_OUTPUT,
+  );
+}
+
+function installDictionaryFromTemplate(
+  docsDir: string,
+  regDir: string,
+): void {
+  installRegulationFromTemplate(
+    docsDir,
+    regDir,
+    DICTIONARY_TEMPLATE,
+    DICTIONARY_OUTPUT,
+  );
+}
+
+function installCodingStyleFromTemplate(
+  projectDir: string,
+  docsDir: string,
+  regDir: string,
+): void {
+  const dest = path.join(regDir, CODING_STYLE_OUTPUT);
+  if (fs.existsSync(dest)) return;
+
+  const languages = detectProjectLanguages(projectDir);
+  const content = generateCodingStyle(docsDir, languages);
+  if (content) {
+    fs.writeFileSync(dest, content, "utf-8");
+  }
+}
+
+// ─── DCP 配置 ───
+
+function writeDcpConfig(projectDir: string): void {
+  const opencodePkg = path.join(projectDir, ".opencode", "package.json");
+  if (!fs.existsSync(opencodePkg)) return;
+
+  let hasDcp = false;
+  try {
+    const pkg = JSON.parse(fs.readFileSync(opencodePkg, "utf-8"));
+    const deps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) };
+    hasDcp = "opencode-dynamic-context-pruning" in deps;
+  } catch {
+    return;
+  }
+
+  if (!hasDcp) return;
+
+  const dcpPath = path.join(projectDir, ".opencode", "dcp.jsonc");
+  const newProtect = {
+    compress: { protectTags: ["pm-constitution", "pm-flow-control"] },
+    protectedFilePatterns: ["docs/flow/*", "docs/regulation/*", "docs/spec/*"],
+  };
+
+  let existing: Record<string, unknown> = {};
+  if (fs.existsSync(dcpPath)) {
+    try {
+      existing = JSON.parse(fs.readFileSync(dcpPath, "utf-8"));
+    } catch {
+      // 解析失败则覆盖
+    }
+  }
+
+  const existingCompress = (existing.compress as Record<string, unknown>) ?? {};
+  const existingTags = (existingCompress.protectTags as string[]) ?? [];
+  const existingPatterns = (existing.protectedFilePatterns as string[]) ?? [];
+
+  const merged = {
+    ...existing,
+    compress: {
+      ...(existing.compress as Record<string, unknown>),
+      protectTags: [...new Set([...existingTags, ...newProtect.compress.protectTags])],
+    },
+    protectedFilePatterns: [
+      ...new Set([...existingPatterns, ...newProtect.protectedFilePatterns]),
+    ],
+  };
+
+  const dir = path.dirname(dcpPath);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(dcpPath, JSON.stringify(merged, null, 2), "utf-8");
 }
 
 export function uninstallFlow(projectDir: string, flowName: string): void {

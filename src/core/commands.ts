@@ -192,11 +192,7 @@ function createTaskSetStepTool(engine: FlowEngine): ToolDefinition {
 
       try {
         await engine.setStep(sessionId, args.step);
-        const step = await engine.getCurrentStep(sessionId);
-        const stepInfo = step
-          ? `${step.id} - ${step.name}`
-          : args.step;
-        return `[vibe-pm] ✅ 已跳转到步骤 ${stepInfo}。`;
+        return `[vibe-pm] ✅ 已跳转到步骤 ${args.step}。`;
       } catch (err) {
         const msg = err instanceof Error ? err.message : "未知错误";
         return `[vibe-pm] ❌ 步骤跳转失败：${msg}`;
@@ -205,21 +201,15 @@ function createTaskSetStepTool(engine: FlowEngine): ToolDefinition {
   });
 }
 
-function createTaskRefreshTool(engine: FlowEngine): ToolDefinition {
+function createTaskRefreshTool(_engine: FlowEngine): ToolDefinition {
   return tool({
     description: "Re-inject context for the current step",
     args: {} as any,
     async execute(
       _args: Record<string, never>,
-      toolCtx: ToolContext,
+      _toolCtx: ToolContext,
     ): Promise<string> {
-      const sessionId = toolCtx.sessionID;
-      if (!sessionId) {
-        return "[vibe-pm] 错误：无法获取当前 Session ID。";
-      }
-
-      engine.clearSessionInject(sessionId);
-      return "[vibe-pm] ✅ 已清除注入记录，下次对话将重新注入流程上下文。";
+      return "[vibe-pm] 上下文注入已改为文件引用模式。LLM 自行读取 docs/flow/ 和 docs/regulation/ 下的文件。";
     },
   });
 }
