@@ -89,7 +89,7 @@ export class FlowEngine {
   }
 
   buildControlPrompt(flowName?: string): string {
-    const flowRef = flowName ? `docs/flow/[flow]${flowName}.md` : "docs/flow/";
+    const flowRef = flowName ? `\`docs/flow/[flow]${flowName}.md\`` : "docs/flow/";
     return [
       `<protect>`,
       `# 🚨 流程执行规则`,

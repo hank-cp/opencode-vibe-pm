@@ -177,7 +177,7 @@ describe("buildControlPrompt", () => {
 
   it("contains_flow_reference: 包含正确的 flow 文件引用", () => {
     const prompt = engine.buildControlPrompt("bug-fix");
-    expect(prompt).toContain("docs/flow/[flow]bug-fix.md");
+    expect(prompt).toContain("`docs/flow/[flow]bug-fix.md`");
   });
 
   it("wraps_in_protect_tags: 使用 protect 标签包裹", () => {
