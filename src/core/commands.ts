@@ -261,7 +261,7 @@ function createConfigTool(ctx: IPluginContext): ToolDefinition {
       subCommand: tool.schema
         .string()
         .optional()
-        .describe("Sub-command: view, edit, or write-dcp. Defaults to view."),
+        .describe("Sub-command: view, edit, or write-dcp / setup-dcp. Defaults to view."),
       key: tool.schema.string().optional().describe("Config key to edit (for edit sub-command)"),
       value: tool.schema.string().optional().describe("JSON value to set (for edit sub-command)"),
     },
@@ -271,8 +271,8 @@ function createConfigTool(ctx: IPluginContext): ToolDefinition {
     ): Promise<string> {
       const sub = args.subCommand ?? "view";
 
-      if (!["view", "edit", "write-dcp"].includes(sub)) {
-        return `[vibe-pm] ❌ 未知子命令: "${sub}"。支持: view, edit, write-dcp`;
+      if (!["view", "edit", "write-dcp", "setup-dcp"].includes(sub)) {
+        return `[vibe-pm] ❌ 未知子命令: "${sub}"。支持: view, edit, write-dcp, setup-dcp`;
       }
 
       try {
@@ -294,7 +294,7 @@ function createConfigTool(ctx: IPluginContext): ToolDefinition {
           return `[vibe-pm] ✅ 配置已更新: ${args.key} = ${args.value}`;
         }
 
-        if (sub === "write-dcp") {
+        if (sub === "write-dcp" || sub === "setup-dcp") {
           writeDcpConfig(ctx.projectDir);
           return "[vibe-pm] ✅ DCP 配置已写入";
         }

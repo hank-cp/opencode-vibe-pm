@@ -52,8 +52,13 @@ export function writeDcpConfig(projectDir: string): void {
     }
   }
 
-  const existingCompress = (existing.compress as Record<string, unknown>) ?? {};
-  const existingPatterns = (existing.protectedFilePatterns as string[]) ?? [];
+  const existingCompress =
+    existing.compress != null && typeof existing.compress === "object"
+      ? (existing.compress as Record<string, unknown>)
+      : {};
+  const existingPatterns = Array.isArray(existing.protectedFilePatterns)
+    ? (existing.protectedFilePatterns as string[])
+    : [];
 
   const existingPT: unknown = existingCompress.protectTags;
   const newPT: unknown = newProtect.compress.protectTags;
