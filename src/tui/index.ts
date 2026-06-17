@@ -1,8 +1,12 @@
 /**
  * TUI 扩展模块导出
  *
- * 导出 TuiPluginModule 供 OpenCode TUI 加载（通过 tui.jsonc 全局注册）。
+ * 导出 TuiPluginModule 供 OpenCode TUI 加载。
+ * createTuiPlugin() 被立即调用以生成 ready-to-use 的 TuiPlugin 函数。
  */
 
-export { createTuiPlugin } from "./tui-plugin.js";
+import { createTuiPlugin } from "./tui-plugin.js";
+
+export const tui = createTuiPlugin();
+
 export type * from "./types.js";

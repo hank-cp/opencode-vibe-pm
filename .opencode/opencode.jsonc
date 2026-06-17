@@ -1,0 +1,5 @@
+{
+  // vibe-pm Server Plugin
+  // OpenCode 加载此插件后，可获得所有 /pm-* 命令和流程管理能力
+  "plugin": ["./dist/index.js"]
+}

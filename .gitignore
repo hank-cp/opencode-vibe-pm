@@ -34,7 +34,9 @@ coverage/
 
 # Agents
 .omo
-.opencode
+.opencode/*
+!.opencode/opencode.jsonc
+!.opencode/tui.jsonc
 
 # Temp files
 *.tmp
