@@ -21,6 +21,7 @@ export class FlowEngine {
   private projectDir: string;
   private commandFlowCache: Map<string, string> | null = null;
   private sessionTasks = new Map<string, string>();
+  private stepEnterTimes = new Map<string, number>();
 
   constructor(private memory: MemorySystem, projectDir: string) {
     this.projectDir = projectDir;
@@ -163,7 +164,7 @@ export class FlowEngine {
     const existing = await this.memory.getActiveTask(params.sessionId);
     if (existing) throw new Error(`Session ${params.sessionId} already has active task: ${existing.flow}`);
     try {
-      return await this.memory.createTask({
+      const task = await this.memory.createTask({
         sessionId: params.sessionId,
         flow: params.flow,
         currentStep: "S1",
@@ -173,6 +174,9 @@ export class FlowEngine {
         specRef: params.specRef,
         planRef: params.planRef,
       });
+      this.stepEnterTimes.set(`${params.sessionId}:S1`, Date.now());
+      await this.memory.incrementStepCount(params.sessionId, params.flow, "S1", "就绪", params.summary);
+      return task;
     } catch (err) {
       if (err instanceof DuplicateTaskError) throw new Error(`Session ${params.sessionId} already has active task.`);
       throw err;
@@ -187,8 +191,31 @@ export class FlowEngine {
       docId = task.documentId;
       this.sessionTasks.set(sessionId, docId);
     }
-    const stepName = this.tryParseStepName(sessionId, step) ?? step;
+    const task = await this.memory.getActiveTask(sessionId);
+    if (!task) throw new Error(`No active task for session ${sessionId}`);
+
+    const oldStep = task.currentStep;
+    const flowName = task.flow;
+    const stepName = this.tryParseStepName(flowName, step) ?? step;
+    const now = Date.now();
+
     await this.memory.updateStep(docId, step, stepName);
+
+    let stepDwellTime = 0;
+    if (oldStep) {
+      const enterTime = this.stepEnterTimes.get(`${sessionId}:${oldStep}`);
+      if (enterTime) {
+        stepDwellTime = now - enterTime;
+        await this.memory.recordStepExit(sessionId, oldStep, stepDwellTime, 0);
+        this.stepEnterTimes.delete(`${sessionId}:${oldStep}`);
+      }
+    }
+
+    this.stepEnterTimes.set(`${sessionId}:${step}`, now);
+    await this.memory.incrementStepCount(sessionId, flowName, step, stepName, task.summary);
+    logger.info(
+      `[vibe-pm] setStep: ${oldStep} → ${step} (${stepName}) dwellTime=${stepDwellTime}ms`,
+    );
   }
 
   async closeTask(sessionId: string): Promise<Task | null> {

@@ -61,7 +61,7 @@ sequenceDiagram
     Core->>Core: 解析每个文件的 Template Meta
     Core->>User: 展示可用模板列表（question 工具选择）
     User->>Core: 选择模板
-    Core->>FS: 复制到 /docs/flow/[flow]{name}.md
+    Core->>FS: 复制到 /docs/flow/flow-{name}.md
     Core->>FS: 生成 .opencode/commands/{command}.md
     Core->>User: ✅ 流程已安装（含启动命令）
 ```
@@ -79,7 +79,7 @@ sequenceDiagram
     FS-->>Core: 已安装的 Flow 文件列表
     Core->>User: 展示已安装流程列表
     User->>Core: 选择要移除的流程
-    Core->>FS: 删除 /docs/flow/[flow]{name}.md
+    Core->>FS: 删除 /docs/flow/flow-{name}.md
     Core->>FS: 删除 .opencode/commands/{command}.md
     Core->>User: ✅ 流程已移除（含启动命令）
 ```
@@ -151,7 +151,7 @@ docs/template/{template-id}/
     └── *.md
 ```
 
-安装时：`flow.md` → `/docs/flow/[flow]{id}.md`，`regulations/*.md` → `/docs/regulation/`。
+安装时：`flow.md` → `/docs/flow/flow-{id}.md`，`regulations/*.md` → `/docs/regulation/`。
 
 ### XMind 各流程步骤对照
 

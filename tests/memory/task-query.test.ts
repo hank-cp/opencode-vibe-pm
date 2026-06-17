@@ -142,7 +142,7 @@ describe("Task Query Extensions", () => {
         Assistant: 100,
       });
       expect(metrics[0].tokensConsumed).toBe(450);
-      expect(metrics[0].stepInCount).toBe(2);
+      expect(metrics[0].stepInCount).toBe(1);
     });
   });
 
@@ -216,7 +216,7 @@ describe("Task Query Extensions", () => {
       const s2 = breakdown.find((b) => b.step === "S2");
       expect(s2).toBeDefined();
       expect(s2!.stepName).toBe("设计方案");
-      expect(s2!.stepInCount).toBe(2);
+      expect(s2!.stepInCount).toBe(1);
       expect(s2!.tokensConsumed).toBe(250);
     });
   });

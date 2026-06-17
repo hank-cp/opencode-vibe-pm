@@ -131,6 +131,13 @@ export interface IMemorySystem {
     stepName: string,
     tokensBySource: Record<string, number>,
   ): Promise<void>;
+  incrementStepCount(
+    sessionId: string,
+    flow: string,
+    step: string,
+    stepName: string,
+    taskSummary: string,
+  ): Promise<void>;
   recordStepExit(
     sessionId: string,
     step: string,

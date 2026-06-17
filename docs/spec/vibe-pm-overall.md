@@ -96,7 +96,7 @@ sequenceDiagram
 │   └── dcp.jsonc                # DCP 保护配置
 ├── docs/
 │   ├── flow/                    # 流程定义
-│   │   └── [flow]*.md
+│   │   └── flow-*.md
 │   ├── regulation/              # 行为准则
 │   │   ├── constitution.md
 │   │   ├── coding_style.md

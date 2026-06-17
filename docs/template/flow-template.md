@@ -2,7 +2,7 @@
 
 ## 用法
 
-新建 Flow 时，复制此模板到 `/docs/flow/[flow]{name}.md`，按章节填充。
+新建 Flow 时，复制此模板到 `/docs/flow/flow-{name}.md`，按章节填充。
 
 ---
 

@@ -6,6 +6,7 @@
 
 import { AxioDB } from "axiodb";
 import * as crypto from "node:crypto";
+import { logger } from "../core/logger.js";
 import type {
   Task,
   CreateTaskInput,
@@ -346,7 +347,6 @@ export class MemorySystem implements IMemorySystem {
       await this.flowMetrics
         .update({ id: existingRecord.id })
         .UpdateOne({
-          stepInCount: existingRecord.stepInCount + 1,
           tokensConsumed: existingRecord.tokensConsumed + newTotal,
           tokensBySource: merged,
           userInputTokens:
@@ -379,6 +379,44 @@ export class MemorySystem implements IMemorySystem {
     }
   }
 
+  async incrementStepCount(
+    sessionId: string,
+    flow: string,
+    step: string,
+    stepName: string,
+    taskSummary: string,
+  ): Promise<void> {
+    const existing = (await this.flowMetrics
+      .query({ sessionId, step })
+      .Limit(1)
+      .exec()) as AxioResult;
+
+    const existingRecord = unwrapSingle(existing) as FlowMetrics | null;
+
+    if (existingRecord) {
+      await this.flowMetrics
+        .update({ id: existingRecord.id })
+        .UpdateOne({ stepInCount: existingRecord.stepInCount + 1 });
+      logger.info(`[vibe-pm] incrementStepCount: step=${step} count=${existingRecord.stepInCount + 1}`);
+    } else {
+      const metrics: FlowMetrics = {
+        id: generateId(),
+        sessionId,
+        flow,
+        step,
+        stepName,
+        stepInCount: 1,
+        tokensConsumed: 0,
+        tokensBySource: { System: 0, FlowControl: 0, User: 0, Assistant: 0, Tool: 0, Reasoning: 0 },
+        dwellTime: 0,
+        humanInterventionTime: 0,
+        userInputTokens: 0,
+        taskSummary,
+      };
+      await this.flowMetrics.insert(metrics);
+    }
+  }
+
   /**
    * 记录退出步骤事件。
    *
@@ -407,6 +445,7 @@ export class MemorySystem implements IMemorySystem {
           humanInterventionTime:
             existingRecord.humanInterventionTime + humanInterventionTime,
         });
+      logger.info(`[vibe-pm] recordStepExit: step=${step} dwellTime=${dwellTime}ms total=${existingRecord.dwellTime + dwellTime}ms`);
     }
   }
 

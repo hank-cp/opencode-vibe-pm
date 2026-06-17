@@ -40,7 +40,7 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
     return parts.map((p) => ({
       type: p.type,
       text: p.text,
-      role,
+      role: (typeof p.role === "string" ? p.role : undefined) ?? role,
       isControlPrompt: p.type === "text" && p.text?.includes("<protect>"),
     }));
   }
@@ -102,6 +102,10 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
 
       const partInfos = toPartInfos(parts, role);
       const result = tokenCounter.countCompletionTokens(partInfos);
+
+      logger.info(
+        `[vibe-pm] completion: step=${task.currentStep} sources=${JSON.stringify(result.bySource)} partRoles=${JSON.stringify(partInfos.map(p => ({type:p.type, role:p.role})))}}`,
+      );
 
       await memory.recordStepEntry(
         sessionId,

@@ -125,6 +125,6 @@ describe("Task CRUD", () => {
       Assistant: 120,
     });
     expect(metrics[0].tokensConsumed).toBe(280);
-    expect(metrics[0].stepInCount).toBe(2);
+    expect(metrics[0].stepInCount).toBe(1);
   });
 });

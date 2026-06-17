@@ -64,12 +64,12 @@ Flow Engine 不再解析 Flow 步骤或管理 FSM 状态机。LLM 自行读取 f
 仅注入 `<pm-control-rules>` 单一标签。不再注入 `<pm-constitution>`、`<pm-flow-control>`、`<pm-dictionary>` 等独立标签。LLM 通过 `<pm-control-rules>` 中的文件引用自行读取。
 
 ```xml
-<pm-control-rules>
+<protect>
   ## 流程执行规则
   ...
   启动：
   1. 读取 docs/regulation/constitution.md
-  2. 读取 docs/flow/[flow]{name}.md 的 FSM 状态图
+  2. 读取 docs/flow/flow-{name}.md 的 FSM 状态图
   3. 确认起点为 S1，进入执行循环
   
   执行循环（每个 S{n} 逐一执行）...
@@ -81,7 +81,7 @@ Flow Engine 不再解析 Flow 步骤或管理 FSM 状态机。LLM 自行读取 f
   ## 🔴 红线
   | # | 红线 | 违规示例 |
   ...
-</pm-control-rules>
+</protect>
 ```
 
 ### 不再负责的功能
