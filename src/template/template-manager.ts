@@ -1029,7 +1029,11 @@ function writeDcpConfig(projectDir: string): void {
 
   if (!hasDcp) return;
 
-  const dcpPath = path.join(projectDir, ".opencode", "dcp.jsonc");
+  const jsoncPath = path.join(projectDir, ".opencode", "dcp.jsonc");
+  const jsonPath = path.join(projectDir, ".opencode", "dcp.json");
+  const dcpPath = fs.existsSync(jsoncPath) ? jsoncPath
+    : fs.existsSync(jsonPath) ? jsonPath
+    : jsoncPath;
   const newProtect = {
     compress: { protectTags: ["pm-constitution", "pm-flow-control"] },
     protectedFilePatterns: ["docs/flow/*", "docs/regulation/*", "docs/spec/*"],

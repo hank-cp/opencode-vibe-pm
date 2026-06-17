@@ -161,4 +161,67 @@ describe("Template Manager", () => {
     // 不应覆盖已有文件
     expect(fs.readFileSync(existingPath, "utf-8")).toBe("existing content");
   });
+
+  describe("DCP 配置文件路径解析", () => {
+    const dcpDir = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-pm-test-dcp-"));
+
+    afterEach(() => {
+      fs.rmSync(dcpDir, { recursive: true, force: true });
+    });
+
+    function setupDcpProject(dir: string) {
+      const docsDir = path.join(dir, "docs");
+      fs.mkdirSync(path.join(docsDir, "template"), { recursive: true });
+      fs.mkdirSync(path.join(docsDir, "flow"), { recursive: true });
+      fs.mkdirSync(path.join(docsDir, "regulation"), { recursive: true });
+      const opencodeDir = path.join(dir, ".opencode");
+      fs.mkdirSync(opencodeDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(opencodeDir, "package.json"),
+        JSON.stringify({
+          dependencies: { "opencode-dynamic-context-pruning": "^1.0.0" },
+        }),
+      );
+      writeTemplateBundle(dir, "dcp-test", "DCP Test");
+    }
+
+    it("dcp.jsonc 已存在时使用 dcp.jsonc", () => {
+      setupDcpProject(dcpDir);
+      const jsoncPath = path.join(dcpDir, ".opencode", "dcp.jsonc");
+      fs.writeFileSync(jsoncPath, JSON.stringify({ existing: true }));
+
+      installTemplate(dcpDir, "dcp-test");
+
+      const content = JSON.parse(fs.readFileSync(jsoncPath, "utf-8"));
+      expect(content.existing).toBe(true);
+      expect(content.compress.protectTags).toContain("pm-constitution");
+    });
+
+    it("仅 dcp.json 存在时使用 dcp.json", () => {
+      setupDcpProject(dcpDir);
+      const jsonPath = path.join(dcpDir, ".opencode", "dcp.json");
+      const jsoncPath = path.join(dcpDir, ".opencode", "dcp.jsonc");
+      fs.writeFileSync(jsonPath, JSON.stringify({ existing: true }));
+
+      installTemplate(dcpDir, "dcp-test");
+
+      // dcp.json 应被更新
+      const content = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
+      expect(content.existing).toBe(true);
+      expect(content.compress.protectTags).toContain("pm-constitution");
+      // dcp.jsonc 不应被创建
+      expect(fs.existsSync(jsoncPath)).toBe(false);
+    });
+
+    it("两者都不存在时创建 dcp.jsonc", () => {
+      setupDcpProject(dcpDir);
+      const jsoncPath = path.join(dcpDir, ".opencode", "dcp.jsonc");
+
+      installTemplate(dcpDir, "dcp-test");
+
+      expect(fs.existsSync(jsoncPath)).toBe(true);
+      const content = JSON.parse(fs.readFileSync(jsoncPath, "utf-8"));
+      expect(content.compress.protectTags).toContain("pm-constitution");
+    });
+  });
 });
