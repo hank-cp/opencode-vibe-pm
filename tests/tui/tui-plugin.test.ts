@@ -1,0 +1,81 @@
+/**
+ * TUI Plugin 单元测试
+ *
+ * 测试 createTuiPlugin 工厂函数和非 TUI 环境降级行为。
+ */
+
+import { describe, it, expect } from "vitest";
+
+describe("createTuiPlugin", () => {
+  it("returns a function with tui signature", async () => {
+    const { createTuiPlugin } = await import(
+      "../../src/tui/tui-plugin.js"
+    );
+    const plugin = createTuiPlugin();
+    expect(typeof plugin).toBe("function");
+    // TuiPlugin signature: (api, options?, meta?) => Promise<void>
+    expect(plugin.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not throw in non-TUI environment", async () => {
+    const { createTuiPlugin } = await import(
+      "../../src/tui/tui-plugin.js"
+    );
+    const plugin = createTuiPlugin();
+
+    // Simulate a minimal TuiPluginApi that throws on slots.register
+    // to mimic non-TUI environment
+    const mockApi = {
+      state: {
+        path: { directory: undefined as string | undefined },
+      },
+      slots: {
+        register: () => {
+          throw new Error("No TUI renderer available");
+        },
+      },
+      theme: {
+        current: {
+          primary: {} as unknown,
+          text: {} as unknown,
+          textMuted: {} as unknown,
+        },
+      },
+      event: {
+        on: () => () => {},
+      },
+    } as unknown as Parameters<typeof plugin>[0];
+
+    // Should not throw — silently catches errors
+    await expect(plugin(mockApi)).resolves.toBeUndefined();
+  });
+
+  it("accepts external memory system", async () => {
+    const { createTuiPlugin } = await import(
+      "../../src/tui/tui-plugin.js"
+    );
+    const mockMemory = {
+      getActiveTask: async () => null,
+      getLastClosedTask: async () => null,
+      getSourceTokenBreakdown: async () => [],
+      getStepTokenBreakdown: async () => [],
+    };
+
+    const plugin = createTuiPlugin(mockMemory as never);
+    expect(typeof plugin).toBe("function");
+  });
+});
+
+describe("TUI types", () => {
+  it("SOURCE_COLORS has all 6 token sources", async () => {
+    const { SOURCE_COLORS } = await import("../../src/tui/types.js");
+    const keys = Object.keys(SOURCE_COLORS);
+    expect(keys).toContain("System");
+    expect(keys).toContain("FlowControl");
+    expect(keys).toContain("User");
+    expect(keys).toContain("Assistant");
+    expect(keys).toContain("Tool");
+    expect(keys).toContain("Reasoning");
+    expect(keys).toHaveLength(6);
+  });
+});

@@ -59,18 +59,17 @@ export class TokenCounter {
       return "FlowControl";
     }
 
-    // 3–6. 按 role 分类
+    // 3-6. 按 role 分类
     if (part.role === "system") return "System";
     if (part.role === "user") return "User";
-
-    if (part.role === "assistant") {
+    if (part.role === "assistant" || part.type === "reasoning") {
       if (
         text.toLowerCase().includes("thinking") ||
         text.toLowerCase().includes("reasoning")
       ) {
         return "Reasoning";
       }
-      return "Assistant";
+      return part.type === "reasoning" ? "Reasoning" : "Assistant";
     }
 
     // 7. Tool
@@ -90,6 +89,19 @@ export class TokenCounter {
       let tokenText = part.text ?? "";
       if (!tokenText && part.args) {
         tokenText = JSON.stringify(part.args);
+      }
+      if (!tokenText && part.state) {
+        const pieces: string[] = [];
+        if (part.state.input !== undefined) {
+          pieces.push(typeof part.state.input === "string" ? part.state.input : JSON.stringify(part.state.input));
+        }
+        if (part.state.output) {
+          pieces.push(part.state.output);
+        }
+        if (part.state.error) {
+          pieces.push(part.state.error);
+        }
+        tokenText = pieces.join("\n");
       }
       const tokens = this.countTokens(tokenText);
       bySource[source] = (bySource[source] ?? 0) + tokens;

@@ -11,12 +11,16 @@
   },
   "devDependencies": {
     "@opencode-ai/plugin": "^1.17.4",
+    "@opentui/core": "^0.3.4",
+    "@opentui/keymap": "^0.3.4",
+    "@opentui/solid": "^0.3.4",
     "@types/node": "^25.9.3",
     "typescript": "^5.5.0",
     "vitest": "^1.6.0"
   },
   "dependencies": {
     "axiodb": "^9.6.6",
+    "solid-js": "^1.9.13",
     "tiktoken": "^1.0.22",
     "zod": "^3.23.0"
   }

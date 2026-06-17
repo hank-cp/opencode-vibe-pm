@@ -377,19 +377,22 @@ const SOURCE_COLORS: Record<TokenSource, RGBA> = {
 
 ### 已实现功能
 
-- （新建时为空）
+- [x] P1: TaskStatusCard — 任务状态卡片（活跃任务 + 上一任务 + 空状态）
+- [x] P2: TokenBar — 单行色块占比条组件
+- [x] P2: TokenDetail — 可折叠来源百分比详情
+- [x] P3: StepTokens — 可折叠步骤 Token 柱状图
+- [x] Collapsible 通用组件（▶/▼ 切换，useKeyboard 控制）
+- [x] loadTaskStatus / loadTokenData 数据加载函数（替代 use* hooks）
+- [x] createTuiPlugin 工厂函数 + sidebar_content 注册（TuiSlotPlugin order=150）
+- [x] 事件驱动（message.updated/session.updated + 150ms 防抖）+ 定时轮询（5s）刷新机制
+- [x] SOURCE_COLORS 颜色映射（RGBA.fromInts）
+- [x] 非 TUI 环境静默降级
 
 ### 未实现功能
 
-- [ ] P1: TaskStatusCard — 任务状态卡片（活跃任务 + 上一任务 + 空状态）
-- [ ] P2: TokenBar — 单行色块占比条组件
-- [ ] P2: TokenDetail — 可折叠来源百分比详情
-- [ ] P3: StepTokens — 可折叠步骤 Token 柱状图
-- [ ] Collapsible 通用组件（▶/▼ 切换）
-- [ ] useTaskStatus / useTokenData hooks
-- [ ] createTuiPlugin 工厂函数 + sidebar_content 注册
-- [ ] 事件驱动 + 定时轮询刷新机制
+- （全部完成）
 
 ### 已知问题/风险
 
+- `void err` 在 tui-plugin.ts 吞掉初始化错误无日志（🟢 低危，用户选择忽略）
 - 来自"约束与限制"章节

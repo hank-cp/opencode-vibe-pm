@@ -16,6 +16,7 @@ export interface PartInfo {
   text?: string;
   role?: string;
   args?: unknown;
+  state?: { input?: unknown; output?: string; error?: string };
   /** 是否包含 vibe-pm 控制提示 */
   isControlPrompt?: boolean;
 }
