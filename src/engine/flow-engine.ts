@@ -133,7 +133,7 @@ export class FlowEngine {
       `| 步骤类型 | 允许 | 禁止 |`,
       `|----------|------|------|`,
       `| S1（理解） | 阅读描述、提问澄清、探索代码 | 编辑/创建/删除文件，创建 todo，开始实现 |`,
-      `| 带 ⚠️ | 先展示方案，再调用 question/confirm | 在用户确认前执行方案 |`,
+      `| 带 ⚠️ | 先展示方案，再调用 question/confirm。**必须收到用户「确认/同意/通过」等明确正面指令后才可推进**。含糊/弱肯定（「试试」「应该行」「嗯」）视为未确认，需追问。 | 在用户明确确认前执行方案 |`,
       `| 编码 | 按确认方案改代码 | 改方案外的文件，引入无关重构 |`,
       `| 合流 | 最终验证、询问是否提交 | 跳过验证直接结束 |`,
       ``,
@@ -152,6 +152,7 @@ export class FlowEngine {
       `| 7 | 先创建 todo 再走流程步骤 | 在 S1 执行前调用 todowrite → ❌ |`,
       `| 8 | 行为与 constitution 冲突 | constitution 要求最小变更，但你做了重构 → ❌ |`,
       `| 9 | 通过后台任务读取规则文件 | 用 explore/task agent 读取 /docs/flow 和 /docs/regulation 目录下的文件 → ❌ |`,
+      `| 10 | 收到弱确认后自行推进 | 在 ⚠️ 步骤中，用户说「看起来可以」「试试吧」，你没有追问明确确认就直接执行/推进 → ❌ |`,
       ``,
       `## 合规参考`,
       ``,
@@ -178,8 +179,6 @@ export class FlowEngine {
         specRef: params.specRef,
         planRef: params.planRef,
       });
-      this.stepEnterTimes.set(`${params.sessionId}:S1`, Date.now());
-      await this.memory.incrementStepCount(params.sessionId, params.flow, "S1", "就绪", params.summary);
       return task;
     } catch (err) {
       if (err instanceof DuplicateTaskError) throw new Error(`Session ${params.sessionId} already has active task.`);
@@ -197,6 +196,8 @@ export class FlowEngine {
     }
     const task = await this.memory.getActiveTask(sessionId);
     if (!task) throw new Error(`No active task for session ${sessionId}`);
+
+    if (step === task.currentStep) return;
 
     const oldStep = task.currentStep;
     const flowName = task.flow;

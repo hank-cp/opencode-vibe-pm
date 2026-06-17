@@ -87,7 +87,11 @@ export class TokenCounter {
     const bySource: Record<string, number> = {};
     for (const part of parts) {
       const source = this.classifyPart(part);
-      const tokens = this.countTokens(part.text ?? "");
+      let tokenText = part.text ?? "";
+      if (!tokenText && part.args) {
+        tokenText = JSON.stringify(part.args);
+      }
+      const tokens = this.countTokens(tokenText);
       bySource[source] = (bySource[source] ?? 0) + tokens;
     }
     return bySource;

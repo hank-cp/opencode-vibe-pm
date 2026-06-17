@@ -40,7 +40,10 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
     return parts.map((p) => ({
       type: p.type,
       text: p.text,
-      role: (typeof p.role === "string" ? p.role : undefined) ?? role,
+      args: p.args,
+      role: (typeof p.role === "string" ? p.role : undefined)
+        ?? (p.type === "tool_use" || p.type === "tool" ? "tool" : undefined)
+        ?? role,
       isControlPrompt: p.type === "text" && p.text?.includes("<protect>"),
     }));
   }
@@ -152,7 +155,7 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
       if (!sessionID) return;
 
       const parts = output.parts as { type: string; text?: string }[];
-      await tryRecordCompletionTokens(sessionID, parts);
+      await tryRecordCompletionTokens(sessionID, parts, "assistant");
     },
 
     event: async ({ event }) => {
