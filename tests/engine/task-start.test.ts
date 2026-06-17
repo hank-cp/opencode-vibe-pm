@@ -191,4 +191,12 @@ describe("buildControlPrompt", () => {
     expect(prompt).toContain("红线");
     expect(prompt).toContain("流程执行失败");
   });
+
+  it("contains_flow_termination_rule: 流程终结规则指示调用 pm_task_close()", () => {
+    const prompt = engine.buildControlPrompt("bug-fix");
+    expect(prompt).toContain("流程终结");
+    expect(prompt).toContain("[*]（终止状态）");
+    expect(prompt).toContain("pm_task_close()");
+    expect(prompt).toContain("不进入任何新步骤");
+  });
 });
