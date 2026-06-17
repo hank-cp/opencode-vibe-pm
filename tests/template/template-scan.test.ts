@@ -98,7 +98,7 @@ describe("Template Manager", () => {
 
     installTemplate(tmpDir, "my-flow");
 
-    const flowPath = path.join(tmpDir, "docs", "flow", "[flow]my-flow.md");
+    const flowPath = path.join(tmpDir, "docs", "flow", "flow-my-flow.md");
     expect(fs.existsSync(flowPath)).toBe(true);
 
     const content = fs.readFileSync(flowPath, "utf-8");

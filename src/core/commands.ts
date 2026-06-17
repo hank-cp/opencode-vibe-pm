@@ -325,7 +325,7 @@ function createInstallFlowTool(ctx: IPluginContext): ToolDefinition {
       if (args.templateId) {
         try {
           installTemplate(ctx.projectDir, args.templateId);
-          return `[vibe-pm] 流程 "${args.templateId}" 已成功安装。\n\n已安装到：\n- docs/flow/[flow]${args.templateId}.md\n- 对应的 Command 文件已生成到 .opencode/commands/\n\n⚠️ 新的流程命令需要重启 OpenCode 后才能使用。\n\n重启后可使用对应的 /pm-* 命令启动任务。`;
+          return `[vibe-pm] 流程 "${args.templateId}" 已成功安装。\n\n已安装到：\n- docs/flow/flow-${args.templateId}.md\n- 对应的 Command 文件已生成到 .opencode/commands/\n\n⚠️ 新的流程命令需要重启 OpenCode 后才能使用。\n\n重启后可使用对应的 /pm-* 命令启动任务。`;
         } catch (err) {
           const msg =
             err instanceof Error ? err.message : "未知错误";

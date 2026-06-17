@@ -89,7 +89,7 @@ export class FlowEngine {
   }
 
   buildControlPrompt(flowName?: string): string {
-    const flowRef = flowName ? `\`docs/flow/[flow]${flowName}.md\`` : "docs/flow/";
+    const flowRef = flowName ? `\`docs/flow/flow-${flowName}.md\`` : "docs/flow/";
     return [
       `<protect>`,
       `# 🚨 流程执行规则`,
@@ -212,12 +212,12 @@ export class FlowEngine {
 
   private flowExists(flowName: string): boolean {
     const d = path.join(this.projectDir, "docs", "flow");
-    return [path.join(d, `${flowName}.md`), path.join(d, `[flow]${flowName}.md`)].some((c) => fs.existsSync(c));
+    return [path.join(d, `flow-${flowName}.md`), path.join(d, `${flowName}.md`)].some((c) => fs.existsSync(c));
   }
 
   private tryParseStepName(flowName: string, stepId: string): string | null {
     const d = path.join(this.projectDir, "docs", "flow");
-    for (const fp of [path.join(d, `${flowName}.md`), path.join(d, `[flow]${flowName}.md`)]) {
+    for (const fp of [path.join(d, `flow-${flowName}.md`), path.join(d, `${flowName}.md`)]) {
       if (!fs.existsSync(fp)) continue;
       try {
         const raw = fs.readFileSync(fp, "utf-8");
@@ -240,7 +240,7 @@ export class FlowEngine {
         const m = raw.match(/\*\*Command\*\*:\s*`?(.+?)`?\s*$/m);
         if (m) {
           const cmd = m[1].trim().replace(/^\//, "");
-          const name = file.replace(/^\[flow\]/, "").replace(/\.md$/, "");
+          const name = file.replace(/^flow-/, "").replace(/\.md$/, "");
           map.set(cmd, name);
         }
       } catch {}

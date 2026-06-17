@@ -71,7 +71,7 @@ function parseTemplateMeta(raw: string, bundleDir: string): TemplateMeta | null 
 }
 
 function generateCommandFile(meta: TemplateMeta): string {
-  const flowRef = `docs/flow/[flow]${meta.id}.md`;
+  const flowRef = `docs/flow/flow-${meta.id}.md`;
   return [
     `# ${meta.name}`,
     ``,
@@ -912,9 +912,9 @@ export function installTemplate(
   fs.mkdirSync(regDir, { recursive: true });
 
   // 安装 Flow 文档
-  const destFlow = path.join(flowDir, `[flow]${meta.id}.md`);
+    const destFlow = path.join(flowDir, `flow-${meta.id}.md`);
   if (fs.existsSync(destFlow)) {
-    throw new TemplateConflictError(`[flow]${meta.id}`);
+      throw new TemplateConflictError(`flow-${meta.id}`);
   }
   fs.copyFileSync(meta.flowPath, destFlow);
 
@@ -1017,7 +1017,7 @@ export function uninstallFlow(projectDir: string, flowName: string): void {
   const flowDir = path.join(getDocsDir(projectDir), FLOW_DIR);
 
   const candidates = [
-    path.join(flowDir, `[flow]${flowName}.md`),
+      path.join(flowDir, `flow-${flowName}.md`),
     path.join(flowDir, `${flowName}.md`),
   ];
 
@@ -1058,5 +1058,5 @@ export function listInstalledFlows(projectDir: string): string[] {
   return fs
     .readdirSync(flowDir)
     .filter((f) => f.endsWith(".md"))
-    .map((f) => f.replace(/^\[flow\][_]?/, "").replace(/\.md$/, ""));
+      .map((f) => f.replace(/^flow-[_]?/, "").replace(/\.md$/, ""));
 }

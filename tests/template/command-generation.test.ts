@@ -132,7 +132,7 @@ describe("Command File Generation", () => {
     expect(content).toContain("# 测试命令");
     expect(content).toContain("## 流程控制");
     expect(content).toContain("`/pm-test-cmd`");
-    expect(content).toContain("docs/flow/[flow]test-cmd.md");
+    expect(content).toContain("docs/flow/flow-test-cmd.md");
   });
 
   it("install_without_command_skips_file: 无 Command 字段时不生成文件", () => {
@@ -171,7 +171,7 @@ describe("Command File Generation", () => {
       testDir,
       "docs",
       "flow",
-      "[flow]test-cmd.md",
+      "flow-test-cmd.md",
     );
     expect(fs.existsSync(flowPath)).toBe(false);
 
@@ -202,6 +202,6 @@ describe("Command File Generation", () => {
 
     expect(lines[0]).toBe("# 结构测试");
     expect(content).toContain("## 流程控制");
-    expect(content).toContain("docs/flow/[flow]struct-test.md");
+    expect(content).toContain("docs/flow/flow-struct-test.md");
   });
 });
