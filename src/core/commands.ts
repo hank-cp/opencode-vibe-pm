@@ -14,6 +14,8 @@ import type {
   Config,
 } from "./types.js";
 import { scanTemplates, installTemplate } from "../template/index.js";
+import { loadConfig, writeConfig } from "./config.js";
+import { writeDcpConfig } from "../integration/index.js";
 import type { FlowEngine } from "../engine/index.js";
 import type { MemorySystem } from "../memory/index.js";
 
@@ -74,7 +76,7 @@ const COMMANDS: CommandMeta[] = [
     name: "pm-config",
     description: "查看或修改插件配置",
     template: "View or modify vibe-pm configuration in .vibe-pm.json",
-    executable: false,
+    executable: true,
   },
 ];
 
@@ -117,6 +119,8 @@ export function registerTools(
 
       if (cmd.name === "pm-install-flow") {
         tools.pm_install_flow = createInstallFlowTool(ctx);
+      } else if (cmd.name === "pm-config") {
+        tools.pm_config = createConfigTool(ctx);
       } else if (cmd.name === "pm-task-start") {
         tools.pm_task_start = createTaskStartTool(engine);
       } else if (cmd.name === "pm-task-set-step") {
@@ -243,6 +247,62 @@ function createTaskCloseTool(engine: FlowEngine): ToolDefinition {
       } catch (err) {
         const msg = err instanceof Error ? err.message : "未知错误";
         return `[vibe-pm] ❌ 任务关闭失败：${msg}`;
+      }
+    },
+  });
+}
+
+// ─── pm-config 实现 ───
+
+function createConfigTool(ctx: IPluginContext): ToolDefinition {
+  return tool({
+    description: "View or modify vibe-pm configuration",
+    args: {
+      subCommand: tool.schema
+        .string()
+        .optional()
+        .describe("Sub-command: view, edit, or write-dcp. Defaults to view."),
+      key: tool.schema.string().optional().describe("Config key to edit (for edit sub-command)"),
+      value: tool.schema.string().optional().describe("JSON value to set (for edit sub-command)"),
+    },
+    async execute(
+      args: { subCommand?: string; key?: string; value?: string },
+      _toolCtx: ToolContext,
+    ): Promise<string> {
+      const sub = args.subCommand ?? "view";
+
+      if (!["view", "edit", "write-dcp"].includes(sub)) {
+        return `[vibe-pm] ❌ 未知子命令: "${sub}"。支持: view, edit, write-dcp`;
+      }
+
+      try {
+        if (sub === "view") {
+          const config = loadConfig(ctx.projectDir);
+          return JSON.stringify(config, null, 2);
+        }
+
+        if (sub === "edit") {
+          if (!args.key) {
+            return "[vibe-pm] ❌ edit 子命令需要提供 key 参数";
+          }
+          if (args.value === undefined) {
+            return "[vibe-pm] ❌ edit 子命令需要提供 value 参数";
+          }
+          const config = loadConfig(ctx.projectDir);
+          (config as unknown as Record<string, unknown>)[args.key] = JSON.parse(args.value);
+          writeConfig(ctx.projectDir, config);
+          return `[vibe-pm] ✅ 配置已更新: ${args.key} = ${args.value}`;
+        }
+
+        if (sub === "write-dcp") {
+          writeDcpConfig(ctx.projectDir);
+          return "[vibe-pm] ✅ DCP 配置已写入";
+        }
+
+        return `[vibe-pm] ❌ 未知子命令: "${sub}"`;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "未知错误";
+        return `[vibe-pm] ❌ 操作失败：${msg}`;
       }
     },
   });

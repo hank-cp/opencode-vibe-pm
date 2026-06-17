@@ -105,13 +105,14 @@ describe("registerTools", () => {
     ask: async () => {},
   };
 
-  it("register_executable_tools: 注册 5 个可执行工具", () => {
+  it("register_executable_tools: 注册 6 个可执行工具", () => {
     const engine = createMockEngine();
     const tools = registerTools(mockCtx, engine);
 
     const toolNames = Object.keys(tools);
-    expect(toolNames).toHaveLength(5);
+    expect(toolNames).toHaveLength(6);
     expect(toolNames).toContain("pm_install_flow");
+    expect(toolNames).toContain("pm_config");
     expect(toolNames).toContain("pm_task_start");
     expect(toolNames).toContain("pm_task_set_step");
     expect(toolNames).toContain("pm_task_refresh");
@@ -120,7 +121,6 @@ describe("registerTools", () => {
     // 声明式命令不在 tool 注册中
     expect(toolNames).not.toContain("pm_uninstall_flow");
     expect(toolNames).not.toContain("pm_refine_flow");
-    expect(toolNames).not.toContain("pm_config");
   });
 
   it("pm_task_start_creates_task: 任务创建返回成功消息", async () => {

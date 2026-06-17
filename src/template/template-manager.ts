@@ -8,6 +8,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { TemplateMeta } from "./types.js";
+import { writeDcpConfig } from "../integration/index.js";
 
 // ─── 约定路径 ───
 
@@ -1010,62 +1011,6 @@ function installCodingStyleFromTemplate(
   if (content) {
     fs.writeFileSync(dest, content, "utf-8");
   }
-}
-
-// ─── DCP 配置 ───
-
-function writeDcpConfig(projectDir: string): void {
-  const opencodePkg = path.join(projectDir, ".opencode", "package.json");
-  if (!fs.existsSync(opencodePkg)) return;
-
-  let hasDcp = false;
-  try {
-    const pkg = JSON.parse(fs.readFileSync(opencodePkg, "utf-8"));
-    const deps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) };
-    hasDcp = "opencode-dynamic-context-pruning" in deps;
-  } catch {
-    return;
-  }
-
-  if (!hasDcp) return;
-
-  const jsoncPath = path.join(projectDir, ".opencode", "dcp.jsonc");
-  const jsonPath = path.join(projectDir, ".opencode", "dcp.json");
-  const dcpPath = fs.existsSync(jsoncPath) ? jsoncPath
-    : fs.existsSync(jsonPath) ? jsonPath
-    : jsoncPath;
-  const newProtect = {
-    compress: { protectTags: ["pm-constitution", "pm-flow-control"] },
-    protectedFilePatterns: ["docs/flow/*", "docs/regulation/*", "docs/spec/*"],
-  };
-
-  let existing: Record<string, unknown> = {};
-  if (fs.existsSync(dcpPath)) {
-    try {
-      existing = JSON.parse(fs.readFileSync(dcpPath, "utf-8"));
-    } catch {
-      // 解析失败则覆盖
-    }
-  }
-
-  const existingCompress = (existing.compress as Record<string, unknown>) ?? {};
-  const existingTags = (existingCompress.protectTags as string[]) ?? [];
-  const existingPatterns = (existing.protectedFilePatterns as string[]) ?? [];
-
-  const merged = {
-    ...existing,
-    compress: {
-      ...(existing.compress as Record<string, unknown>),
-      protectTags: [...new Set([...existingTags, ...newProtect.compress.protectTags])],
-    },
-    protectedFilePatterns: [
-      ...new Set([...existingPatterns, ...newProtect.protectedFilePatterns]),
-    ],
-  };
-
-  const dir = path.dirname(dcpPath);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(dcpPath, JSON.stringify(merged, null, 2), "utf-8");
 }
 
 export function uninstallFlow(projectDir: string, flowName: string): void {
