@@ -80,7 +80,7 @@ export class FlowEngine {
   removeControlPrompt(parts: { type: string; text: string }[]): void {
     let removed = 0;
     for (let i = parts.length - 1; i >= 0; i--) {
-      if (parts[i].type === "text" && parts[i].text.includes("<pm-control-rules>")) {
+      if (parts[i].type === "text" && parts[i].text.includes("<protect>")) {
         parts.splice(i, 1);
         removed++;
       }
@@ -91,7 +91,7 @@ export class FlowEngine {
   buildControlPrompt(flowName?: string): string {
     const flowRef = flowName ? `docs/flow/[flow]${flowName}.md` : "docs/flow/";
     return [
-      `<pm-control-rules>`,
+      `<protect>`,
       `# 🚨 流程执行规则`,
       ``,
       `## 规则优先级`,
@@ -154,7 +154,7 @@ export class FlowEngine {
       `- \`coding_style.md\` → 命名规范、格式、类型安全`,
       `- \`dictionary.md\` → 本地语言 ↔ 英文术语转换`,
       ``,
-      `</pm-control-rules>`,
+      `</protect>`,
     ].join("\n");
   }
 

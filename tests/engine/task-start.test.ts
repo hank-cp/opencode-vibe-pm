@@ -180,10 +180,10 @@ describe("buildControlPrompt", () => {
     expect(prompt).toContain("docs/flow/[flow]bug-fix.md");
   });
 
-  it("wraps_in_pm_control_rules_tags: 使用 pm-control-rules 标签包裹", () => {
+  it("wraps_in_protect_tags: 使用 protect 标签包裹", () => {
     const prompt = engine.buildControlPrompt("bug-fix");
-    expect(prompt).toMatch(/^<pm-control-rules>/);
-    expect(prompt).toMatch(/<\/pm-control-rules>$/);
+    expect(prompt).toMatch(/^<protect>/);
+    expect(prompt).toMatch(/<\/protect>$/m);
   });
 
   it("prompt_mentions_flow_execution_failure_consequence: 提示词提及流程执行失败的后果", () => {

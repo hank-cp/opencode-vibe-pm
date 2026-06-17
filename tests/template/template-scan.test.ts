@@ -194,7 +194,7 @@ describe("Template Manager", () => {
 
       const content = JSON.parse(fs.readFileSync(jsoncPath, "utf-8"));
       expect(content.existing).toBe(true);
-      expect(content.compress.protectTags).toContain("pm-constitution");
+      expect(content.compress.protectTags).toBe(true);
     });
 
     it("仅 dcp.json 存在时使用 dcp.json", () => {
@@ -208,7 +208,7 @@ describe("Template Manager", () => {
       // dcp.json 应被更新
       const content = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
       expect(content.existing).toBe(true);
-      expect(content.compress.protectTags).toContain("pm-constitution");
+      expect(content.compress.protectTags).toBe(true);
       // dcp.jsonc 不应被创建
       expect(fs.existsSync(jsoncPath)).toBe(false);
     });
@@ -221,7 +221,7 @@ describe("Template Manager", () => {
 
       expect(fs.existsSync(jsoncPath)).toBe(true);
       const content = JSON.parse(fs.readFileSync(jsoncPath, "utf-8"));
-      expect(content.compress.protectTags).toContain("pm-constitution");
+      expect(content.compress.protectTags).toBe(true);
     });
   });
 });

@@ -61,7 +61,7 @@ describe("VibePMPlugin", () => {
     const parts = output.messages[0].parts as { type: string; text: string; synthetic?: boolean }[];
     expect(parts.length).toBe(2);
     expect(parts[1].type).toBe("text");
-    expect(parts[1].text).toContain("<pm-control-rules>");
+    expect(parts[1].text).toContain("<protect>");
     expect(parts[1].synthetic).toBe(true);
   });
 
@@ -79,7 +79,7 @@ describe("VibePMPlugin", () => {
     const output = makeTransformOutput([
       { role: "user", sessionID: "s3", parts: [
         { type: "text", text: "hello" },
-        { type: "text", text: "<pm-control-rules>\nold\n</pm-control-rules>" },
+        { type: "text", text: "<protect>\nold\n</protect>" },
       ]},
     ]);
     await hooks["experimental.chat.messages.transform"]!(

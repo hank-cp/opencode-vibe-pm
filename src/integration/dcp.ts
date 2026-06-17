@@ -39,7 +39,7 @@ export function writeDcpConfig(projectDir: string): void {
     : fs.existsSync(jsonPath) ? jsonPath
     : jsoncPath;
   const newProtect = {
-    compress: { protectTags: ["pm-constitution", "pm-flow-control"] },
+    compress: { protectTags: true },
     protectedFilePatterns: ["docs/flow/*", "docs/regulation/*", "docs/spec/*"],
   };
 
@@ -53,14 +53,19 @@ export function writeDcpConfig(projectDir: string): void {
   }
 
   const existingCompress = (existing.compress as Record<string, unknown>) ?? {};
-  const existingTags = (existingCompress.protectTags as string[]) ?? [];
   const existingPatterns = (existing.protectedFilePatterns as string[]) ?? [];
+
+  const existingPT: unknown = existingCompress.protectTags;
+  const newPT: unknown = newProtect.compress.protectTags;
+  const mergedPT: boolean | string[] =
+    newPT === true || existingPT === true ? true
+    : [...new Set([...(Array.isArray(existingPT) ? existingPT : []), ...(Array.isArray(newPT) ? newPT : [])])];
 
   const merged = {
     ...existing,
     compress: {
       ...(existing.compress as Record<string, unknown>),
-      protectTags: [...new Set([...existingTags, ...newProtect.compress.protectTags])],
+      protectTags: mergedPT,
     },
     protectedFilePatterns: [
       ...new Set([...existingPatterns, ...newProtect.protectedFilePatterns]),
