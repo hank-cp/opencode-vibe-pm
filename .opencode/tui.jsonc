@@ -1,7 +1,0 @@
-{
-  // vibe-pm TUI 扩展
-  // 在 OpenCode 侧边栏中展示任务状态、流程进展和 Token 分布
-  "plugins": {
-    "vibe-pm": "./src/tui/index.ts"
-  }
-}

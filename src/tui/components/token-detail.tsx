@@ -2,14 +2,14 @@ import type { RGBA } from "@opentui/core";
 import { createMemo, type JSX } from "solid-js";
 import type { TokenData, TokenSourceEntry } from "../types.js";
 import { SOURCE_COLORS, compactTokens } from "../types.js";
-import { Collapsible } from "./collapsible.js";
+import { Collapsible } from "./collapsible.jsx";
 
 const SOURCE_KEYS = Object.keys(SOURCE_COLORS) as Array<
   keyof typeof SOURCE_COLORS
 >;
 
 export interface TokenDetailProps {
-  data: TokenData;
+  tokenData: () => TokenData;
   theme: {
     text: RGBA;
     textMuted: RGBA;
@@ -18,19 +18,23 @@ export interface TokenDetailProps {
 }
 
 export function TokenDetail(props: TokenDetailProps): JSX.Element {
-  const { data, theme, defaultCollapsed } = props;
+  const data = () => props.tokenData();
+  const theme = () => props.theme;
+  const defaultCollapsed = () => props.defaultCollapsed;
 
   const sourceMap = createMemo(() => {
+    const d = data();
     const map = new Map<string, TokenSourceEntry>();
-    for (const entry of data.sourceBreakdown) {
+    for (const entry of d.sourceBreakdown) {
       map.set(entry.source, entry);
     }
     return map;
   });
 
   const body = createMemo(() => {
-    if (data.sourceBreakdown.length === 0) {
-      return <text fg={theme.textMuted}>暂无数据</text>;
+    const d = data();
+    if (d.sourceBreakdown.length === 0) {
+      return <text fg={theme().textMuted}>暂无数据</text>;
     }
 
     return (
@@ -39,8 +43,8 @@ export function TokenDetail(props: TokenDetailProps): JSX.Element {
           const entry = sourceMap().get(source);
           const tokens = entry?.tokens ?? 0;
           const percentage =
-            data.totalTokens > 0
-              ? Math.round((tokens / data.totalTokens) * 100)
+            d.totalTokens > 0
+              ? Math.round((tokens / d.totalTokens) * 100)
               : 0;
 
           return (
@@ -50,7 +54,7 @@ export function TokenDetail(props: TokenDetailProps): JSX.Element {
               justifyContent="space-between"
             >
               <text fg={SOURCE_COLORS[source]}>{source}</text>
-              <text fg={theme.textMuted}>
+              <text fg={theme().textMuted}>
                 {compactTokens(tokens)} ({percentage}%)
               </text>
             </box>
@@ -63,8 +67,8 @@ export function TokenDetail(props: TokenDetailProps): JSX.Element {
   return (
     <Collapsible
       title="Token 分布详情"
-      defaultCollapsed={defaultCollapsed}
-      titleColor={theme.text}
+      defaultCollapsed={defaultCollapsed()}
+      titleColor={theme().text}
     >
       {body()}
     </Collapsible>

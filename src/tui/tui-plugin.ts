@@ -9,6 +9,7 @@ import * as path from "node:path";
 import type { TuiPlugin, TuiPluginApi } from "@opencode-ai/plugin/tui";
 import { MemorySystem } from "../memory/memory-system.js";
 import type { IMemorySystem } from "../memory/types.js";
+import { createSidebarSlot } from "./slots/sidebar-content.js";
 
 /**
  * 创建 TUI 插件入口函数。
@@ -34,15 +35,10 @@ export function createTuiPlugin(memory?: IMemorySystem): TuiPlugin {
         await resolved.init(dataDir);
       }
 
-      // 动态导入 sidebar-content.tsx 以避免 tsc 在无 --jsx 配置下解析 .tsx 文件
-      const { createSidebarSlot } = await import(
-        "./slots/sidebar-content.js"
-      );
       api.slots.register(createSidebarSlot(api, resolved));
     } catch (err) {
-      // 非 TUI 环境或初始化失败 — 静默跳过
-      // OpenCode 正常运行不受影响
-      void err;
+      // 非 TUI 环境或初始化失败 — 记录错误便于诊断
+      console.error("[vibe-pm TUI] 侧边栏初始化失败:", err);
     }
   };
 }

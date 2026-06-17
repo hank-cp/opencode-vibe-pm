@@ -4,7 +4,8 @@
   "type": "module",
   "main": "./dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/jsx-shim.mjs",
+    "postinstall": "node scripts/patch-opentui-jsx-runtime.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
@@ -15,6 +16,7 @@
     "@opentui/keymap": "^0.3.4",
     "@opentui/solid": "^0.3.4",
     "@types/node": "^25.9.3",
+    "esbuild": "^0.28.1",
     "typescript": "^5.5.0",
     "vitest": "^1.6.0"
   },

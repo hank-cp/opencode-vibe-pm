@@ -1,5 +1,4 @@
 import type { RGBA } from "@opentui/core";
-import { useKeyboard } from "@opentui/solid";
 import { createSignal, type JSX } from "solid-js";
 
 export interface CollapsibleProps {
@@ -14,17 +13,16 @@ export function Collapsible(props: CollapsibleProps): JSX.Element {
     props.defaultCollapsed ?? true,
   );
 
-  useKeyboard((key) => {
-    if (key.name === "enter" || key.name === " ") {
-      setCollapsed((prev) => !prev);
-    }
-  });
-
   const arrow = () => (collapsed() ? "▶" : "▼");
 
   return (
     <box width="100%" flexDirection="column">
-      <box width="100%" flexDirection="row" height={1}>
+      <box
+        width="100%"
+        flexDirection="row"
+        height={1}
+        onMouseDown={() => setCollapsed((prev) => !prev)}
+      >
         <text fg={props.titleColor}>
           {arrow()} {props.title}
         </text>

@@ -84,8 +84,11 @@ export function formatElapsed(startAt: string, endAt?: string): string {
   return `${hours}h ${remainingMinutes}min`;
 }
 
-/** 格式化 Token 数为紧凑格式（如 12.5K） */
+/** 格式化 Token 数为紧凑格式（如 12.5K, 16.4M） */
 export function compactTokens(tokens: number): string {
+  if (tokens >= 1_000_000) {
+    return `${(tokens / 1_000_000).toFixed(1)}M`;
+  }
   if (tokens >= 1000) {
     return `${(tokens / 1000).toFixed(1)}K`;
   }
