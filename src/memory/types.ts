@@ -13,6 +13,8 @@ export interface Task {
   currentStep: string;
   currentStepName: string;
   startAt: string;
+  /** 任务结束时间（ISO 8601），由 closeTask 写入 */
+  endAt?: string;
   closed: boolean;
   summary: string;
   specRef?: string;
@@ -60,6 +62,15 @@ export interface CreateDiscussionInput {
 
 // ─── FlowMetrics ───
 
+/** Token 来源分类 — 6 个固定分类 */
+export type TokenSource =
+  | "System"
+  | "FlowControl"
+  | "User"
+  | "Assistant"
+  | "Tool"
+  | "Reasoning";
+
 export interface FlowMetrics {
   id: string;
   sessionId: string;
@@ -68,10 +79,27 @@ export interface FlowMetrics {
   stepName: string;
   stepInCount: number;
   tokensConsumed: number;
+  /** 按来源分类的 Token 分布，各项独立累加 */
+  tokensBySource: Record<TokenSource, number>;
   dwellTime: number;
   humanInterventionTime: number;
+  /** @deprecated 可通过 tokensBySource.User 推导，保留以兼容旧数据 */
   userInputTokens: number;
   taskSummary: string;
+}
+
+/** 跨步骤聚合的来源级 Token 分布 */
+export interface SourceTokenBreakdown {
+  source: TokenSource;
+  tokens: number;
+}
+
+/** 按步骤的 Token 汇总 */
+export interface StepTokenBreakdown {
+  step: string;
+  stepName: string;
+  stepInCount: number;
+  tokensConsumed: number;
 }
 
 // ─── IMemorySystem ───
@@ -101,8 +129,7 @@ export interface IMemorySystem {
     flow: string,
     step: string,
     stepName: string,
-    tokensConsumed: number,
-    userInputTokens: number,
+    tokensBySource: Record<string, number>,
   ): Promise<void>;
   recordStepExit(
     sessionId: string,
@@ -112,6 +139,11 @@ export interface IMemorySystem {
   ): Promise<void>;
   getFlowMetrics(sessionId: string): Promise<FlowMetrics[]>;
   getFlowMetricsByFlow(flow: string): Promise<FlowMetrics[]>;
+
+  // 新增查询
+  getLastClosedTask(sessionId: string): Promise<Task | null>;
+  getSourceTokenBreakdown(sessionId: string): Promise<SourceTokenBreakdown[]>;
+  getStepTokenBreakdown(sessionId: string): Promise<StepTokenBreakdown[]>;
 
   // 初始化
   init(dataDir: string): Promise<void>;

@@ -7,4 +7,7 @@ export type {
   CreateDiscussionInput,
   FlowMetrics,
   IMemorySystem,
+  TokenSource,
+  SourceTokenBreakdown,
+  StepTokenBreakdown,
 } from "./types.js";

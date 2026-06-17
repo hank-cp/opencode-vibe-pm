@@ -456,20 +456,21 @@ async getStepTokenBreakdown(sessionId: string): Promise<StepTokenBreakdown[]> {
 
 ### 已实现功能
 
-- （新建时为空）
+- [x] Task.endAt 扩展 + closeTask 写入 → `src/memory/types.ts`, `src/memory/memory-system.ts`
+- [x] FlowMetrics.tokensBySource 扩展 + recordStepEntry 支持 → `src/memory/types.ts`, `src/memory/memory-system.ts`
+- [x] TokenCounter 类：tiktoken 编码 + 来源分类 → `src/token/token-counter.ts`
+- [x] FlowControl 增量化拆分逻辑 → `src/token/token-counter.ts` (`countPromptTokens` with `originalParts`)
+- [x] getLastClosedTask 查询方法 → `src/memory/memory-system.ts`
+- [x] getSourceTokenBreakdown 聚合查询 → `src/memory/memory-system.ts`
+- [x] getStepTokenBreakdown 查询方法 → `src/memory/memory-system.ts`
+- [x] messages.transform 集成 TokenCounter → `src/core/plugin.ts`
+- [x] chat.message hook 集成 TokenCounter → `src/core/plugin.ts`
 
 ### 未实现功能
 
-- [ ] Task.endAt 扩展 + closeTask 写入
-- [ ] FlowMetrics.tokensBySource 扩展 + recordStepEntry 支持
-- [ ] TokenCounter 类：tiktoken 编码 + 来源分类
-- [ ] FlowControl 增量化拆分逻辑
-- [ ] getLastClosedTask 查询方法
-- [ ] getSourceTokenBreakdown 聚合查询
-- [ ] getStepTokenBreakdown 查询方法
-- [ ] messages.transform 集成 TokenCounter
-- [ ] chat.message hook 集成 TokenCounter
+- （全部完成）
 
 ### 已知问题/风险
 
-- 来自"约束与限制"章节
+- `recordStepEntry` 合并路径对升级前旧数据后向不兼容（🟡 已记录，用户确认忽略）
+- Reasoning 检测为启发式匹配，可能误分类含 "thinking" 的自然语言文本（🟢 已记录）

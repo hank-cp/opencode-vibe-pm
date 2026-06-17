@@ -13,6 +13,9 @@ import type {
   CreateDiscussionInput,
   FlowMetrics,
   IMemorySystem,
+  TokenSource,
+  SourceTokenBreakdown,
+  StepTokenBreakdown,
 } from "./types.js";
 import { DuplicateTaskError } from "./errors.js";
 
@@ -176,7 +179,10 @@ export class MemorySystem implements IMemorySystem {
     try {
       const result = await this.tasks
         .update({ documentId })
-        .UpdateOne({ closed: true });
+        .UpdateOne({
+          closed: true,
+          endAt: new Date().toISOString(),
+        });
 
       const status = (result as AxioResult).statusCode;
       if (status !== 200) {
@@ -305,17 +311,21 @@ export class MemorySystem implements IMemorySystem {
    * 记录进入步骤事件。
    *
    * 两次调用逻辑：
-   * - 该 session+step 已有记录 → 累加 `stepInCount` 和 `tokensConsumed`
+   * - 该 session+step 已有记录 → 累加 `stepInCount`、`tokensConsumed`、`tokensBySource` 各项、`userInputTokens`
    * - 无记录 → 创建新的 FlowMetrics 文档，同时回填 `taskSummary`
+   *
+   * @param tokensBySource 按来源分类的 token 计数。内部从中推导 tokensConsumed（总和）和 userInputTokens（来源 "User"）
    */
   async recordStepEntry(
     sessionId: string,
     flow: string,
     step: string,
     stepName: string,
-    tokensConsumed: number,
-    userInputTokens: number,
+    tokensBySource: Record<string, number>,
   ): Promise<void> {
+    const newTotal = Object.values(tokensBySource).reduce((a, b) => a + b, 0);
+    const newUserTokens = tokensBySource["User"] ?? 0;
+
     // 查找是否已有此 session+step 的记录
     const existing = (await this.flowMetrics
       .query({ sessionId, step })
@@ -325,14 +335,22 @@ export class MemorySystem implements IMemorySystem {
     const existingRecord = unwrapSingle(existing) as FlowMetrics | null;
 
     if (existingRecord) {
-      // 累加计数和 token
+      // 累加 tokensBySource 各项
+      const merged: Record<string, number> = {
+        ...existingRecord.tokensBySource,
+      };
+      for (const [source, tokens] of Object.entries(tokensBySource)) {
+        merged[source] = (merged[source] ?? 0) + tokens;
+      }
+
       await this.flowMetrics
         .update({ id: existingRecord.id })
         .UpdateOne({
           stepInCount: existingRecord.stepInCount + 1,
-          tokensConsumed: existingRecord.tokensConsumed + tokensConsumed,
+          tokensConsumed: existingRecord.tokensConsumed + newTotal,
+          tokensBySource: merged,
           userInputTokens:
-            existingRecord.userInputTokens + userInputTokens,
+            existingRecord.userInputTokens + newUserTokens,
         });
     } else {
       // 获取 taskSummary
@@ -349,10 +367,11 @@ export class MemorySystem implements IMemorySystem {
         step,
         stepName,
         stepInCount: 1,
-        tokensConsumed,
+        tokensConsumed: newTotal,
+        tokensBySource,
         dwellTime: 0,
         humanInterventionTime: 0,
-        userInputTokens,
+        userInputTokens: newUserTokens,
         taskSummary,
       };
 
@@ -407,5 +426,49 @@ export class MemorySystem implements IMemorySystem {
       .exec()) as AxioResult;
 
     return unwrapArray(result) as FlowMetrics[];
+  }
+
+  // ═══════════════════════════════════════════
+  // 新增查询
+  // ═══════════════════════════════════════════
+
+  async getLastClosedTask(sessionId: string): Promise<Task | null> {
+    const result = (await this.tasks
+      .query({ sessionId, closed: true })
+      .exec()) as AxioResult;
+
+    const tasks = unwrapArray(result) as Task[];
+    tasks.sort((a, b) => (b.endAt ?? "").localeCompare(a.endAt ?? ""));
+    return tasks[0] ?? null;
+  }
+
+  async getSourceTokenBreakdown(
+    sessionId: string,
+  ): Promise<SourceTokenBreakdown[]> {
+    const metrics = await this.getFlowMetrics(sessionId);
+    const aggregated: Record<string, number> = {};
+    for (const m of metrics) {
+      if (m.tokensBySource) {
+        for (const [source, tokens] of Object.entries(m.tokensBySource)) {
+          aggregated[source] = (aggregated[source] ?? 0) + tokens;
+        }
+      }
+    }
+    return Object.entries(aggregated).map(([source, tokens]) => ({
+      source: source as TokenSource,
+      tokens,
+    }));
+  }
+
+  async getStepTokenBreakdown(
+    sessionId: string,
+  ): Promise<StepTokenBreakdown[]> {
+    const metrics = await this.getFlowMetrics(sessionId);
+    return metrics.map((m) => ({
+      step: m.step,
+      stepName: m.stepName,
+      stepInCount: m.stepInCount,
+      tokensConsumed: m.tokensConsumed,
+    }));
   }
 }

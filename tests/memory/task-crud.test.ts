@@ -72,4 +72,59 @@ describe("Task CRUD", () => {
     await memory.createTask(baseTask("lb"));
     expect((await memory.listActiveTasks()).length).toBeGreaterThanOrEqual(2);
   });
+
+  // ─── Metrics 扩展 ───────────────────────────────
+
+  it("closeTask_writes_endAt: 关闭任务时写入结束时间", async () => {
+    const beforeClose = new Date().toISOString();
+    const task = await memory.createTask(baseTask("endat"));
+    await memory.closeTask(task.documentId);
+
+    const closed = await memory.getTask("ses_endat");
+    expect(closed).toBeDefined();
+    expect(closed!.closed).toBe(true);
+    expect(closed!.endAt).toBeDefined();
+    expect(closed!.endAt! >= beforeClose).toBe(true);
+  });
+
+  it("recordStepEntry_with_tokensBySource: 首次录入创建带来源分布的记录", async () => {
+    const sid = "ses_rse_crud";
+    await memory.createTask(baseTask("rse_crud"));
+
+    await memory.recordStepEntry(sid, "project-build", "S1", "理解需求", {
+      System: 200,
+      User: 100,
+    });
+
+    const metrics = await memory.getFlowMetrics(sid);
+    expect(metrics).toHaveLength(1);
+    expect(metrics[0].tokensBySource).toEqual({ System: 200, User: 100 });
+    expect(metrics[0].tokensConsumed).toBe(300);
+    expect(metrics[0].userInputTokens).toBe(100);
+    expect(metrics[0].stepInCount).toBe(1);
+  });
+
+  it("recordStepEntry_accumulates_tokensBySource: 重复录入时累加各项来源", async () => {
+    const sid = "ses_rse_acc_crud";
+    await memory.createTask(baseTask("rse_acc_crud"));
+
+    await memory.recordStepEntry(sid, "project-build", "S2", "实现", {
+      System: 50,
+      User: 80,
+    });
+    await memory.recordStepEntry(sid, "project-build", "S2", "实现", {
+      System: 30,
+      Assistant: 120,
+    });
+
+    const metrics = await memory.getFlowMetrics(sid);
+    expect(metrics).toHaveLength(1);
+    expect(metrics[0].tokensBySource).toEqual({
+      System: 80,
+      User: 80,
+      Assistant: 120,
+    });
+    expect(metrics[0].tokensConsumed).toBe(280);
+    expect(metrics[0].stepInCount).toBe(2);
+  });
 });
