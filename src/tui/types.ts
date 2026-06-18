@@ -94,3 +94,17 @@ export function compactTokens(tokens: number): string {
   }
   return String(tokens);
 }
+
+/**
+ * 计算字符串的可视宽度（CJK 字符计 2 列，ASCII 计 1 列）。
+ *
+ * 用于手动字符串填充，替代 flexbox 布局。
+ * 覆盖范围：CJK 统一汉字、CJK 标点、全角字符。
+ */
+export function visualWidth(s: string): number {
+  let w = 0;
+  for (const ch of s) {
+    w += /[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]/.test(ch) ? 2 : 1;
+  }
+  return w;
+}

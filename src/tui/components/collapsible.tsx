@@ -21,7 +21,7 @@ export function Collapsible(props: CollapsibleProps): JSX.Element {
         width="100%"
         flexDirection="row"
         height={1}
-        onMouseDown={() => setCollapsed((prev) => !prev)}
+        onMouseUp={() => setCollapsed((prev) => !prev)}
       >
         <text fg={props.titleColor}>
           {arrow()} {props.title}

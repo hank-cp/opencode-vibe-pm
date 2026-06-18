@@ -1,9 +1,9 @@
 # TUI 扩展
 
 **创建日期**: 2026-06-17
-**状态**: Draft
+**状态**: Implemented
 **输入来源**: 用户需求
-**最后更新**: 2026-06-17 — 拆分为 TUI（本 Spec）+ Metrics 收集（独立 Spec）；布局改为单行色块占比条 + 折叠详情
+**最后更新**: 2026-06-18 — 同步至实现状态：模块结构、数据加载方式、TokenBar 渲染、构建配置皆与代码一致；代码审查合规修复（onMouseUp、flexGrow 消除、SIDEBAR_WIDTH 常量）
 
 ---
 
@@ -111,8 +111,8 @@ graph TB
         end
 
         subgraph TuiPlugin["TUI Plugin（本 Spec）"]
-            TR["TuiRenderer"]
-            comps["Components:<br/>TaskStatusCard / TokenBar /<br/>TokenDetail / StepTokens / EmptyState"]
+            TR["TuiRenderer → SidebarContent"]
+            comps["Components:<br/>TaskStatusCard / Collapsible / EmptyState<br/>+ 内联 TokenBar / TokenDetail / StepTokens"]
         end
 
         Hooks["SDK Hooks"]
@@ -138,84 +138,78 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant OC as OpenCode Events
-    participant TR as TuiRenderer
+    participant SC as SidebarContent
     participant MS as IMemorySystem
     participant Slot as sidebar_content
 
-    OC->>TR: message.received / tool.executed
-    TR->>MS: getActiveTask(sessionId)
+    OC->>SC: message.updated / session.updated
+    SC->>SC: 防抖 150ms
+    SC->>MS: loadTaskStatus(sessionId)
+    SC->>MS: loadTokenData(sessionId)
     alt 有活跃任务
-        MS-->>TR: Task (flow, step, startAt)
+        MS-->>SC: TaskStatusData (type: "active")
     else 无活跃任务
-        TR->>MS: getLastClosedTask(sessionId)
-        MS-->>TR: Task? (flow, endAt)
+        MS-->>SC: TaskStatusData (type: "last" / "empty")
     end
-    TR->>MS: getSourceTokenBreakdown(sessionId)
-    MS-->>TR: SourceTokenBreakdown[]
-    TR->>TR: 计算色块占比
-    TR->>Slot: re-render TaskStatusCard + TokenBar
+    MS-->>SC: TokenData (sourceBreakdown + stepBreakdown)
+    SC->>SC: 计算色块占比（块字符 █）
+    SC->>Slot: re-render JSX
 
-    Note over TR: 兜底：每 5s 定时轮询
+    Note over SC: 兜底：每 5s 定时轮询
 ```
 
 ### TUI 组件布局设计
 
 ```
 ┌─────────────────────────────────┐
-│  📋 vibe-pm                     │
+│  vibe-pm                        │  ← api.theme.current.primary
 ├─────────────────────────────────┤
 │  流程: research                 │
-│  步骤: S5 — 执行环节            │  ← TaskStatusCard
+│  步骤: S5 — 执行环节            │  ← TaskStatusCard (active 态)
 │  开始: 14:30  耗时: 22min       │
 │  Spec: docs/spec/vibe-pm-xxx.md │
 ├─────────────────────────────────┤
-│  Token 分布 (来源)         12.5K│
-│ ┌──┬───┬───┬──────┬────┬──┐    │
-│ │蓝│青 │橙 │ 绿   │ 紫 │灰│    │  ← 单行色块占比条
-│ └──┴───┴───┴──────┴────┴──┘    │    每块宽度 = 该来源占比
-│ ▼ 详情                          │  ← 点击展开/折叠
-│   System      1.5K (12%)        │
-│   FlowCtrl    1.0K ( 8%)        │
-│   User        1.9K (15%)        │
-│   Assistant   5.0K (40%)        │
-│   Tool        2.5K (20%)        │
-│   Reasoning   0.6K ( 5%)        │
+│  ████████████████  12.5K       │  ← 内联 TokenBar（块字符 █，含总量）
+│  ▼ Token 分布详情               │  ← Collapsible，默认折叠
+│    Sy 1.5K (12%)                │    来源缩写：Sy/Fc/Us/As/Tl/Rs
+│    Fc 1.0K ( 8%)                │
+│    Us 1.9K (15%)                │
+│    As 5.0K (40%)                │
+│    Tl 2.5K (20%)                │
+│    Rs 0.6K ( 5%)                │
 ├─────────────────────────────────┤
-│ ▶ 步骤 Token                    │  ← 默认折叠，点击展开
-│   (展开后显示步骤柱状图)         │
+│  ▼ 步骤 Token                   │  ← Collapsible，默认折叠
+│    S1 ████ 研究  1.2K (2次)     │
+│    S2 ████████ 设计  2.8K (1次) │
+│    S3 ██ 实施  0.5K (1次)       │
+│    S4 ██████████ 测试  5.0K (3次)│
+│    S5 ██████ 验收  3.0K (1次)   │
 └─────────────────────────────────┘
-```
-
-### 展开后的步骤 Token 区域
-
-```
-│ ▼ 步骤 Token                    │
-│   S1 ████  1.2K (2次进入)       │
-│   S2 ████████  2.8K (1次进入)   │
-│   S3 ██  0.5K (1次进入)         │
-│   S4 ██████████  5.0K (3次进入) │
-│   S5 ██████  3.0K (1次进入)     │
 ```
 
 ### 模块结构
 
 ```
-src/tui/                          # 新建：TUI 扩展模块
-├── tui-plugin.ts                 # createTuiPlugin(memory: IMemorySystem): TuiPlugin 工厂函数
+src/tui/                          # TUI 扩展模块
+├── index.ts                      # TuiPluginModule default export + 类型重导出
+├── tui-plugin.ts                 # createTuiPlugin(memory?: IMemorySystem): TuiPlugin 工厂函数
+├── types.ts                      # 共享类型 + SOURCE_COLORS + formatElapsed / compactTokens 工具函数
+├── slots/
+│   └── sidebar-content.tsx       # SidebarContent 主渲染组件（含内联 TokenBar/TokenDetail/StepTokens）
 ├── components/                   # TUI 组件（@opentui/solid JSX）
-│   ├── task-status.tsx           # TaskStatusCard 组件
-│   ├── token-bar.tsx             # TokenBar 组件（单行色块占比条）
-│   ├── token-detail.tsx          # TokenDetail 组件（可折叠的来源百分比列表）
-│   ├── step-tokens.tsx           # StepTokens 组件（可折叠的步骤 Token 柱状图）
-│   ├── collapsible.tsx           # Collapsible 通用组件（▶/▼ 切换 + 内容区）
-│   └── empty-state.tsx           # EmptyState 组件
-├── hooks/                        # TUI 数据 hooks
-│   ├── use-task-status.ts        # 任务状态：useTaskStatus(sessionId) → TaskStatusData
-│   └── use-token-data.ts         # Token 数据：useTokenData(sessionId) → TokenData
-└── index.ts                      # 导出 TuiPluginModule { tui }
+│   ├── task-status.tsx           # TaskStatusCard 组件（active/last/empty 三态）
+│   ├── collapsible.tsx           # Collapsible 通用组件（▶/▼ 切换 + SolidJS signal）
+│   └── empty-state.tsx           # EmptyState 组件（"暂无 vibe-pm 任务"）
+└── data/                         # 异步数据加载函数
+    ├── task-status.ts            # loadTaskStatus(memory, sessionId) → TaskStatusData
+    └── token-data.ts             # loadTokenData(memory, sessionId) → TokenData
 ```
 
-> **注意**: Token 计数模块（`src/token/`）和 IMemorySystem 扩展接口定义在 [vibe-pm-metrics-collection.md](./vibe-pm-metrics-collection.md) 中，不属于本 Spec 范围。
+> **注意**: 
+> - TokenBar（单行色块占比条）、TokenDetail（来源百分比详情）、StepTokens（步骤 Token 柱状图）均作为 **内联 JSX 块** 在 `sidebar-content.tsx` 中实现，使用 `Collapsible` 组件包裹，而非独立组件文件。
+> - 数据加载使用 `async function load*` 模式（非 React-style hooks），通过 IIFE 在 JSX 中调用。
+> - TUI 插件通过 `index.ts` 的 `export default TuiPluginModule` 注册，**无需** `tui.json` / `opencode.json` 配置文件。
+> - Token 计数模块（`src/token/`）和 IMemorySystem 扩展接口定义在 [vibe-pm-metrics-collection.md](./vibe-pm-metrics-collection.md) 中，不属于本 Spec 范围。
 
 ### 组件接口设计
 
@@ -229,49 +223,91 @@ interface TaskStatusData {
   currentStepName?: string;
   startAt?: string;
   endAt?: string;
-  elapsed?: string;       // 格式化耗时 "22min" / "1h 15min"
+  /** 格式化耗时 "22min" / "1h 15min" */
+  elapsed?: string;
   specRef?: string;
   planRef?: string;
 }
 
-function useTaskStatus(
+/**
+ * 从 IMemorySystem 异步加载任务状态。
+ * 查询逻辑：活跃任务 → 上一关闭任务 → empty 态。
+ */
+function loadTaskStatus(
   memory: IMemorySystem,
   sessionId: string,
-): () => TaskStatusData;
+): Promise<TaskStatusData>;
 
 // ─── Token Data ───
 
 interface TokenData {
   totalTokens: number;
-  sourceBreakdown: SourceTokenBreakdown[];
-  stepBreakdown: StepTokenBreakdown[];
+  sourceBreakdown: TokenSourceEntry[];
+  stepBreakdown: StepTokenEntry[];
 }
 
-function useTokenData(
+interface TokenSourceEntry {
+  source: TokenSource;
+  tokens: number;
+}
+
+interface StepTokenEntry {
+  step: string;
+  stepName: string;
+  stepInCount: number;
+  tokensConsumed: number;
+}
+
+/**
+ * 从 IMemorySystem 异步加载 Token 分布。
+ * 同时获取来源级（getSourceTokenBreakdown）和步骤级（getStepTokenBreakdown）。
+ */
+function loadTokenData(
   memory: IMemorySystem,
   sessionId: string,
-): () => TokenData;
+): Promise<TokenData>;
+
+// ─── Color Segment（内联计算，非导出类型） ───
+
+interface ColorSegment {
+  source: TokenSource;
+  tokens: number;
+  percentage: number;    // Math.round(tokens / total * 100)
+  color: RGBA;
+}
 
 // ─── Color Mapping ───
 
 const SOURCE_COLORS: Record<TokenSource, RGBA> = {
-  System:      { r: 0.29, g: 0.56, b: 0.85, a: 1 },  // #4A90D9
-  FlowControl: { r: 0.21, g: 0.69, b: 0.78, a: 1 },  // #36B0C8
-  User:        { r: 0.96, g: 0.65, b: 0.14, a: 1 },  // #F5A623
-  Assistant:   { r: 0.49, g: 0.83, b: 0.13, a: 1 },  // #7ED321
-  Tool:        { r: 0.69, g: 0.48, b: 0.93, a: 1 },  // #B07BED
-  Reasoning:   { r: 0.61, g: 0.61, b: 0.61, a: 1 },  // #9B9B9B
+  System:      RGBA.fromInts(74, 144, 217),   // #4A90D9 冷蓝
+  FlowControl: RGBA.fromInts(54, 176, 200),   // #36B0C8 冷青
+  User:        RGBA.fromInts(245, 166, 35),    // #F5A623 暖橙
+  Assistant:   RGBA.fromInts(126, 211, 33),    // #7ED321 暖绿
+  Tool:        RGBA.fromInts(176, 123, 237),   // #B07BED 暖紫
+  Reasoning:   RGBA.fromInts(155, 155, 155),   // #9B9B9B 暖灰
 };
+
+// ─── 工具函数 ───
+
+/** 格式化耗时为可读字符串 */
+function formatElapsed(startAt: string, endAt?: string): string;
+
+/** 格式化 Token 数为紧凑格式（如 12.5K, 16.4M） */
+function compactTokens(tokens: number): string;
 ```
 
-### 可配置项
+### 硬编码常量（`sidebar-content.tsx`）
 
-| 配置项 | 默认值 | 说明 |
-|--------|--------|------|
-| `tui.refreshInterval` | `5000` | 定时轮询间隔（ms），0 表示仅事件驱动 |
-| `tui.expandTokenDetail` | `false` | Token 百分比详情默认是否展开 |
-| `tui.expandStepTokens` | `false` | 步骤 Token 详情默认是否展开 |
-| `tui.showEmptyState` | `true` | 无任务时是否显示空状态面板 |
+当前实现将所有可调参数硬编码为模块级常量，不通过配置文件暴露：
+
+| 常量 | 值 | 说明 |
+|------|-----|------|
+| `REFRESH_DEBOUNCE_MS` | `150` | 事件触发后防抖延迟（ms），避免短时间内重复刷新 |
+| `POLL_INTERVAL_MS` | `5000` | 定时轮询间隔（ms），作为事件驱动的兜底机制 |
+| `SLOT_ORDER` | `150` | sidebar_content slot 排序权重 |
+| `SIDEBAR_WIDTH` | `38` | 侧边栏字符宽度，TokenBar 和 StepTokens 共享此值进行手动填充 |
+
+> **注意**: `expandTokenDetail`、`expandStepTokens` 默认均为折叠（`Collapsible` 的 `defaultCollapsed={true}`），通过 SolidJS signal 在内存中切换状态，无需配置项。
 
 ---
 
@@ -298,33 +334,32 @@ const SOURCE_COLORS: Record<TokenSource, RGBA> = {
 
 - **测试文件**: `tests/tui/tui-plugin.test.ts`
 - **关联设计文档**: `docs/spec/vibe-pm-tui-extension.md`
-- **Setup/Teardown**: Mock TuiPluginApi（含 state.session / ui.Slot / event / renderer / lifecycle），创建 MemorySystem 临时实例并注入
+- **Setup/Teardown**: 使用 vitest dynamic import + mock IMemorySystem / TuiPluginApi 对象
 
 | 动作指令 | 测试方法 | Given | When | Then | Notes |
 |----------|----------|-------|------|------|-------|
-| 新增 | `createTuiPlugin` | 注入 MemorySystem 实例 | 调用 createTuiPlugin(memory) | 返回符合 TuiPlugin 签名的函数 | |
-| 新增 | TaskStatusCard 活跃 | 活跃任务 research/S5/startAt=now | 组件渲染 | 流程名/步骤/耗时均正确 | |
-| 新增 | TaskStatusCard 上一任务 | 无活跃任务，有 1 个已关闭任务 | 组件渲染 | 显示 "上一任务" + 流程名 + 耗时 | |
-| 新增 | TaskStatusCard 空状态 | Session 无任何任务 | 组件渲染 | 显示 "暂无 vibe-pm 任务" | |
-| 新增 | TokenBar 渲染 | 6 种来源均有非零 token | 组件渲染 | 6 个色块可见，总宽度 = 100% | |
-| 新增 | TokenBar 空数据 | 所有来源 token 为 0 | 组件渲染 | 占比条全空，总 Token=0 | |
-| 新增 | TokenDetail 折叠/展开 | TokenDetail 默认 collapsed | 点击 toggle | ▼→▶ 切换，详情显示/隐藏 | |
-| 新增 | StepTokens 折叠/展开 | StepTokens 默认 collapsed | 点击 toggle 展开 | 各步骤 token 和进入次数正确 | |
-| 新增 | 事件刷新 | 活跃任务 step=S3 | 模拟 message.received 事件 | 侧边栏数据更新为最新 | |
-| 新增 | 定时轮询 | refreshInterval=100ms | 等待 150ms | 侧边栏至少刷新 1 次 | |
-| 新增 | 非 TUI 环境 | TuiPluginApi 为 null/missing | 加载 TuiPluginModule | 不崩溃，不渲染 | |
+| 新增 | `createTuiPlugin` 返回函数 | 无参数 | 调用 createTuiPlugin() | 返回 TuiPlugin 签名的 async 函数 | 验证 arity ≥ 1 |
+| 新增 | 非 TUI 环境降级 | mockApi 的 slots.register 抛异常 | 调用 plugin(mockApi) | 不抛异常，resolves undefined | try/catch 包裹 |
+| 新增 | 接受外部 memory | mockMemory 注入 | 调用 createTuiPlugin(mockMemory) | 返回有效函数 | |
+| 新增 | SOURCE_COLORS 完整性 | — | 读取 SOURCE_COLORS keys | 含全部 6 种来源，长度=6 | System/FlowControl/User/Assistant/Tool/Reasoning |
 
-### tui/components/collapsible.test.ts
+### tui/collapsible.test.ts
 
 - **测试文件**: `tests/tui/collapsible.test.ts`
 - **关联设计文档**: `docs/spec/vibe-pm-tui-extension.md`
-- **Setup/Teardown**: 纯组件测试，无外部依赖
+- **Setup/Teardown**: 纯数据层 + 工具函数测试（Collapsible 组件本身依赖 @opentui/solid 原生模块，JSX 渲染由集成环境覆盖）
 
 | 动作指令 | 测试方法 | Given | When | Then | Notes |
 |----------|----------|-------|------|------|-------|
-| 新增 | 默认折叠 | collapsed=true | 首次渲染 | 显示 ▶ + 标题，内容隐藏 | |
-| 新增 | 点击展开 | collapsed=true | 点击 toggle | 显示 ▼ + 标题，内容可见 | |
-| 新增 | 再次点击折叠 | collapsed=false | 点击 toggle | 显示 ▶ + 标题，内容隐藏 | |
+| 新增 | `loadTaskStatus` 空态 | 无活跃任务、无关闭任务 | 调用 loadTaskStatus | type="empty" | |
+| 新增 | `loadTaskStatus` 活跃任务 | getActiveTask 返回结果 | 调用 loadTaskStatus | type="active"，含 flow/step/elapsed/specRef | |
+| 新增 | `loadTaskStatus` 上一任务 | 无活跃、有关闭任务 | 调用 loadTaskStatus | type="last"，含 flow/elapsed | |
+| 新增 | `loadTokenData` 聚合 | 3 种来源、2 个步骤 | 调用 loadTokenData | totalTokens=8400，sourceBreakdown 长度=3 | |
+| 新增 | `loadTokenData` 空 session | 空数组 | 调用 loadTokenData | totalTokens=0，空数组 | |
+| 新增 | `compactTokens` K 格式化 | 12500, 1000, 999, 0 | 调用 compactTokens | "12.5K", "1.0K", "999", "0" | |
+| 新增 | `formatElapsed` 分钟 | 5 分钟前 | 调用 formatElapsed | 匹配 `/^\d+min$/` | |
+| 新增 | `formatElapsed` 小时 | 130 分钟前 | 调用 formatElapsed | 匹配 `/^\d+h \d+min$/` | |
+| 新增 | `formatElapsed` 含 endAt | 1 小时跨度 | 调用 formatElapsed(s, e) | 匹配 `/^\d+h \d+min$/` | |
 
 ---
 
@@ -347,7 +382,7 @@ const SOURCE_COLORS: Record<TokenSource, RGBA> = {
 | 异步安全 | TUI 渲染不应阻塞 OpenCode 主线程，所有 I/O 操作异步化 |
 | 降级策略 | IMemorySystem 不可用时 TUI 显示错误状态，不抛异常到 OpenCode 宿主 |
 | 非 TUI 兼容 | TUI 模块在 headless/Web 模式静默跳过，确保不影响非 TUI 用户 |
-| 独立部署 | TuiPluginModule 通过 `tui.json` / `tui.jsonc` 独立注册，不修改 server plugin 的 `opencode.json` |
+| 独立部署 | TuiPluginModule 通过 `src/tui/index.ts` 的 `export default` 注册为 OpenCode TUI 模块，与 server plugin 共享 `tsconfig.json` 构建配置 |
 
 ### 已知风险
 
@@ -362,12 +397,14 @@ const SOURCE_COLORS: Record<TokenSource, RGBA> = {
 
 | 模块 | 变更类型 | 说明 |
 |------|---------|------|
-| `src/tui/` | 新建 | TUI 扩展完整模块（本 Spec） |
-| `src/memory/types.ts` | 无变化 | 依赖 Metrics Spec 的扩展 |
-| `src/memory/memory-system.ts` | 无变化 | 依赖 Metrics Spec 的扩展 |
+| `src/tui/` | 新建 | TUI 扩展完整模块（本 Spec），含 9 个源文件 |
+| `src/memory/types.ts` | 扩展 | `IMemorySystem` 新增 `getLastClosedTask`、`getSourceTokenBreakdown`、`getStepTokenBreakdown` 查询方法 |
+| `src/memory/memory-system.ts` | 扩展 | 实现上述 3 个新增查询方法 |
 | `src/token/` | 无变化 | TokenCounter 属于 Metrics Spec |
-| `src/core/plugin.ts` | 无变化 | TUI 独立模块，通过闭包注入 |
-| `package.json` | 无变化 | 无新依赖 |
+| `src/core/plugin.ts` | 无变化 | TUI 独立模块，通过 `MemorySystem` 实例共享 AxioDB |
+| `package.json` | 新增依赖 | `@opentui/core`、`@opentui/solid`、`@opentui/keymap`、`solid-js` |
+| `tsconfig.json` | 无变化 | TUI 与 server 共享同一 tsconfig（`jsx: "preserve"`, `jsxImportSource: "@opentui/solid"`） |
+| `scripts/jsx-shim.mjs` | 新建 | post-build 脚本，为 `.jsx` 产物生成 `.js` 重导出 shim |
 
 ---
 
@@ -377,16 +414,25 @@ const SOURCE_COLORS: Record<TokenSource, RGBA> = {
 
 ### 已实现功能
 
-- [x] P1: TaskStatusCard — 任务状态卡片（活跃任务 + 上一任务 + 空状态）
-- [x] P2: TokenBar — 单行色块占比条组件
-- [x] P2: TokenDetail — 可折叠来源百分比详情
-- [x] P3: StepTokens — 可折叠步骤 Token 柱状图
-- [x] Collapsible 通用组件（▶/▼ 切换，useKeyboard 控制）
-- [x] loadTaskStatus / loadTokenData 数据加载函数（替代 use* hooks）
-- [x] createTuiPlugin 工厂函数 + sidebar_content 注册（TuiSlotPlugin order=150）
-- [x] 事件驱动（message.updated/session.updated + 150ms 防抖）+ 定时轮询（5s）刷新机制
-- [x] SOURCE_COLORS 颜色映射（RGBA.fromInts）
-- [x] 非 TUI 环境静默降级
+- [x] P1: TaskStatusCard — 任务状态卡片（active / last / empty 三态，含格式化的开始时间/耗时/SpecRef/PlanRef）
+- [x] P2: TokenBar — 内联单行色块占比条（块字符 `█` 渲染，含总量显示，空数据时显示灰色占位条）
+- [x] P2: TokenDetail — 内联可折叠来源百分比详情（Collapsible 包裹，来源名缩写为 2 字符：Sy/Fc/Us/As/Tl/Rs）
+- [x] P3: StepTokens — 内联可折叠步骤 Token 柱状图（Collapsible 包裹，含步骤名、柱状条、进入次数）
+- [x] Collapsible 通用组件（▶/▼ 切换，SolidJS createSignal 控制状态）
+- [x] EmptyState 组件（居中显示 "暂无 vibe-pm 任务"，接受 message prop 覆盖默认文案）
+- [x] `loadTaskStatus` / `loadTokenData` 异步数据加载函数（`data/` 目录，替代原 use* hooks 设计）
+- [x] `createTuiPlugin` 工厂函数（接受可选 `memory` 参数，未注入时独立创建 MemorySystem）
+- [x] `SidebarContent` 主渲染组件（`slots/sidebar-content.tsx`）
+- [x] `createSidebarSlot` → TuiSlotPlugin（order=150 注册 sidebar_content slot）
+- [x] 事件驱动刷新（message.updated / session.updated + 150ms 防抖）
+- [x] 定时轮询兜底（5s 间隔）
+- [x] SOURCE_COLORS 颜色映射（`RGBA.fromInts`，6 种固定颜色）
+- [x] `formatElapsed` / `compactTokens` 工具函数（types.ts）
+- [x] 非 TUI 环境静默降级（try/catch 包裹 + console.error 日志）
+- [x] 构建流程：`tsc` 编译 + `scripts/jsx-shim.mjs` 生成 `.js` 重导出 shim
+- [x] `visualWidth()` 工具函数（CJK 字符计 2 列，用于手动字符串填充）
+- [x] `SIDEBAR_WIDTH=38` 共享常量（TokenBar + StepTokens 统一宽度）
+- [x] 代码审查合规：Collapsible `onMouseDown`→`onMouseUp`、空 TokenBar flexGrow 消除、StepTokens `justifyContent`→手动填充
 
 ### 未实现功能
 
@@ -394,5 +440,8 @@ const SOURCE_COLORS: Record<TokenSource, RGBA> = {
 
 ### 已知问题/风险
 
-- `void err` 在 tui-plugin.ts 吞掉初始化错误无日志（🟢 低危，用户选择忽略）
 - 来自"约束与限制"章节
+- `SourceTokenBreakdown` 接口与 `TokenSourceEntry` 类型重复（分别在 `src/memory/types.ts` 和 `src/tui/types.ts` 中定义，结构相同但名称不同）
+- Collapsible 仅支持 `onMouseUp` 切换，无键盘快捷键绑定（`@opentui/keymap` 已安装但未在该组件中使用）
+- TokenBar 在 totalTokens > 0 但某些来源为 0 时仅显示非零色块，与 Spec 中"占比条显示 6 个色块"的验收场景不完全一致
+- 构建需要 post-build 脚本 `jsx-shim.mjs`，增加构建复杂度（`jsx: "preserve"` 导致 `.tsx` 编译为 `.jsx`，需 shim 桥接 `.js` 导入）

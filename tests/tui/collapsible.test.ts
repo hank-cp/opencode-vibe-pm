@@ -161,3 +161,78 @@ describe("formatElapsed", () => {
     expect(result).toMatch(/^\d+h \d+min$/);
   });
 });
+
+describe("visualWidth", () => {
+  it("counts pure ASCII as 1 per character", async () => {
+    const { visualWidth } = await import("../../src/tui/types.js");
+    expect(visualWidth("S1")).toBe(2);
+    expect(visualWidth("abc")).toBe(3);
+    expect(visualWidth("12.5K")).toBe(5);
+    expect(visualWidth("(2)")).toBe(3);
+  });
+
+  it("counts CJK characters as 2 per character", async () => {
+    const { visualWidth } = await import("../../src/tui/types.js");
+    expect(visualWidth("研究")).toBe(4);
+    expect(visualWidth("步骤")).toBe(4);
+    expect(visualWidth("执行环节")).toBe(8);
+  });
+
+  it("counts CJK punctuation as 2", async () => {
+    const { visualWidth } = await import("../../src/tui/types.js");
+    expect(visualWidth("次")).toBe(2);
+    expect(visualWidth("暂无数据")).toBe(8);
+  });
+
+  it("handles mixed ASCII and CJK", async () => {
+    const { visualWidth } = await import("../../src/tui/types.js");
+    expect(visualWidth("S1 ██ 研究")).toBe(10);
+    expect(visualWidth("1.2K (2次)")).toBe(10);
+  });
+
+  it("returns 0 for empty string", async () => {
+    const { visualWidth } = await import("../../src/tui/types.js");
+    expect(visualWidth("")).toBe(0);
+  });
+
+  it("handles block characters as 1", async () => {
+    const { visualWidth } = await import("../../src/tui/types.js");
+    expect(visualWidth("█".repeat(10))).toBe(10);
+    expect(visualWidth("█".repeat(20))).toBe(20);
+  });
+});
+
+describe("StepTokens manual padding integrity", () => {
+  it("produces padded string with at least 1 space gap", async () => {
+    const { visualWidth } = await import("../../src/tui/types.js");
+
+    const stepData = [
+      { step: "S1", stepName: "研究", stepInCount: 2, tokensConsumed: 1200, barW: 4 },
+      { step: "S2", stepName: "设计", stepInCount: 1, tokensConsumed: 2800, barW: 8 },
+      { step: "S3", stepName: "实施", stepInCount: 1, tokensConsumed: 500, barW: 2 },
+      { step: "S4", stepName: "验收测试", stepInCount: 3, tokensConsumed: 5000, barW: 12 },
+    ];
+
+    for (const s of stepData) {
+      const left = `${s.step} ${"█".repeat(s.barW)} ${s.stepName}`;
+      const right = `${s.tokensConsumed >= 1000
+        ? (s.tokensConsumed / 1000).toFixed(1) + "K"
+        : String(s.tokensConsumed)} (${s.stepInCount}次)`;
+      const pad = Math.max(1, 38 - visualWidth(left) - visualWidth(right));
+
+      expect(pad).toBeGreaterThanOrEqual(1);
+      expect(visualWidth(left) + pad + visualWidth(right)).toBeLessThanOrEqual(38);
+    }
+  });
+
+  it("falls back to 1 space when content would overflow 38 cols", async () => {
+    const { visualWidth } = await import("../../src/tui/types.js");
+
+    const longName = "一段非常长的步骤名称用于测试边界情况";
+    const left = `S1 ██████ ${longName}`;
+    const right = "99.9K (99次)";
+    const pad = Math.max(1, 38 - visualWidth(left) - visualWidth(right));
+
+    expect(pad).toBe(1);
+  });
+});

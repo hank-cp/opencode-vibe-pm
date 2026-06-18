@@ -6,7 +6,7 @@ import type {
 } from "@opencode-ai/plugin/tui";
 import type { IMemorySystem } from "../../memory/types.js";
 import type { TaskStatusData, TokenData } from "../types.js";
-import { SOURCE_COLORS, compactTokens } from "../types.js";
+import { SOURCE_COLORS, compactTokens, visualWidth } from "../types.js";
 import { loadTaskStatus } from "../data/task-status.js";
 import { loadTokenData } from "../data/token-data.js";
 import { TaskStatusCard } from "../components/task-status.jsx";
@@ -16,6 +16,7 @@ import { RGBA } from "@opentui/core";
 const REFRESH_DEBOUNCE_MS = 150;
 const POLL_INTERVAL_MS = 5000;
 const SLOT_ORDER = 150;
+const SIDEBAR_WIDTH = 38;
 
 interface SidebarContentProps {
   api: TuiPluginApi;
@@ -121,7 +122,7 @@ function SidebarContent(props: SidebarContentProps): JSX.Element {
         {(() => {
           const td = tokenData();
           if (td.totalTokens <= 0) return (<box width="100%" flexDirection="row" height={1}>
-            <box backgroundColor={RGBA.fromInts(89,89,89)} flexGrow={1} flexBasis={0} height={1}/>
+            <text fg={RGBA.fromInts(89,89,89)}>{"█".repeat(SIDEBAR_WIDTH)}</text>
             <text fg={RGBA.fromInts(89,89,89)}>{compactTokens(td.totalTokens)}</text>
           </box>);
           const total = td.totalTokens;
@@ -132,7 +133,7 @@ function SidebarContent(props: SidebarContentProps): JSX.Element {
             pct: Math.max(1, Math.round((map.get(k)! / total) * 100)),
             color: SOURCE_COLORS[k]
           }));
-          const barTotal = 38;
+          const barTotal = SIDEBAR_WIDTH;
           const counts = segs.map(s => Math.max(1, Math.floor((s.tokens / total) * barTotal)));
           let sum = counts.reduce((a,b)=>a+b,0);
           const remainders = segs.map((s,i)=>({r:(s.tokens/total)*barTotal - counts[i], i})).sort((a,b)=>b.r-a.r);
@@ -176,14 +177,15 @@ function SidebarContent(props: SidebarContentProps): JSX.Element {
             return (<box width="100%" flexDirection="column">
               {steps.map(step => {
                 const barW = Math.max(1, Math.round(step.tokensConsumed/maxTk*20));
-                return (<box width="100%" flexDirection="row" justifyContent="space-between">
-                  <box flexDirection="row">
-                    <text fg={theme().text}>{step.step}</text>
-                    <text fg={theme().success}> {"█".repeat(barW)} </text>
-                    <text fg={theme().textMuted}>{step.stepName}</text>
+                const left = `${step.step} ${"█".repeat(barW)} ${step.stepName}`;
+                const right = `${compactTokens(step.tokensConsumed)} (${step.stepInCount}次)`;
+                const pad = Math.max(1, SIDEBAR_WIDTH - visualWidth(left) - visualWidth(right));
+                return (
+                  <box width="100%" flexDirection="row">
+                    <text fg={theme().text}>{left}</text>
+                    <text fg={theme().textMuted}>{" ".repeat(pad)}{right}</text>
                   </box>
-                  <text fg={theme().textMuted}>{compactTokens(step.tokensConsumed)} ({step.stepInCount}次)</text>
-                </box>);
+                );
               })}
             </box>);
           })()}
