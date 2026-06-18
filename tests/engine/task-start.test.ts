@@ -152,6 +152,34 @@ describe("Task Start", () => {
     expect(s3Metric).toBeDefined();
     expect(s3Metric!.dwellTime).toBeGreaterThan(0);
   });
+
+  it("closeTask_after_reinstantiation: 重启后 closeTask 正常工作", async () => {
+    const engine2 = new FlowEngine(memory, tmpDir);
+    await engine2.startTask({
+      sessionId: "ses_res_close",
+      flow: "test-flow",
+      summary: "restart close 测试",
+    });
+    const closed = await engine2.closeTask("ses_res_close");
+    expect(closed).not.toBeNull();
+    expect(closed!.closed).toBe(true);
+    expect(closed!.flow).toBe("test-flow");
+  });
+
+  it("setStep_after_reinstantiation: 重启后 setStep 正常工作", async () => {
+    const engine2 = new FlowEngine(memory, tmpDir);
+    await engine2.startTask({
+      sessionId: "ses_res_step",
+      flow: "test-flow",
+      summary: "restart step 测试",
+    });
+    await engine2.setStep("ses_res_step", "S2");
+    const engine3 = new FlowEngine(memory, tmpDir);
+    await engine3.setStep("ses_res_step", "S3");
+    const updated = await memory.getActiveTask("ses_res_step");
+    expect(updated!.currentStep).toBe("S3");
+    expect(updated!.stepTransitions).toHaveLength(2);
+  });
 });
 
 describe("buildControlPrompt", () => {

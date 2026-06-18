@@ -1,4 +1,3 @@
-import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { MemorySystem } from "../memory/index.js";
@@ -15,12 +14,9 @@ export interface StartTaskParams {
   planRef?: string;
 }
 
-const injectedFingerprints = new Map<string, string>();
-
 export class FlowEngine {
   private projectDir: string;
   private commandFlowCache: Map<string, string> | null = null;
-  private sessionTasks = new Map<string, string>();
 
   constructor(private memory: MemorySystem, projectDir: string) {
     this.projectDir = projectDir;
@@ -44,24 +40,20 @@ export class FlowEngine {
   ): Promise<void> {
     const existing = await this.memory.getActiveTask(sessionId);
     logger.info(`[vibe-pm] ensureTaskAndInject: sid=${sessionId} flow=${flow} hasTask=${!!existing}`);
-    if (existing) {
-      this.sessionTasks.set(sessionId, existing.documentId);
-    } else {
+    if (!existing) {
       try {
-        const task = await this.startTask({ sessionId, flow, summary: "" });
-        this.sessionTasks.set(sessionId, task.documentId);
-        logger.info(`[vibe-pm] ensureTaskAndInject: created task docId=${task.documentId}`);
+        await this.startTask({ sessionId, flow, summary: "" });
+        logger.info(`[vibe-pm] ensureTaskAndInject: created task`);
       } catch (e) {
         logger.info(`[vibe-pm] ensureTaskAndInject: startTask failed ${String(e)}`);
+        return;
       }
     }
 
-    const fp = crypto.createHash("md5").update(`${sessionId}:${flow}`).digest("hex");
-    if (injectedFingerprints.get(sessionId) === fp) {
-      logger.info(`[vibe-pm] ensureTaskAndInject: fingerprint match, skip`);
+    if (parts.some((p) => p.type === "text" && p.text.includes("<protect>"))) {
+      logger.info(`[vibe-pm] ensureTaskAndInject: already injected, skip`);
       return;
     }
-    injectedFingerprints.set(sessionId, fp);
 
     const cmdIdx = parts.findIndex(
       (p) => p.type === "text" && p.text.includes("<auto-slash-command>"),
@@ -190,13 +182,6 @@ export class FlowEngine {
   }
 
   async setStep(sessionId: string, step: string): Promise<void> {
-    let docId = this.sessionTasks.get(sessionId);
-    if (!docId) {
-      const task = await this.memory.getActiveTask(sessionId);
-      if (!task) throw new Error(`No active task for session ${sessionId}`);
-      docId = task.documentId;
-      this.sessionTasks.set(sessionId, docId);
-    }
     const task = await this.memory.getActiveTask(sessionId);
     if (!task) throw new Error(`No active task for session ${sessionId}`);
 
@@ -207,7 +192,7 @@ export class FlowEngine {
     const stepName = this.tryParseStepName(flowName, step) ?? step;
     const now = Date.now();
 
-    await this.memory.updateStep(docId, step, stepName);
+    await this.memory.updateStep(task.documentId, step, stepName);
 
     // 从 stepTransitions 中找最后一次进入 oldStep 的记录，计算停留时间
     let stepDwellTime = 0;
@@ -225,7 +210,7 @@ export class FlowEngine {
     }
 
     // 持久化步骤转换记录
-    await this.memory.appendStepTransition(docId, {
+    await this.memory.appendStepTransition(task.documentId, {
       fromStep: oldStep ?? "",
       toStep: step,
       at: new Date(now).toISOString(),
@@ -238,10 +223,8 @@ export class FlowEngine {
   }
 
   async closeTask(sessionId: string): Promise<Task | null> {
-    let docId = this.sessionTasks.get(sessionId);
-    const task = docId ? await this.memory.getActiveTask(sessionId) : null;
+    const task = await this.memory.getActiveTask(sessionId);
     if (!task) return null;
-    if (!docId) docId = task.documentId;
 
     // 计算最后一步的停留时间（从最后一条 transition 的 at 到 now）
     const now = Date.now();
@@ -254,8 +237,7 @@ export class FlowEngine {
       await this.memory.recordStepExit(sessionId, task.currentStep, stepDwellTime, 0);
     }
 
-    await this.memory.closeTask(docId);
-    this.sessionTasks.delete(sessionId);
+    await this.memory.closeTask(task.documentId);
     return { ...task, closed: true };
   }
 

@@ -88,7 +88,7 @@ describe("VibePMPlugin", () => {
     expect(output.messages[0].parts.length).toBe(1);
   });
 
-  it("deduplicates by session+flow fingerprint", async () => {
+  it("injects_protect_when_parts_clean: 同 session 多次触发命令会重新注入 protect", async () => {
     const cmd = "<auto-slash-command>\n/pm-test dedup\n</auto-slash-command>";
     const o1 = makeTransformOutput([{ role: "user", sessionID: "sd", parts: [{ type: "text", text: cmd }] }]);
     await hooks["experimental.chat.messages.transform"]!({}, o1 as Parameters<NonNullable<typeof hooks["experimental.chat.messages.transform"]>>[1]);
@@ -96,6 +96,6 @@ describe("VibePMPlugin", () => {
 
     const o2 = makeTransformOutput([{ role: "user", sessionID: "sd", parts: [{ type: "text", text: cmd }] }]);
     await hooks["experimental.chat.messages.transform"]!({}, o2 as Parameters<NonNullable<typeof hooks["experimental.chat.messages.transform"]>>[1]);
-    expect(o2.messages[0].parts.length).toBe(1);
+    expect(o2.messages[0].parts.length).toBe(2);
   });
 });
