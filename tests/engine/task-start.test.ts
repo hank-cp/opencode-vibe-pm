@@ -107,6 +107,51 @@ describe("Task Start", () => {
   it("resolve_unknown_command_with_slash: 带 / 前缀的未知命令返回 null", () => {
     expect(engine.resolveFlowFromCommand("/pm-unknown")).toBeNull();
   });
+
+  // ─── setStep dwellTime ───────────────────────
+
+  it("setStep_writes_stepTransitions: 从 S1 到 S2 写入转换记录", async () => {
+    await engine.startTask({
+      sessionId: "ses_tr_write",
+      flow: "test-flow",
+      summary: "transition 测试",
+    });
+    await engine.setStep("ses_tr_write", "S2");
+
+    const task = await memory.getActiveTask("ses_tr_write");
+    expect(task!.stepTransitions).toBeDefined();
+    expect(task!.stepTransitions).toHaveLength(1);
+    expect(task!.stepTransitions![0].fromStep).toBe("S1");
+    expect(task!.stepTransitions![0].toStep).toBe("S2");
+    expect(task!.stepTransitions![0].at).toBeDefined();
+  });
+
+  it("setStep_records_dwellTime_from_transitions: 从持久化记录计算停留时间", async () => {
+    await engine.startTask({
+      sessionId: "ses_dwell",
+      flow: "test-flow",
+      summary: "dwell 测试",
+    });
+    await engine.setStep("ses_dwell", "S2");
+
+    await new Promise((r) => setTimeout(r, 15));
+    await engine.setStep("ses_dwell", "S3");
+
+    const metrics = await memory.getFlowMetrics("ses_dwell");
+    const s2Metric = metrics.find((m) => m.step === "S2");
+    expect(s2Metric).toBeDefined();
+    expect(s2Metric!.dwellTime).toBeGreaterThan(0);
+  });
+
+  it("closeTask_records_final_dwellTime: 关闭任务时记录最后步骤停留时间", async () => {
+    const task = await engine.closeTask("ses_dwell");
+    expect(task).not.toBeNull();
+
+    const metrics = await memory.getFlowMetrics("ses_dwell");
+    const s3Metric = metrics.find((m) => m.step === "S3");
+    expect(s3Metric).toBeDefined();
+    expect(s3Metric!.dwellTime).toBeGreaterThan(0);
+  });
 });
 
 describe("buildControlPrompt", () => {

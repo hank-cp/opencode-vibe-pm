@@ -8,7 +8,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { MemorySystem } from "../../src/memory/memory-system.js";
 import { DuplicateTaskError } from "../../src/memory/errors.js";
-import type { CreateTaskInput } from "../../src/memory/types.js";
+import type { CreateTaskInput, StepTransition } from "../../src/memory/types.js";
 
 describe("Task CRUD", () => {
   let tmpDir: string;
@@ -126,5 +126,37 @@ describe("Task CRUD", () => {
     });
     expect(metrics[0].tokensConsumed).toBe(280);
     expect(metrics[0].stepInCount).toBe(1);
+  });
+
+  // ─── StepTransition ─────────────────────────────
+
+  it("appendStepTransition_first: 首次追加到无 stepTransitions 的任务", async () => {
+    const task = await memory.createTask(baseTask("tr0"));
+    const transition: StepTransition = {
+      fromStep: "S1",
+      toStep: "S2",
+      at: new Date().toISOString(),
+    };
+    await memory.appendStepTransition(task.documentId, transition);
+
+    const updated = await memory.getTask("ses_tr0");
+    expect(updated!.stepTransitions).toBeDefined();
+    expect(updated!.stepTransitions).toHaveLength(1);
+    expect(updated!.stepTransitions![0].fromStep).toBe("S1");
+    expect(updated!.stepTransitions![0].toStep).toBe("S2");
+  });
+
+  it("appendStepTransition_append: 多次追加按顺序存储", async () => {
+    const task = await memory.createTask(baseTask("tr1"));
+    const t1: StepTransition = { fromStep: "S1", toStep: "S2", at: new Date().toISOString() };
+    const t2: StepTransition = { fromStep: "S2", toStep: "S3", at: new Date().toISOString() };
+
+    await memory.appendStepTransition(task.documentId, t1);
+    await memory.appendStepTransition(task.documentId, t2);
+
+    const updated = await memory.getTask("ses_tr1");
+    expect(updated!.stepTransitions).toHaveLength(2);
+    expect(updated!.stepTransitions![0].toStep).toBe("S2");
+    expect(updated!.stepTransitions![1].toStep).toBe("S3");
   });
 });

@@ -17,6 +17,7 @@ import type {
   TokenSource,
   SourceTokenBreakdown,
   StepTokenBreakdown,
+  StepTransition,
 } from "./types.js";
 import { DuplicateTaskError } from "./errors.js";
 
@@ -207,6 +208,31 @@ export class MemorySystem implements IMemorySystem {
       .exec()) as AxioResult;
 
     return unwrapArray(result) as Task[];
+  }
+
+  /**
+   * 向任务追加一条步骤转换记录。
+   *
+   * 读取当前 stepTransitions 数组后追加，再写回。
+   * 单 session 单线程场景下安全。
+   */
+  async appendStepTransition(
+    documentId: string,
+    transition: StepTransition,
+  ): Promise<void> {
+    const result = (await this.tasks
+      .query({ documentId })
+      .Limit(1)
+      .exec()) as AxioResult;
+
+    const task = unwrapSingle(result) as Task | null;
+    if (!task) throw new Error(`Task not found: ${documentId}`);
+
+    const transitions = [...(task.stepTransitions ?? []), transition];
+
+    await this.tasks
+      .update({ documentId })
+      .UpdateOne({ stepTransitions: transitions });
   }
 
   // ═══════════════════════════════════════════

@@ -6,6 +6,16 @@
 
 // ─── Task ───
 
+/** 步骤转换记录：每次 setStep 时写入一条，按时间顺序追加 */
+export interface StepTransition {
+  /** 离开的步骤 ID */
+  fromStep: string;
+  /** 进入的步骤 ID */
+  toStep: string;
+  /** 转换发生时间（ISO 8601） */
+  at: string;
+}
+
 export interface Task {
   documentId: string;
   sessionId: string;
@@ -19,6 +29,8 @@ export interface Task {
   summary: string;
   specRef?: string;
   planRef?: string;
+  /** 步骤转换历史，按时间顺序记录。从第二条记录开始，可通过相邻记录的 at 差值计算停留时间 */
+  stepTransitions?: StepTransition[];
 }
 
 export interface CreateTaskInput {
