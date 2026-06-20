@@ -2,12 +2,12 @@
  * TokenCounter 单元测试
  *
  * Mock tiktoken（编码器返回固定 token 数），不依赖真实 tokenizer。
- * 覆盖 6 类来源分类、FlowControl 增量化拆分、边界情况。
+ * 覆盖 6 类来源分类（text/user/assistant/flowControl/tool/reasoning）、边界情况。
  */
 
 import { describe, it, expect, mock, beforeAll, afterAll } from "bun:test";
-import type { TokenSource } from "../../src/memory/types.js";
-import type { PartInfo } from "../../src/token/types.js";
+import type { Part, Message } from "@opencode-ai/sdk";
+import type { MessagePack } from "../../src/token/types.js";
 
 // Mock tiktoken: encode 返回长度 = text.length / 4（最小 1）
 mock.module("tiktoken", () => ({
@@ -24,11 +24,39 @@ import { TokenCounter } from "../../src/token/token-counter.js";
 
 // ─── Helpers ───
 
-function makePart(overrides: Partial<PartInfo> = {}): PartInfo {
+interface TextPartStub { type: "text"; text: string }
+interface ToolPartStub { type: "tool"; text?: string; args?: unknown; state?: { input?: unknown; output?: string; error?: string } }
+interface ReasoningPartStub { type: "reasoning"; text: string }
+
+type PartStub = TextPartStub | ToolPartStub | ReasoningPartStub;
+
+function makeTextPart(text: string): TextPartStub {
+  return { type: "text", text };
+}
+
+function makeFlowControlPart(text: string): TextPartStub {
+  return { type: "text", text };
+}
+
+function makeToolPart(overrides: Partial<ToolPartStub> = {}): ToolPartStub {
+  return { type: "tool", ...overrides };
+}
+
+function makeReasoningPart(text: string): ReasoningPartStub {
+  return { type: "reasoning", text };
+}
+
+function makeUserMessage(parts: PartStub[]): MessagePack {
   return {
-    type: "text",
-    text: "hello world",
-    ...overrides,
+    info: { role: "user" } as Message,
+    parts: parts as Part[],
+  };
+}
+
+function makeAssistantMessage(parts: PartStub[]): MessagePack {
+  return {
+    info: { role: "assistant" } as Message,
+    parts: parts as Part[],
   };
 }
 
@@ -50,69 +78,6 @@ describe("TokenCounter", () => {
     counter.dispose();
   });
 
-  // ─── classifyPart ──────────────────────────────────
-
-  describe("classifyPart", () => {
-    it("classifies System part by role=system", () => {
-      const part = makePart({ role: "system", text: "You are an AI assistant." });
-      expect(counter.classifyPart(part)).toBe("System");
-    });
-
-    it("classifies FlowControl by <pm-control-rules> marker", () => {
-      const part = makePart({
-        type: "text",
-        text: "System instructions <pm-control-rules>specific rules</pm-control-rules>",
-        role: "system",
-      });
-      expect(counter.classifyPart(part)).toBe("FlowControl");
-    });
-
-    it("classifies FlowControl by <protect> marker", () => {
-      const part = makePart({
-        type: "text",
-        text: "<protect># Flow Execution Rules</protect>",
-      });
-      expect(counter.classifyPart(part)).toBe("FlowControl");
-    });
-
-    it("classifies FlowControl by isControlPrompt flag", () => {
-      const part = makePart({
-        type: "text",
-        text: "some prompt",
-        isControlPrompt: true,
-      });
-      expect(counter.classifyPart(part)).toBe("FlowControl");
-    });
-
-    it("classifies User part by role=user", () => {
-      const part = makePart({ role: "user", text: "Write a function" });
-      expect(counter.classifyPart(part)).toBe("User");
-    });
-
-    it("classifies Assistant part by role=assistant", () => {
-      const part = makePart({ role: "assistant", text: "Here is the code:" });
-      expect(counter.classifyPart(part)).toBe("Assistant");
-    });
-
-    it("classifies Reasoning for assistant thinking content", () => {
-      const part = makePart({
-        role: "assistant",
-        text: "Let me think about this... [reasoning]",
-      });
-      expect(counter.classifyPart(part)).toBe("Reasoning");
-    });
-
-    it("classifies Tool part by type=tool", () => {
-      const part = makePart({ type: "tool", text: "Tool result" });
-      expect(counter.classifyPart(part)).toBe("Tool");
-    });
-
-    it("classifies Tool part by role=tool", () => {
-      const part = makePart({ role: "tool", text: "Tool output" });
-      expect(counter.classifyPart(part)).toBe("Tool");
-    });
-  });
-
   // ─── countTokens ──────────────────────────────────
 
   describe("countTokens", () => {
@@ -130,79 +95,201 @@ describe("TokenCounter", () => {
     });
   });
 
-  // ─── countPromptTokens ────────────────────────────
+  // ─── countContextTokens — 分类 ───────────────────
 
-  describe("countPromptTokens", () => {
-    it("counts User-only parts correctly (no originalParts)", () => {
-      const parts: PartInfo[] = [
-        makePart({ role: "user", text: "Hello, write tests" }),
-        makePart({ role: "user", text: "For a counter module" }),
-      ];
+  describe("countContextTokens classification", () => {
+    it("classifies text parts by type=text (no <protect>)", () => {
+      const msg = makeUserMessage([
+        makeTextPart("Hello, write tests"),
+      ]);
+      const result = counter.countContextTokens(msg);
 
-      const result = counter.countPromptTokens(parts);
-      expect(result.bySource["User"]).toBe(
-        expectedTokens("Hello, write tests") + expectedTokens("For a counter module"),
+      const expected = expectedTokens("Hello, write tests");
+      expect(result.text).toBe(expected);
+      expect(result.flowControl).toBe(0);
+      expect(result.tool).toBe(0);
+      expect(result.reasoning).toBe(0);
+    });
+
+    it("classifies FlowControl by <protect> marker in text", () => {
+      const msg = makeUserMessage([
+        makeFlowControlPart("<protect># Flow Rules\n\nExecute step S1 first.</protect>"),
+      ]);
+      const result = counter.countContextTokens(msg);
+
+      const fcText = "<protect># Flow Rules\n\nExecute step S1 first.</protect>";
+      expect(result.flowControl).toBe(expectedTokens(fcText));
+      expect(result.text).toBe(0);
+    });
+
+    it("classifies mixed text and FlowControl parts correctly", () => {
+      const msg = makeUserMessage([
+        makeTextPart("User message A"),
+        makeFlowControlPart("<protect>Rules here</protect>"),
+        makeTextPart("User message B"),
+      ]);
+      const result = counter.countContextTokens(msg);
+
+      expect(result.text).toBe(
+        expectedTokens("User message A") + expectedTokens("User message B"),
       );
-      expect(result.total).toBe(result.bySource["User"]);
+      expect(result.flowControl).toBe(expectedTokens("<protect>Rules here</protect>"));
     });
 
-    it("returns empty result for empty parts array", () => {
-      const result = counter.countPromptTokens([]);
-      expect(result.total).toBe(0);
-      expect(result.bySource).toEqual({});
+    it("classifies Tool part by type=tool", () => {
+      const msg = makeUserMessage([
+        makeToolPart({ text: "Tool result content" }),
+      ]);
+      const result = counter.countContextTokens(msg);
+
+      expect(result.tool).toBe(expectedTokens("Tool result content"));
+      expect(result.text).toBe(0);
     });
 
-    it("handles FlowControl incremental splitting with originalParts", () => {
-      // 原始 parts：2 个 User parts
-      const originalParts: PartInfo[] = [
-        makePart({ role: "user", text: "User message A" }),
-        makePart({ role: "user", text: "User message B" }),
-      ];
-      // 注入后 parts：原始 + FlowControl
-      const parts: PartInfo[] = [
-        ...originalParts,
-        makePart({
-          type: "text",
-          text: "<protect># Rules\n\nExecute step S1 first.</protect>",
-        }),
-      ];
+    it("classifies Reasoning part by type=reasoning", () => {
+      const msg = makeAssistantMessage([
+        makeReasoningPart("Let me think about this..."),
+      ]);
+      const result = counter.countContextTokens(msg);
 
-      const result = counter.countPromptTokens(parts, originalParts);
-
-      // User token = 原始 User text 的 token
-      const expectedUserTokens =
-        expectedTokens("User message A") + expectedTokens("User message B");
-      expect(result.bySource["User"]).toBe(expectedUserTokens);
-
-      // FlowControl token = 含 FlowControl 总量 - 原始 User 总量
-      const fcText = "<protect># Rules\n\nExecute step S1 first.</protect>";
-      expect(result.bySource["FlowControl"]).toBe(expectedTokens(fcText));
-
-      // 验证总量
-      const allTokens = Object.values(result.bySource).reduce((a, b) => a + b, 0);
-      expect(result.total).toBe(allTokens);
+      expect(result.reasoning).toBe(expectedTokens("Let me think about this..."));
     });
   });
 
-  // ─── countCompletionTokens ────────────────────────
+  // ─── countContextTokens — role 聚合 ──────────────
 
-  describe("countCompletionTokens", () => {
-    it("counts Assistant and Tool tokens in completion", () => {
-      const parts: PartInfo[] = [
-        makePart({ role: "assistant", text: "Here is the solution:\n\n```ts\nconst x = 1;\n```" }),
-        makePart({ type: "tool", text: "Execution result: success" }),
-      ];
+  describe("countContextTokens role aggregation", () => {
+    it("user role: total = sum of all part tokens", () => {
+      const msg = makeUserMessage([
+        makeTextPart("Hello"),
+        makeTextPart("World"),
+      ]);
+      const result = counter.countContextTokens(msg);
 
-      const result = counter.countCompletionTokens(parts);
-      expect(result.bySource["Assistant"]).toBeDefined();
-      expect(result.bySource["Tool"]).toBeDefined();
-      expect(result.total).toBeGreaterThan(0);
+      const expected = expectedTokens("Hello") + expectedTokens("World");
+      expect(result.user).toBe(expected);
+      expect(result.assistant).toBe(0);
     });
 
-    it("returns empty result for empty parts", () => {
-      const result = counter.countCompletionTokens([]);
-      expect(result.total).toBe(0);
-      expect(result.bySource).toEqual({});
+    it("assistant role: total = sum of all part tokens", () => {
+      const msg = makeAssistantMessage([
+        makeTextPart("Here is the code:"),
+        makeToolPart({ text: "Execution result" }),
+        makeReasoningPart("thinking"),
+      ]);
+      const result = counter.countContextTokens(msg);
+
+      const expected =
+        expectedTokens("Here is the code:") +
+        expectedTokens("Execution result") +
+        expectedTokens("thinking");
+      expect(result.assistant).toBe(expected);
+      expect(result.user).toBe(0);
+    });
+
+    it("user role with FlowControl: user total includes FlowControl", () => {
+      const msg = makeUserMessage([
+        makeTextPart("Fix the bug"),
+        makeFlowControlPart("<protect>Don't skip S1.</protect>"),
+      ]);
+      const result = counter.countContextTokens(msg);
+
+      const expected =
+        expectedTokens("Fix the bug") +
+        expectedTokens("<protect>Don't skip S1.</protect>");
+      expect(result.user).toBe(expected);
+      expect(result.flowControl).toBe(expectedTokens("<protect>Don't skip S1.</protect>"));
+    });
+
+    it("assistant role: assistant total includes tool + reasoning", () => {
+      const msg = makeAssistantMessage([
+        makeTextPart("Solution:"),
+        makeToolPart({ text: "test passed" }),
+        makeReasoningPart("analysis"),
+      ]);
+      const result = counter.countContextTokens(msg);
+
+      const expected =
+        expectedTokens("Solution:") +
+        expectedTokens("test passed") +
+        expectedTokens("analysis");
+      expect(result.assistant).toBe(expected);
+      // Individual breakdowns
+      expect(result.text).toBe(expectedTokens("Solution:"));
+      expect(result.tool).toBe(expectedTokens("test passed"));
+      expect(result.reasoning).toBe(expectedTokens("analysis"));
+    });
+  });
+
+  // ─── countContextTokens — 边界 ───────────────────
+
+  describe("countContextTokens edge cases", () => {
+    it("returns all zeros for empty parts array", () => {
+      const msg: MessagePack = {
+        info: { role: "user" } as Message,
+        parts: [],
+      };
+      const result = counter.countContextTokens(msg);
+
+      expect(result.text).toBe(0);
+      expect(result.user).toBe(0);
+      expect(result.assistant).toBe(0);
+      expect(result.flowControl).toBe(0);
+      expect(result.tool).toBe(0);
+      expect(result.reasoning).toBe(0);
+    });
+
+    it("handles tool part with state.output", () => {
+      const msg = makeUserMessage([
+        makeToolPart({
+          state: {
+            input: { key: "value" },
+            output: "Command executed successfully",
+          },
+        }),
+      ]);
+      const result = counter.countContextTokens(msg);
+
+      // state.input is JSON.stringified, state.output appended
+      const inputStr = JSON.stringify({ key: "value" });
+      const combined = inputStr + "\n" + "Command executed successfully";
+      expect(result.tool).toBe(expectedTokens(combined));
+    });
+
+    it("handles tool part with state.error", () => {
+      const msg = makeUserMessage([
+        makeToolPart({
+          state: {
+            input: { file: "test.ts" },
+            error: "File not found",
+          },
+        }),
+      ]);
+      const result = counter.countContextTokens(msg);
+
+      const inputStr = JSON.stringify({ file: "test.ts" });
+      const combined = inputStr + "\n" + "File not found";
+      expect(result.tool).toBe(expectedTokens(combined));
+    });
+
+    it("handles tool part with args fallback", () => {
+      const msg = makeUserMessage([
+        makeToolPart({ args: { key: "value" } }),
+      ]);
+      const result = counter.countContextTokens(msg);
+
+      expect(result.tool).toBe(expectedTokens(JSON.stringify({ key: "value" })));
+    });
+
+    it("ignores unknown part types", () => {
+      const msg: MessagePack = {
+        info: { role: "user" } as Message,
+        parts: [{ type: "unknown-type" } as unknown as Part],
+      };
+      const result = counter.countContextTokens(msg);
+
+      expect(result.text).toBe(0);
+      expect(result.user).toBe(0);
     });
   });
 
@@ -218,7 +305,7 @@ describe("TokenCounter", () => {
     it("dispose does not throw on subsequent calls", () => {
       const c = new TokenCounter("cl100k_base");
       c.dispose();
-      // Second dispose should not throw (free is a no-op on freed encoders in real tiktoken)
+      // Second dispose should not throw
       expect(() => c.dispose()).not.toThrow();
     });
   });

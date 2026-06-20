@@ -11,7 +11,8 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { MemorySystem } from "../../src/memory/memory-system.js";
 import { TokenCounter } from "../../src/token/token-counter.js";
-import type { PartInfo } from "../../src/token/types.js";
+import type { Part, Message } from "@opencode-ai/sdk";
+import type { MessagePack } from "../../src/token/types.js";
 import type { CreateTaskInput } from "../../src/memory/types.js";
 
 // Mock tiktoken
@@ -25,6 +26,36 @@ mock.module("tiktoken", () => ({
   })),
   TiktokenEncoding: mock(() => {}),
 }));
+
+// ─── Helpers ───
+
+interface TextPartStub { type: "text"; text: string }
+interface ToolPartStub { type: "tool"; text?: string; args?: unknown; state?: { input?: unknown; output?: string; error?: string } }
+interface ReasoningPartStub { type: "reasoning"; text: string }
+
+type PartStub = TextPartStub | ToolPartStub | ReasoningPartStub;
+
+function makeTextPart(text: string): TextPartStub {
+  return { type: "text", text };
+}
+
+function makeToolPart(overrides: Partial<ToolPartStub> = {}): ToolPartStub {
+  return { type: "tool", ...overrides };
+}
+
+function makeUserMessage(parts: PartStub[]): MessagePack {
+  return {
+    info: { role: "user" } as Message,
+    parts: parts as Part[],
+  };
+}
+
+function makeAssistantMessage(parts: PartStub[]): MessagePack {
+  return {
+    info: { role: "assistant" } as Message,
+    parts: parts as Part[],
+  };
+}
 
 describe("Token Integration", () => {
   let tmpDir: string;
@@ -42,10 +73,6 @@ describe("Token Integration", () => {
     tokenCounter.dispose();
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
-
-  function makePart(overrides: Partial<PartInfo> = {}): PartInfo {
-    return { type: "text", text: "hello", ...overrides };
-  }
 
   async function setupActiveTask(sessionId: string, flow = "bug-fix") {
     const input: CreateTaskInput = {
@@ -66,63 +93,52 @@ describe("Token Integration", () => {
       const sessionId = "ses_transform_active";
       await setupActiveTask(sessionId);
 
-      // 模拟注入 FlowControl 的场景
-      const originalParts: PartInfo[] = [
-        makePart({ role: "user", text: "Write a function to add two numbers" }),
-      ];
+      // 模拟注入 FlowControl 的场景：user message 包含文本 + FlowControl
+      const msg = makeUserMessage([
+        makeTextPart("Write a function to add two numbers"),
+        makeTextPart("<protect># Flow Rules\n\nExecute step S1 first.</protect>"),
+      ]);
 
-      const injectedParts: PartInfo[] = [
-        ...originalParts,
-        makePart({
-          type: "text",
-          text: "<protect># Flow Rules\n\nExecute step S1 first.</protect>",
-        }),
-      ];
+      const result = tokenCounter.countContextTokens(msg);
 
-      const result = tokenCounter.countPromptTokens(injectedParts, originalParts);
-
-      // 记录到 memory
+      // 记录到 memory — recordStepEntry 现在接受 TokenCount
       await memory.recordStepEntry(
         sessionId,
         "bug-fix",
         "S1",
         "理解需求",
-        result.bySource,
+        result,
       );
 
       const metrics = await memory.getFlowMetrics(sessionId);
       expect(metrics).toHaveLength(1);
+      // tokensBySource uses old-style keys: User, FlowControl (mapped from TokenCount in recordStepEntry)
       expect(metrics[0].tokensBySource["User"]).toBeGreaterThan(0);
       expect(metrics[0].tokensBySource["FlowControl"]).toBeGreaterThan(0);
       expect(metrics[0].stepInCount).toBe(1);
     });
 
-    it("correctly isolates FlowControl tokens from User tokens", async () => {
+    it("correctly isolates FlowControl tokens from User text tokens", async () => {
       const sessionId = "ses_transform_fc";
       await setupActiveTask(sessionId);
 
-      const originalParts: PartInfo[] = [
-        makePart({ role: "user", text: "Fix the login bug" }),
-      ];
+      const msg = makeUserMessage([
+        makeTextPart("Fix the login bug"),
+        makeTextPart("<protect># Rules\n\nDon't skip S1.</protect>"),
+      ]);
 
+      const result = tokenCounter.countContextTokens(msg);
+
+      // FlowControl token = FC text 的 token
       const fcText = "<protect># Rules\n\nDon't skip S1.</protect>";
-      const injectedParts: PartInfo[] = [
-        ...originalParts,
-        makePart({ type: "text", text: fcText }),
-      ];
-
-      const result = tokenCounter.countPromptTokens(injectedParts, originalParts);
-
-      // User token 应等于原始 User text 的 token
-      const expectedUserTokens = Math.ceil("Fix the login bug".length / 4);
-      expect(result.bySource["User"]).toBe(expectedUserTokens);
-
-      // FlowControl token 应等于 FC text 的 token
       const expectedFCTokens = Math.ceil(fcText.length / 4);
-      expect(result.bySource["FlowControl"]).toBe(expectedFCTokens);
+      expect(result.flowControl).toBe(expectedFCTokens);
 
-      // 验证总和
-      expect(result.total).toBe(expectedUserTokens + expectedFCTokens);
+      // user total = text + flowControl
+      const expectedUserTokens =
+        Math.ceil("Fix the login bug".length / 4) + expectedFCTokens;
+      expect(result.user).toBe(expectedUserTokens);
+      expect(result.assistant).toBe(0);
     });
   });
 
@@ -133,22 +149,19 @@ describe("Token Integration", () => {
       const sessionId = "ses_chat_active";
       await setupActiveTask(sessionId);
 
-      const completionParts: PartInfo[] = [
-        makePart({
-          role: "assistant",
-          text: "Here is the fix:\n\n```ts\nconst x = 1;\n```\n\nThis should work.",
-        }),
-        makePart({ type: "tool", text: "Execution result: test passed" }),
-      ];
+      const msg = makeAssistantMessage([
+        makeTextPart("Here is the fix:\n\n```ts\nconst x = 1;\n```\n\nThis should work."),
+        makeToolPart({ text: "Execution result: test passed" }),
+      ]);
 
-      const result = tokenCounter.countCompletionTokens(completionParts);
+      const result = tokenCounter.countContextTokens(msg);
 
       await memory.recordStepEntry(
         sessionId,
         "bug-fix",
         "S1",
         "理解需求",
-        result.bySource,
+        result,
       );
 
       const metrics = await memory.getFlowMetrics(sessionId);

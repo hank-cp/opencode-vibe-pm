@@ -25,13 +25,18 @@ export interface TaskStatusData {
 // ─── Token Data ───
 
 export interface TokenData {
+  /** Session 级 Token 总量 — 优先使用 LLM API 返回数据 (apiInput + apiOutput)，兜底本地 tiktoken 合计 */
   totalTokens: number;
   sourceBreakdown: TokenSourceEntry[];
   stepBreakdown: StepTokenEntry[];
+  /** Cache token 数 = apiCacheRead + apiCacheWrite */
+  cachedTokens: number;
+  /** Cache 百分比基准 = user + assistant（TokenCount 中的 role 维度总和） */
+  uncachedTokens: number;
 }
 
 export interface TokenSourceEntry {
-  source: TokenSource;
+  source: string;
   tokens: number;
 }
 
@@ -59,13 +64,11 @@ export interface ColorSegment {
  * 冷色：System（蓝）、FlowControl（青）
  * 暖色：User（橙）、Assistant（绿）、Tool（紫）、Reasoning（灰）
  */
-export const SOURCE_COLORS: Record<TokenSource, RGBA> = {
-  System:      RGBA.fromInts(74, 144, 217),     // #4A90D9
-  FlowControl: RGBA.fromInts(54, 176, 200),     // #36B0C8
-  User:        RGBA.fromInts(245, 166, 35),      // #F5A623
-  Assistant:   RGBA.fromInts(126, 211, 33),      // #7ED321
-  Tool:        RGBA.fromInts(176, 123, 237),     // #B07BED
-  Reasoning:   RGBA.fromInts(155, 155, 155),     // #9B9B9B
+export const SOURCE_COLORS: Record<string, RGBA> = {
+  FlowControl: RGBA.fromInts(54, 176, 200),     // #36B0C8 冷青
+  Text:        RGBA.fromInts(74, 144, 217),     // #4A90D9 冷蓝
+  Tool:        RGBA.fromInts(176, 123, 237),     // #B07BED 暖紫
+  Reasoning:   RGBA.fromInts(155, 155, 155),     // #9B9B9B 暖灰
 };
 
 // ─── Helpers ───
@@ -107,4 +110,18 @@ export function visualWidth(s: string): number {
     w += /[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]/.test(ch) ? 2 : 1;
   }
   return w;
+}
+
+/**
+ * CJK 感知的两端对齐。
+ *
+ * 在 left 和 right 之间填充空格，使整行可视宽度达到指定 width。
+ * 当内容已超出 width 时，至少保留 1 个空格分隔。
+ *
+ * 用于替代 flexbox 布局，避免窄宽度侧边栏中右侧文本被裁断。
+ */
+export function justify(left: string, right: string, width: number): string {
+  const gap = width - visualWidth(left) - visualWidth(right);
+  const pad = Math.max(1, gap);
+  return `${left}${" ".repeat(pad)}${right}`;
 }

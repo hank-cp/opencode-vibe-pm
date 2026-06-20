@@ -9,6 +9,7 @@ import * as os from "node:os";
 import { MemorySystem } from "../../src/memory/memory-system.js";
 import { DuplicateTaskError } from "../../src/memory/errors.js";
 import type { CreateTaskInput, StepTransition } from "../../src/memory/types.js";
+import type { TokenCount } from "../../src/token/types.js";
 
 describe("Task CRUD", () => {
   let tmpDir: string;
@@ -92,8 +93,7 @@ describe("Task CRUD", () => {
     await memory.createTask(baseTask("rse_crud"));
 
     await memory.recordStepEntry(sid, "project-build", "S1", "理解需求", {
-      System: 200,
-      User: 100,
+      text: 200, user: 100, assistant: 0, flowControl: 0, tool: 0, reasoning: 0,
     });
 
     const metrics = await memory.getFlowMetrics(sid);
@@ -109,12 +109,10 @@ describe("Task CRUD", () => {
     await memory.createTask(baseTask("rse_acc_crud"));
 
     await memory.recordStepEntry(sid, "project-build", "S2", "实现", {
-      System: 50,
-      User: 80,
+      text: 50, user: 80, assistant: 0, flowControl: 0, tool: 0, reasoning: 0,
     });
     await memory.recordStepEntry(sid, "project-build", "S2", "实现", {
-      System: 30,
-      Assistant: 120,
+      text: 30, user: 0, assistant: 120, flowControl: 0, tool: 0, reasoning: 0,
     });
 
     const metrics = await memory.getFlowMetrics(sid);

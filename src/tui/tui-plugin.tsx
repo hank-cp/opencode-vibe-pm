@@ -52,7 +52,7 @@ export function createTuiPlugin(memory?: IMemorySystem): TuiPlugin {
               { equals: false },
             );
             const [tokenData, setTokenData] = createSignal<TokenData>(
-              { totalTokens: 0, sourceBreakdown: [], stepBreakdown: [] },
+              { totalTokens: 0, sourceBreakdown: [], stepBreakdown: [], cachedTokens: 0, uncachedTokens: 0 },
               { equals: false },
             );
 

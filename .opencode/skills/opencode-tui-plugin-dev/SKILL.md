@@ -76,14 +76,108 @@ const justify = (left: string, right: string, width: number) =>
 
 ---
 
-## 信号传递速查
+## TUI 架构模式
 
-| 模式 | 结果 |
-|------|------|
-| 父组件内联 `{() => { const d = signal(); ... }}` | ✅ 可靠 |
-| `createMemo(() => props.signal())` 在子组件中 | ⚠️ 偶尔可行（依赖其他 props 触发重渲染） |
-| `() => props.signal()` 在子组件中 | ❌ |
-| 父传静态值给子组件 | ❌ |
+### slot 组件 ≠ Web 组件
+
+SolidJS 响应式在 OpenTUI 终端环境下严重受限。以下模式不可靠：
+
+| 模式 | 可靠性 |
+|------|--------|
+| `createEffect` 在 slot 回调内 | ⚠️ 偶尔可行 |
+| 跨组件 signal 传递 | ❌ |
+| `setTimeout` 中 signal setter | ❌ |
+| `Promise.then()` 中 signal setter | ❌ |
+
+**goal-mode Pattern B**（经验证可靠）：
+`createSignal` + `setInterval` + `onCleanup` 全部在 slot 回调内。
+
+```tsx
+export function sidebar_content(ctx: SlotContext, props: SlotProps) {
+  const [data, setData] = createSignal<MyData | null>(null);
+
+  const interval = setInterval(() => {
+    const fresh = readData(); // 同步读取
+    setData(fresh);
+  }, 1000);
+
+  onCleanup(() => clearInterval(interval));
+
+  return <SidebarContent data={data} />;
+}
+```
+
+### 纯渲染组件
+
+组件只接受 getter props，不管理信号、不加载数据：
+
+```tsx
+// ✅ 纯渲染
+function Card(props: { data: () => MyData | null }) {
+  const d = props.data();
+  return <text>{d?.label ?? "—"}</text>;
+}
+```
+
+### currentSessionId 获取
+
+`sidebar_content(ctx, props)` 中的 `props.session_id` 运行时可能为 undefined。
+推荐从 `ctx` 参数或通过 API 获取，不依赖 props。
+
+---
+
+## 数据获取
+
+### 直连 bun:sqlite（推荐）
+
+TUI 插件可自行实例化 `MemorySystem`，通过 `bun:sqlite`（WAL 模式）直接查询 `.vibe-pm/vibe-pm.db`。WAL 模式支持并发读，与主进程不冲突。
+
+```tsx
+import { MemorySystem } from "../memory/memory-system.js";
+
+export function createTuiPlugin(memory?: IMemorySystem): TuiPlugin {
+  return async (api: TuiPluginApi) => {
+    const projectDir = api.state.path.directory ?? ".";
+    const dataDir = `${projectDir}/.vibe-pm`;
+
+    // 优先使用注入实例，否则自行创建
+    const sharedMemory = memory ?? await (async () => {
+      const ms = new MemorySystem();
+      await ms.init(dataDir);
+      return ms;
+    })();
+
+    api.slots.register({
+      sidebar_content(_ctx, props) {
+        const sessionId = props.session_id;
+        // ...
+        async function refresh() {
+          const status = await loadTaskStatus(sharedMemory, sessionId);
+          const tokens = await loadTokenData(sharedMemory, sessionId);
+          setTaskStatus(status);
+          setTokenData(tokens);
+        }
+        refresh();
+        const timer = setInterval(refresh, 1000);
+        onCleanup(() => clearInterval(timer));
+      }
+    });
+  };
+}
+```
+
+### 关键约束
+
+- **必须按 sessionId 过滤查询** — SPELite 是全局单文件，不按 session 过滤会显示其他 session 的数据
+- **TUI 只读不写** — 所有写入由 Server 插件（主进程）负责
+- **WAL 模式** — `PRAGMA journal_mode = WAL` 在 `MemorySystem.init()` 中已启用
+
+### 用户配置持久化
+
+```tsx
+api.kv.set("my_plugin.fold_state", collapsed);
+const saved = api.kv.get("my_plugin.fold_state", false);
+```
 
 ---
 
@@ -127,17 +221,17 @@ function CollapsibleSection(props: {
 
 ## 构建配置
 
-### tsconfig.json
+开发环境为 **Bun**（构建、测试、类型检查均使用 Bun 工具链）。
 
-TUI 插件使用 `@opentui/solid` 作为 JSX 运行时：
+### tsconfig.json
 
 ```json
 {
   "compilerOptions": {
     "jsx": "preserve",
     "jsxImportSource": "@opentui/solid",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "target": "ES2022",
     "strict": true,
     "outDir": "dist",
@@ -148,68 +242,61 @@ TUI 插件使用 `@opentui/solid` 作为 JSX 运行时：
 }
 ```
 
-### JSX 编译与 jsx-shim
-
-**问题**：`"jsx": "preserve"` 将 `.tsx` 编译为 `.jsx` 文件，但源码中
-`import` 使用的扩展名是 `.js`。OpenCode 的 Bun 运行时通过内部插件
-支持 `.jsx`，但 `.js` 路径仍需解析到实际的 `.jsx` 文件。
-
-**解决**：构建步骤 `tsc` 之后运行 jsx-shim 脚本，为 `dist/` 下每个
-`.jsx` 文件生成对应的 `.js` 重导出文件：
-
-```
-dist/tui/slots/sidebar-content.jsx    ← tsc 编译产物
-dist/tui/slots/sidebar-content.js     ← shim: export * from "./sidebar-content.jsx"
-```
-
-**脚本实现**（`scripts/jsx-shim.mjs`）：
-
-```js
-import { readdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-
-function walk(dir) {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) { walk(full); }
-    else if (entry.name.endsWith(".jsx")) {
-      const shimPath = full.replace(/\.jsx$/, ".js");
-      writeFileSync(shimPath, `export * from "./${entry.name}";\n`);
-    }
-  }
-}
-walk("dist");
-```
-
-### OpenTUI JSX 运行时补丁
-
-`@opentui/solid` 的 JSX 运行时在 `jsx: "preserve"` 模式下存在
-兼容性问题，需在 `postinstall` 时打补丁。
-
-**`scripts/patch-opentui-jsx-runtime.mjs`**：
-自动修改 `node_modules/@opentui/solid/jsx-runtime.js`，
-修复 JSX 转换中的类型推导问题。
-
-### package.json
+### 构建命令
 
 ```json
 {
-  "build": "tsc && node scripts/jsx-shim.mjs",
-  "postinstall": "node scripts/patch-opentui-jsx-runtime.mjs",
-  "exports": {
-    "./tui": {
-      "import": "./dist/tui/index.js"
-    }
+  "scripts": {
+    "clean:dist": "bun -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true })\"",
+    "build": "bun run clean:dist && tsc --emitDeclarationOnly && bun run scripts/build.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
   }
 }
 ```
 
-### 替代方案
+**构建脚本**（`scripts/build.ts`）必须使用 `Bun.build()` API：
 
-| 方案 | tsconfig | 优点 | 缺点 |
-|------|----------|------|------|
-| preserve + shim | `jsx: "preserve"` | 源码 import 用 `.js` 自然 | 额外脚本维护 |
-| react-jsx 直接编译 | `jsx: "react-jsx"` | 无需 shim，输出 `.js` | 依赖 OpenCode 运行时 JSX 支持 |
+```ts
+import solidPlugin from "@opentui/solid/bun-plugin";
+
+// Server 插件（纯 TS，无需 JSX 插件）
+await Bun.build({
+  entrypoints: ["./src/index.ts"],
+  outdir: "./dist",
+  target: "bun",
+  format: "esm",
+  external: ["@opentui/core", "@opentui/solid", "solid-js"],
+  naming: { entry: "index.js" },
+});
+
+// TUI 插件（需要 solidPlugin 转换 JSX）
+await Bun.build({
+  entrypoints: ["./src/tui/index.ts"],
+  outdir: "./dist/tui",
+  target: "bun",
+  format: "esm",
+  external: ["@opentui/core", "@opentui/solid", "@opentui/keymap", "solid-js"],
+  plugins: [solidPlugin],
+  naming: { entry: "index.js" },
+});
+```
+
+### 构建关键决策
+
+| 决策 | 原因 |
+|------|------|
+| **必须 `Bun.build()` API** | CLI `bun build --target bun` 产物带 `// @bun` 指令，OpenTUI 的 `require()` 无法加载 |
+| **必须 `solidPlugin`** | `--target bun` 的默认 JSX 转换是 React 格式，OpenTUI 需要 SolidJS 格式的 `createComponent`/`createElement` |
+| **必须 external `@opentui/solid`** | 内联会导致独立的 `RendererContext` 实例，运行时抛 `No renderer found` |
+| **必须 external `solid-js`** | 同上——需共享 OpenTUI 运行时提供的 reactive root |
+| **`@opentui/core` 只能 external** | 含平台原生模块（`@opentui/core-darwin-x64` 等），bundle 会失败 |
+| **`clean:dist` 先清理** | 避免残留旧构建产物（如已删除模块的 `.js`/`.map`） |
+
+### 不再需要
+
+- ~~`postinstall` 脚本修补 `@opentui/solid` jsx-runtime~~ — `@opentui/solid@0.3.4` 已内置 `jsx-runtime.js` export
+- ~~`jsx-shim.mjs` 生成 `.js` 重导出~~ — `Bun.build()` 直接输出 JS
 
 ### TUI 插件注册
 
@@ -223,8 +310,14 @@ walk("dist");
 
 或在 `opencode.jsonc` 中配置 `tui.plugin` 字段。
 
-> 注意：`@opentui/core` 和 `@opentui/solid` 由 OpenCode 运行时提供，
-> 放在 `peerDependencies` 中即可，不需要在 `dependencies` 中安装。
+---
+
+## 调试方法
+
+1. **TUI 日志**：`console.log` 和 `logger.info` 在 TUI 上下文中被抑制，调试打印必须用 `console.error`
+2. **`requestRender()` 行为**：触发整个 slot 函数重新调用，但 JSX 组件的 SolidJS diff 会跳过不变 props——仅靠 `requestRender()` 不足以刷新数据
+3. **开源参考**：`oh-my-opencode-slim`（28K+ 用户）和 `opencode-goal-mode` 提供了可靠的已验证模式
+4. **最小变更原则**：多次迭代后需审查是否有过度重构
 
 ---
 
@@ -236,31 +329,13 @@ walk("dist");
 | 点击无反应 | 用了 `on:click` 或 `useKeyboard` | 改用 `onMouseUp` |
 | 右侧文本被裁断 | flexbox 在窄宽度失效 | 手动字符串填充 |
 | 柱状图只显示一种颜色 | flexGrow 小比例段不可见 | 用 `"█".repeat(chars)` 字符条 |
-| 构建后 import 找不到 .jsx | tsconfig `jsx: "preserve"` | 加 jsx-shim 或改用 `react-jsx` |
 | `api.state.part()` 触发死锁 | SolidJS 循环依赖 | 用 `untrack(() => { ... })` 包裹 |
-
----
-
-## 数据获取
-
-TUI 插件通过 `api.state` 直接读取 OpenCode 运行时状态，
-不需要依赖主插件的数据传递：
-
-```tsx
-createEffect(() => {
-  const msgs = api.state.session.messages(sessionId);
-  const session = api.state.session.get(sessionId);
-  // 直接从 session 对象提取数据
-  const tokens = session?.tokens?.input ?? 0;
-  // ...
-});
-```
-
-用户配置可持久化到 `api.kv`：
-
-```tsx
-// 写入
-api.kv.set("my_plugin.fold_state", collapsed);
-// 读取
-const saved = api.kv.get("my_plugin.fold_state", false);
-```
+| `requestRender()` 不更新数据 | JSX diff 跳过不变 props | 确保数据通过 signal getter 传入 |
+| TUI 侧边栏不刷新 | `setInterval` 在组件内无效 | goal-mode Pattern B |
+| `session_id` 为 undefined | SDK props 运行时不准确 | 从 ctx 或 API 获取 |
+| `console.log` 无输出 | TUI 上下文抑制 | 改用 `console.error` |
+| `No renderer found` | 构建时内联了 `@opentui/solid`，创建了独立的 `RendererContext` | external `@opentui/solid` 和 `solid-js`，共享 OpenTUI 运行时实例 |
+| `require() async module "opentui:..."` | CLI `bun build --target bun` 产物用 `// @bun` 格式，OpenTUI 的 `require()` 不兼容 | 改用 `Bun.build()` API + solidPlugin |
+| TUI 显示其他 session 的数据 | 查询 SQLite 时未按 sessionId 过滤 | 始终传 `sessionId` 到 `MemorySystem` 查询方法 |
+| 构建后 TUI 加载旧代码 | TUI 入口未纳入构建，OpenCode 加载了缓存 | `build` 脚本需包含 TUI 入口的 `Bun.build()` |
+| `@opentui/core-*` bundle 报错 | 平台原生模块无法 bundle | external `@opentui/core` |

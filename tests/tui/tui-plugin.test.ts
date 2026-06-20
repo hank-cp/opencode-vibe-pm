@@ -67,15 +67,13 @@ describe("createTuiPlugin", () => {
 });
 
 describe("TUI types", () => {
-  it("SOURCE_COLORS has all 6 token sources", async () => {
+  it("SOURCE_COLORS has all 4 token sources", async () => {
     const { SOURCE_COLORS } = await import("../../src/tui/types.js");
     const keys = Object.keys(SOURCE_COLORS);
-    expect(keys).toContain("System");
     expect(keys).toContain("FlowControl");
-    expect(keys).toContain("User");
-    expect(keys).toContain("Assistant");
+    expect(keys).toContain("Text");
     expect(keys).toContain("Tool");
     expect(keys).toContain("Reasoning");
-    expect(keys).toHaveLength(6);
+    expect(keys.length).toBe(4);
   });
 });

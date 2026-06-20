@@ -87,17 +87,16 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
       <box width="100%" flexDirection="column" marginBottom={1}>
         {(() => {
           const td = props.tokenData();
-          if (td.totalTokens <= 0) return (<box width="100%" flexDirection="row" height={1}>
-            <text fg={RGBA.fromInts(89,89,89)}>{"█".repeat(SIDEBAR_WIDTH)}</text>
-            <text fg={RGBA.fromInts(89,89,89)}>{compactTokens(td.totalTokens)}</text>
-          </box>);
+          if (td.totalTokens <= 0 || td.sourceBreakdown.length === 0) return (
+            <box width="100%" flexDirection="row" height={1}>
+              <text fg={RGBA.fromInts(89,89,89)}>{"█".repeat(SIDEBAR_WIDTH - 1)} 0</text>
+            </box>
+          );
           const total = td.totalTokens;
-          const srcOrder = Object.keys(SOURCE_COLORS) as Array<keyof typeof SOURCE_COLORS>;
-          const map = new Map(td.sourceBreakdown.map(s => [s.source, s.tokens]));
-          const segs = srcOrder.filter(k => (map.get(k) ?? 0) > 0).map(k => ({
-            source: k, tokens: map.get(k)!,
-            pct: Math.max(1, Math.round((map.get(k)! / total) * 100)),
-            color: SOURCE_COLORS[k]
+          const segs = td.sourceBreakdown.map(s => ({
+            source: s.source, tokens: s.tokens,
+            pct: Math.max(1, Math.round((s.tokens / total) * 100)),
+            color: SOURCE_COLORS[s.source as keyof typeof SOURCE_COLORS] ?? RGBA.fromInts(128,128,128)
           }));
           const barTotal = SIDEBAR_WIDTH;
           const counts = segs.map(s => Math.max(1, Math.floor((s.tokens / total) * barTotal)));
@@ -119,15 +118,29 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
             const td = props.tokenData();
             if (td.sourceBreakdown.length === 0) return (<text fg={theme().textMuted}>暂无数据</text>);
             return (<box width="100%" flexDirection="column">
-              {Object.keys(SOURCE_COLORS).map(source => {
-                const entry = td.sourceBreakdown.find(e => e.source === source);
-                const tokens = entry?.tokens ?? 0;
-                const pct = td.totalTokens > 0 ? Math.round(tokens/td.totalTokens*100) : 0;
-                return (<box width="100%" flexDirection="row">
-                  <text fg={SOURCE_COLORS[source as keyof typeof SOURCE_COLORS]}>{source.slice(0,2)}</text>
-                  <text fg={theme().textMuted}> {compactTokens(tokens)} ({pct}%)</text>
+              {td.sourceBreakdown.map(entry => {
+                const left = entry.source;
+                const pct = td.totalTokens > 0 ? Math.round(entry.tokens/td.totalTokens*100) : 0;
+                const right = `${compactTokens(entry.tokens)} (${pct}%)`;
+                const pad = Math.max(1, SIDEBAR_WIDTH - visualWidth(left) - visualWidth(right));
+                const color = SOURCE_COLORS[entry.source as keyof typeof SOURCE_COLORS] ?? RGBA.fromInts(128,128,128);
+                return (<box width="100%" height={1}>
+                  <text fg={color}>{left}</text>
+                  <text fg={theme().textMuted}>{" ".repeat(pad)}{right}</text>
                 </box>);
               })}
+              {/* Cache */}
+              {td.cachedTokens > 0 && (() => {
+                const cachePct = Math.round(td.cachedTokens / (td.cachedTokens + td.uncachedTokens) * 100);
+                const right = `${compactTokens(td.cachedTokens)} (${cachePct}%)`;
+                const pad = Math.max(1, SIDEBAR_WIDTH - visualWidth("Ca") - visualWidth(right));
+                return (
+                  <box width="100%" height={1}>
+                    <text fg={RGBA.fromInts(200, 200, 200)}>Cache</text>
+                    <text fg={theme().textMuted}>{" ".repeat(pad)}{right}</text>
+                  </box>
+                );
+              })()}
             </box>);
           })()}
         </Collapsible>
@@ -147,7 +160,7 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
                 const right = `${compactTokens(step.tokensConsumed)} (${step.stepInCount}次)`;
                 const pad = Math.max(1, SIDEBAR_WIDTH - visualWidth(left) - visualWidth(right));
                 return (
-                  <box width="100%" flexDirection="row">
+                  <box width="100%" height={1}>
                     <text fg={theme().text}>{left}</text>
                     <text fg={theme().textMuted}>{" ".repeat(pad)}{right}</text>
                   </box>

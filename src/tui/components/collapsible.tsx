@@ -1,5 +1,5 @@
 import type { RGBA } from "@opentui/core";
-import { createSignal, type JSX } from "solid-js";
+import { createSignal, Show, type JSX } from "solid-js";
 
 export interface CollapsibleProps {
   title: string;
@@ -13,8 +13,6 @@ export function Collapsible(props: CollapsibleProps): JSX.Element {
     props.defaultCollapsed ?? true,
   );
 
-  const arrow = () => (collapsed() ? "▶" : "▼");
-
   return (
     <box width="100%" flexDirection="column">
       <box
@@ -24,14 +22,14 @@ export function Collapsible(props: CollapsibleProps): JSX.Element {
         onMouseUp={() => setCollapsed((prev) => !prev)}
       >
         <text fg={props.titleColor}>
-          {arrow()} {props.title}
+          {collapsed() ? "▶" : "▼"} {props.title}
         </text>
       </box>
-      {!collapsed() && (
+      <Show when={!collapsed()}>
         <box width="100%" flexDirection="column" marginLeft={2}>
           {props.children}
         </box>
-      )}
+      </Show>
     </box>
   );
 }

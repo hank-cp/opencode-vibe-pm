@@ -6,6 +6,8 @@
 
 // ─── Task ───
 
+import {ApiTelemetry, TokenCount} from "../token";
+
 /** 步骤转换记录：每次 setStep 时写入一条，按时间顺序追加 */
 export interface StepTransition {
   /** 离开的步骤 ID */
@@ -114,6 +116,42 @@ export interface StepTokenBreakdown {
   tokensConsumed: number;
 }
 
+// ─── Session Tokens ───
+
+/** Session 级 Token 存储 — 层级式列设计 */
+export interface SessionTokenMetrics {
+  sessionId: string;
+  /** 基础类型 */
+  user: number;         // = User
+  assistant: number;    // = Assistant
+  /** 按用途分 */
+  flowControl: number;  // ⊆ user
+  text: number;         // = text part tokens
+  tool: number;         // ⊆ assistant
+  reasoning: number;    // ⊆ assistant
+  /** LLM API 遥测（仅当 LLM 返回时写入） */
+  apiInput: number;
+  apiOutput: number;
+  apiReasoning: number;
+  apiCacheRead: number;
+  apiCacheWrite: number;
+  /** 校准因子 = (apiInput + apiCacheRead + apiCacheWrite) / (user + assistant) */
+  scaleFactor: number;
+  /** 时间戳 */
+  startedAt: string;
+  updatedAt: string;
+}
+
+/** recordSessionTokens 的输入参数 — 按 TokenCounter 6 来源分类 */
+export interface RecordSessionTokensInput {
+  text: number;
+  user: number;
+  assistant: number;
+  flowControl: number;
+  tool: number;
+  reasoning: number;
+}
+
 // ─── IMemorySystem ───
 
 export interface IMemorySystem {
@@ -141,7 +179,7 @@ export interface IMemorySystem {
     flow: string,
     step: string,
     stepName: string,
-    tokensBySource: Record<string, number>,
+    tokenCount: TokenCount
   ): Promise<void>;
   incrementStepCount(
     sessionId: string,
@@ -163,6 +201,11 @@ export interface IMemorySystem {
   getLastClosedTask(sessionId: string): Promise<Task | null>;
   getSourceTokenBreakdown(sessionId: string): Promise<SourceTokenBreakdown[]>;
   getStepTokenBreakdown(sessionId: string): Promise<StepTokenBreakdown[]>;
+
+  // Session Tokens
+  initSessionTokens(sessionId: string): Promise<void>;
+  recordSessionTokens(sessionId: string, tokenCount: TokenCount, apiTelemetry?: ApiTelemetry): Promise<void>;
+  getSessionTokens(sessionId: string): Promise<SessionTokenMetrics | null>;
 
   // 初始化
   init(dataDir: string): Promise<void>;

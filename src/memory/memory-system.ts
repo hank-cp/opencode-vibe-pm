@@ -3,24 +3,26 @@
  *
  * 基于 SQLite (bun:sqlite) 管理 Task / Discussion / FlowMetrics 三类结构化记忆。
  */
-import { Database, Statement } from "bun:sqlite";
+import {Database, Statement} from "bun:sqlite";
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { logger } from "../core/logger.js";
+import {logger} from "../core/logger.js";
 import type {
-  Task,
+  CreateDiscussionInput,
   CreateTaskInput,
   Discussion,
-  CreateDiscussionInput,
   FlowMetrics,
   IMemorySystem,
-  TokenSource,
+  SessionTokenMetrics,
   SourceTokenBreakdown,
   StepTokenBreakdown,
   StepTransition,
+  Task,
+  TokenSource
 } from "./types.js";
-import { DuplicateTaskError } from "./errors.js";
+import {DuplicateTaskError} from "./errors.js";
+import {ApiTelemetry, TokenCount} from "../token/types";
 
 // ─── 内部辅助 ───
 
@@ -81,6 +83,10 @@ export class MemorySystem implements IMemorySystem {
   private stmtGetMetricsByFlow!: Statement;
 
   private stmtGetClosedTasksBySession!: Statement;
+
+  private stmtInitSessionTokens!: Statement;
+  private stmtGetSessionTokens!: Statement;
+  private stmtUpdateSessionTokens!: Statement;
 
   /**
    * 初始化数据库连接与表结构。
@@ -153,6 +159,26 @@ export class MemorySystem implements IMemorySystem {
       CREATE INDEX IF NOT EXISTS idx_flowMetrics_sessionId ON flowMetrics(sessionId);
       CREATE INDEX IF NOT EXISTS idx_flowMetrics_sessionId_step ON flowMetrics(sessionId, step);
       CREATE INDEX IF NOT EXISTS idx_flowMetrics_flow ON flowMetrics(flow);
+
+      CREATE TABLE IF NOT EXISTS session_tokens (
+        sessionId       TEXT PRIMARY KEY,
+        text            INTEGER NOT NULL DEFAULT 0,
+        "user"          INTEGER NOT NULL DEFAULT 0,
+        assistant       INTEGER NOT NULL DEFAULT 0,
+        flowControl     INTEGER NOT NULL DEFAULT 0,
+        tool            INTEGER NOT NULL DEFAULT 0,
+        reasoning       INTEGER NOT NULL DEFAULT 0,
+        apiInput        INTEGER NOT NULL DEFAULT 0,
+        apiOutput       INTEGER NOT NULL DEFAULT 0,
+        apiReasoning    INTEGER NOT NULL DEFAULT 0,
+        apiCacheRead    INTEGER NOT NULL DEFAULT 0,
+        apiCacheWrite   INTEGER NOT NULL DEFAULT 0,
+        scaleFactor     REAL NOT NULL DEFAULT 1.0,
+        startedAt       TEXT NOT NULL,
+        updatedAt       TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_session_tokens_sessionId ON session_tokens(sessionId);
     `);
 
     // ─── Prepared Statements ───
@@ -188,6 +214,15 @@ export class MemorySystem implements IMemorySystem {
     `);
     this.stmtGetMetricsBySession = this.db.prepare("SELECT * FROM flowMetrics WHERE sessionId = ?");
     this.stmtGetMetricsByFlow = this.db.prepare("SELECT * FROM flowMetrics WHERE flow = ?");
+
+    this.stmtInitSessionTokens = this.db.prepare(`
+       INSERT OR IGNORE INTO session_tokens (sessionId, text, "user", assistant, flowControl, tool, reasoning, apiInput, apiOutput, apiReasoning, apiCacheRead, apiCacheWrite, scaleFactor, startedAt, updatedAt)
+      VALUES ($sessionId, $text, $user, $assistant, $flowControl, $tool, $reasoning, $apiInput, $apiOutput, $apiReasoning, $apiCacheRead, $apiCacheWrite, $scaleFactor, $startedAt, $updatedAt)
+    `);
+    this.stmtGetSessionTokens = this.db.prepare("SELECT * FROM session_tokens WHERE sessionId = ?");
+    this.stmtUpdateSessionTokens = this.db.prepare(`
+       UPDATE session_tokens SET text = $text, "user" = $user, assistant = $assistant, flowControl = $flowControl, tool = $tool, reasoning = $reasoning, apiInput = $apiInput, apiOutput = $apiOutput, apiReasoning = $apiReasoning, apiCacheRead = $apiCacheRead, apiCacheWrite = $apiCacheWrite, scaleFactor = $scaleFactor, updatedAt = $updatedAt WHERE sessionId = $sessionId
+    `);
   }
 
   // ═══════════════════════════════════════════
@@ -326,10 +361,24 @@ export class MemorySystem implements IMemorySystem {
     flow: string,
     step: string,
     stepName: string,
-    tokensBySource: Record<string, number>,
+    tokenCount: TokenCount
   ): Promise<void> {
-    const newTotal = Object.values(tokensBySource).reduce((a, b) => a + b, 0);
-    const newUserTokens = tokensBySource["User"] ?? 0;
+    // Convert TokenCount to tokensBySource Record for storage (omit zero values)
+    const rawBySource: Record<string, number> = {
+      System: tokenCount.text,
+      User: tokenCount.user,
+      Assistant: tokenCount.assistant,
+      FlowControl: tokenCount.flowControl,
+      Tool: tokenCount.tool,
+      Reasoning: tokenCount.reasoning,
+    };
+    const tokensBySource: Record<string, number> = {};
+    for (const [src, tk] of Object.entries(rawBySource)) {
+      if (tk > 0) tokensBySource[src] = tk;
+    }
+
+    const newTotal = tokenCount.text + tokenCount.user + tokenCount.assistant;
+    const newUserTokens = tokenCount.user ?? 0;
 
     const existing = this.stmtGetMetricsBySessionStep.get(sessionId, step) as Record<string, unknown> | undefined;
 
@@ -442,6 +491,70 @@ export class MemorySystem implements IMemorySystem {
   }
 
   // ═══════════════════════════════════════════
+  // Session Tokens CRUD
+  // ═══════════════════════════════════════════
+
+  async initSessionTokens(sessionId: string): Promise<void> {
+    const now = new Date().toISOString();
+    this.stmtInitSessionTokens.run(prefixKeys({
+      sessionId,
+      text: 0,
+      user: 0,
+      assistant: 0,
+      flowControl: 0,
+      tool: 0,
+      reasoning: 0,
+      apiInput: 0,
+      apiOutput: 0,
+      apiReasoning: 0,
+      apiCacheRead: 0,
+      apiCacheWrite: 0,
+      scaleFactor: 1.0,
+      startedAt: now,
+      updatedAt: now,
+    }));
+  }
+
+  async recordSessionTokens(sessionId: string, tokenCount: TokenCount, apiTelemetry?: ApiTelemetry): Promise<void> {
+    let existing = this.stmtGetSessionTokens.get(sessionId) as Record<string, unknown> | undefined;
+
+    if (!existing) {
+      await this.initSessionTokens(sessionId);
+      existing = this.stmtGetSessionTokens.get(sessionId) as Record<string, unknown>;
+    }
+
+    const now = new Date().toISOString();
+
+    let scaleFactor = 1.0;
+    if (apiTelemetry) {
+      const denominator = tokenCount.text + tokenCount.user + tokenCount.assistant;
+      scaleFactor = denominator === 0 ? 1.0 : (apiTelemetry.input + (apiTelemetry.cache?.read ?? 0) + (apiTelemetry.cache?.write ?? 0)) / denominator;
+    }
+
+    this.stmtUpdateSessionTokens.run(prefixKeys({
+      sessionId,
+      text: (existing["text"] as number ?? 0) + tokenCount.text,
+      user: (existing["user"] as number ?? 0) + tokenCount.user,
+      assistant: (existing["assistant"] as number ?? 0) + tokenCount.assistant,
+      flowControl: (existing["flowControl"] as number ?? 0) + tokenCount.flowControl,
+      tool: (existing["tool"] as number ?? 0) + tokenCount.tool,
+      reasoning: (existing["reasoning"] as number ?? 0) + tokenCount.reasoning,
+      apiInput: (existing["apiInput"] as number ?? 0) + (apiTelemetry?.input ?? 0),
+      apiOutput: (existing["apiOutput"] as number ?? 0) + (apiTelemetry?.output ?? 0),
+      apiReasoning: (existing["apiReasoning"] as number ?? 0) + (apiTelemetry?.reasoning ?? 0),
+      apiCacheRead: (existing["apiCacheRead"] as number ?? 0) + (apiTelemetry?.cache?.read ?? 0),
+      apiCacheWrite: (existing["apiCacheWrite"] as number ?? 0) + (apiTelemetry?.cache?.write ?? 0),
+      scaleFactor,
+      updatedAt: now,
+    }));
+  }
+
+  async getSessionTokens(sessionId: string): Promise<SessionTokenMetrics | null> {
+    const row = this.stmtGetSessionTokens.get(sessionId) as Record<string, unknown> | undefined;
+    return row ? this.rowToSessionTokenMetrics(row) : null;
+  }
+
+  // ═══════════════════════════════════════════
   // 新增查询
   // ═══════════════════════════════════════════
 
@@ -533,6 +646,26 @@ export class MemorySystem implements IMemorySystem {
       humanInterventionTime: row["humanInterventionTime"] as number,
       userInputTokens: row["userInputTokens"] as number,
       taskSummary: row["taskSummary"] as string,
+    };
+  }
+
+  private rowToSessionTokenMetrics(row: Record<string, unknown>): SessionTokenMetrics {
+    return {
+      sessionId: row["sessionId"] as string,
+      user: row["user"] as number,
+      assistant: row["assistant"] as number,
+      flowControl: row["flowControl"] as number,
+      text: row["text"] as number,
+      tool: row["tool"] as number,
+      reasoning: row["reasoning"] as number,
+      apiInput: row["apiInput"] as number,
+      apiOutput: row["apiOutput"] as number,
+      apiReasoning: row["apiReasoning"] as number,
+      apiCacheRead: row["apiCacheRead"] as number,
+      apiCacheWrite: row["apiCacheWrite"] as number,
+      scaleFactor: row["scaleFactor"] as number,
+      startedAt: row["startedAt"] as string,
+      updatedAt: row["updatedAt"] as string,
     };
   }
 }

@@ -75,50 +75,69 @@ describe("formatElapsed", () => {
 });
 
 describe("loadTokenData", () => {
-  it("aggregates source breakdown correctly", async () => {
+  it("applies display formulas from session token metrics", async () => {
     const { loadTokenData } = await import(
       "../../src/tui/data/token-data.js"
     );
+    // SessionTokenMetrics with raw data: text=1000, user=3000, assistant=6000
+    // hierarchy: flowControl=500, tool=1500, reasoning=800
+    // scaleFactor=1.0, no API data (apiInput=0, apiOutput=0)
     const result = await loadTokenData(
       {
-        getSourceTokenBreakdown: async () => [
-          { source: "System", tokens: 1500 },
-          { source: "User", tokens: 1900 },
-          { source: "Assistant", tokens: 5000 },
-        ],
+        getSessionTokens: async () => ({
+          sessionId: "test-session",
+          text: 1000,
+          user: 3000,
+          assistant: 6000,
+          flowControl: 500,
+          tool: 1500,
+          reasoning: 800,
+          apiInput: 0,
+          apiOutput: 0,
+          apiReasoning: 0,
+          apiCacheRead: 0,
+          apiCacheWrite: 0,
+          scaleFactor: 1.0,
+          startedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }),
         getStepTokenBreakdown: async () => [
-          {
-            step: "S1",
-            stepName: "理解需求",
-            stepInCount: 2,
-            tokensConsumed: 1200,
-          },
-          {
-            step: "S2",
-            stepName: "标记缺口",
-            stepInCount: 1,
-            tokensConsumed: 2800,
-          },
+          { step: "S1", stepName: "理解需求", stepInCount: 2, tokensConsumed: 1200 },
+          { step: "S2", stepName: "标记缺口", stepInCount: 1, tokensConsumed: 2800 },
         ],
       } as unknown as Parameters<typeof loadTokenData>[0],
       "test-session",
     );
-    expect(result.totalTokens).toBe(8400);
-    expect(result.sourceBreakdown).toHaveLength(3);
+    // Display formulas with scaleFactor=1.0:
+    // FlowControl = 500 * 1 = 500
+    // Text = 1000 * 1 = 1000
+    // Tool = 1500 * 1 = 1500
+    // Reasoning = 800 * 1 = 800
+    // TOTAL = text + user + assistant = 10000 (no API data)
+    expect(result.totalTokens).toBe(10000);
+    expect(result.sourceBreakdown).toHaveLength(4);
     expect(result.stepBreakdown).toHaveLength(2);
-    const systemEntry = result.sourceBreakdown.find(
-      (s) => s.source === "System",
-    );
-    expect(systemEntry?.tokens).toBe(1500);
+    
+    const fcEntry = result.sourceBreakdown.find((s) => s.source === "FlowControl");
+    expect(fcEntry?.tokens).toBe(500);
+    
+    const textEntry = result.sourceBreakdown.find((s) => s.source === "Text");
+    expect(textEntry?.tokens).toBe(1000);
+    
+    const toolEntry = result.sourceBreakdown.find((s) => s.source === "Tool");
+    expect(toolEntry?.tokens).toBe(1500);
+    
+    const reasoningEntry = result.sourceBreakdown.find((s) => s.source === "Reasoning");
+    expect(reasoningEntry?.tokens).toBe(800);
   });
 
-  it("returns zero tokens for empty session", async () => {
+  it("returns zero tokens for null session metrics", async () => {
     const { loadTokenData } = await import(
       "../../src/tui/data/token-data.js"
     );
     const result = await loadTokenData(
       {
-        getSourceTokenBreakdown: async () => [],
+        getSessionTokens: async () => null,
         getStepTokenBreakdown: async () => [],
       } as unknown as Parameters<typeof loadTokenData>[0],
       "test-session",
@@ -126,6 +145,48 @@ describe("loadTokenData", () => {
     expect(result.totalTokens).toBe(0);
     expect(result.sourceBreakdown).toHaveLength(0);
     expect(result.stepBreakdown).toHaveLength(0);
+  });
+
+  it("uses API data for total and applies scaleFactor correctly", async () => {
+    const { loadTokenData } = await import(
+      "../../src/tui/data/token-data.js"
+    );
+    // Same raw data as test 1 but with API data and scaleFactor=2
+    const result = await loadTokenData(
+      {
+        getSessionTokens: async () => ({
+          sessionId: "test-session",
+          text: 1000,
+          user: 3000,
+          assistant: 6000,
+          flowControl: 500,
+          tool: 1500,
+          reasoning: 800,
+          apiInput: 5000,
+          apiOutput: 7000,
+          apiReasoning: 0,
+          apiCacheRead: 0,
+          apiCacheWrite: 0,
+          scaleFactor: 2.0,
+          startedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }),
+        getStepTokenBreakdown: async () => [],
+      } as unknown as Parameters<typeof loadTokenData>[0],
+      "test-session",
+    );
+    // TOTAL = apiInput + apiOutput = 5000 + 7000 = 12000 (API data present)
+    expect(result.totalTokens).toBe(12000);
+    // Text = 1000 * 2 = 2000
+    // FlowControl = 500 * 2 = 1000
+    // Tool = 1500 * 2 = 3000
+    // Reasoning = 800 * 2 = 1600
+    const textEntry = result.sourceBreakdown.find((s) => s.source === "Text");
+    expect(textEntry?.tokens).toBe(2000);
+    const fcEntry = result.sourceBreakdown.find((s) => s.source === "FlowControl");
+    expect(fcEntry?.tokens).toBe(1000);
+    const toolEntry = result.sourceBreakdown.find((s) => s.source === "Tool");
+    expect(toolEntry?.tokens).toBe(3000);
   });
 });
 

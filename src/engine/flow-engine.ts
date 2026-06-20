@@ -1,10 +1,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { MemorySystem } from "../memory/index.js";
-import { DuplicateTaskError } from "../memory/errors.js";
-import { logger } from "../core/logger.js";
-import type { Task } from "../memory/types.js";
-import { FlowNotFoundError } from "./errors.js";
+import type {Task} from "../memory";
+import {DuplicateTaskError, MemorySystem} from "../memory";
+import {logger} from "../core";
+import {FlowNotFoundError} from "./errors.js";
+import {Part} from "@opencode-ai/sdk"
 
 export interface StartTaskParams {
   sessionId: string;
@@ -24,7 +24,7 @@ export class FlowEngine {
 
   detectFlowCmd(text: string): string | null {
     const m = text.match(/<auto-slash-command>[\s\S]*?\/pm-([\w-]+)/);
-    logger.info(`[vibe-pm] detectFlowCmd: hasAuto=${!!text.includes("<auto-slash-command>")} hasPmCmd=${!!text.match(/\/pm-/)} match=${m ? `pm-${m[1]}` : "null"}`);
+    logger.info(`[vibe-pm] detectFlowCmd: hasAuto=${(text.includes("<auto-slash-command>"))} hasPmCmd=${!!text.match(/\/pm-/)} match=${m ? `pm-${m[1]}` : "null"}`);
     if (!m) return null;
     const flow = this.resolveFlowFromCommand(`pm-${m[1]}`);
     logger.info(`[vibe-pm] detectFlowCmd: resolved cmd=pm-${m[1]} -> flow=${flow}`);
@@ -34,7 +34,7 @@ export class FlowEngine {
   async ensureTaskAndInject(
     sessionId: string,
     flow: string,
-    parts: { type: string; text: string }[],
+    parts: Part[],
     msgId: string,
     msgSid: string,
   ): Promise<void> {
@@ -65,7 +65,7 @@ export class FlowEngine {
       type: "text",
       text: this.buildControlPrompt(flow),
       synthetic: true,
-    } as { type: string; text: string });
+    });
     logger.info(`[vibe-pm] ensureTaskAndInject: spliced after cmdIdx=${cmdIdx} parts=${parts.length}`);
   }
 
@@ -173,7 +173,7 @@ export class FlowEngine {
     const existing = await this.memory.getActiveTask(params.sessionId);
     if (existing) throw new Error(`Session ${params.sessionId} already has active task: ${existing.flow}`);
     try {
-      const task = await this.memory.createTask({
+      return await this.memory.createTask({
         sessionId: params.sessionId,
         flow: params.flow,
         currentStep: "S1",
@@ -183,7 +183,6 @@ export class FlowEngine {
         specRef: params.specRef,
         planRef: params.planRef,
       });
-      return task;
     } catch (err) {
       if (err instanceof DuplicateTaskError) throw new Error(`Session ${params.sessionId} already has active task.`);
       throw err;

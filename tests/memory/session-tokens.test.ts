@@ -1,0 +1,311 @@
+/**
+ * Session Tokens CRUD 测试 — SQLite tmp dir，每个 describe 独立 MemorySystem
+ */
+
+import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as os from "node:os";
+import { MemorySystem } from "../../src/memory/memory-system.js";
+import type { RecordSessionTokensInput, ApiTelemetry } from "../../src/memory/types.js";
+
+// ─── 辅助函数 ─────────────────────────────────
+
+/** 创建 MemorySystem 并初始化到临时目录 */
+async function setupMemory(prefix: string): Promise<{ tmpDir: string; memory: MemorySystem }> {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const memory = new MemorySystem();
+  await memory.init(tmpDir);
+  return { tmpDir, memory };
+}
+
+/** 清理临时目录 */
+function teardownMemory(tmpDir: string): void {
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+}
+
+// ─── initSessionTokens ────────────────────────
+
+describe("initSessionTokens", () => {
+  let tmpDir: string;
+  let memory: MemorySystem;
+
+  beforeEach(async () => {
+    const setup = await setupMemory("vibe-pm-test-ist-");
+    tmpDir = setup.tmpDir;
+    memory = setup.memory;
+  });
+
+  afterEach(() => {
+    teardownMemory(tmpDir);
+  });
+
+  it("creates row with all zero counters", async () => {
+    await memory.initSessionTokens("s1");
+    const result = await memory.getSessionTokens("s1");
+
+    expect(result).not.toBeNull();
+    expect(result!.text).toBe(0);
+    expect(result!.user).toBe(0);
+    expect(result!.assistant).toBe(0);
+    expect(result!.flowControl).toBe(0);
+    expect(result!.tool).toBe(0);
+    expect(result!.reasoning).toBe(0);
+    expect(result!.apiInput).toBe(0);
+    expect(result!.apiOutput).toBe(0);
+    expect(result!.apiReasoning).toBe(0);
+    expect(result!.apiCacheRead).toBe(0);
+    expect(result!.apiCacheWrite).toBe(0);
+    expect(result!.scaleFactor).toBe(1.0);
+    expect(result!.startedAt).toBeDefined();
+    expect(typeof result!.startedAt).toBe("string");
+    expect(result!.updatedAt).toBeDefined();
+    expect(typeof result!.updatedAt).toBe("string");
+  });
+
+  it("is idempotent (no error on re-init)", async () => {
+    await memory.initSessionTokens("s1");
+    // 第二次调用不应抛错
+    await expect(memory.initSessionTokens("s1")).resolves.toBeUndefined();
+  });
+});
+
+// ─── recordSessionTokens ──────────────────────
+
+describe("recordSessionTokens", () => {
+  let tmpDir: string;
+  let memory: MemorySystem;
+
+  beforeEach(async () => {
+    const setup = await setupMemory("vibe-pm-test-rst-");
+    tmpDir = setup.tmpDir;
+    memory = setup.memory;
+  });
+
+  afterEach(() => {
+    teardownMemory(tmpDir);
+  });
+
+  const baseColumns: RecordSessionTokensInput = {
+    text: 10,
+    user: 20,
+    assistant: 30,
+    flowControl: 5,
+    tool: 8,
+    reasoning: 7,
+  };
+
+  it("accumulates columns correctly", async () => {
+    await memory.initSessionTokens("s1");
+    await memory.recordSessionTokens("s1", baseColumns);
+    const result = await memory.getSessionTokens("s1");
+
+    expect(result).not.toBeNull();
+    expect(result!.text).toBe(10);
+    expect(result!.user).toBe(20);
+    expect(result!.assistant).toBe(30);
+    expect(result!.flowControl).toBe(5);
+    expect(result!.tool).toBe(8);
+    expect(result!.reasoning).toBe(7);
+  });
+
+  it("auto-inits if row does not exist", async () => {
+    // 无 prior init，直接 record
+    await memory.recordSessionTokens("s1", baseColumns);
+    const result = await memory.getSessionTokens("s1");
+
+    expect(result).not.toBeNull();
+    expect(result!.text).toBe(10);
+    expect(result!.user).toBe(20);
+    expect(result!.assistant).toBe(30);
+    expect(result!.flowControl).toBe(5);
+    expect(result!.tool).toBe(8);
+    expect(result!.reasoning).toBe(7);
+  });
+
+  it("accumulates across multiple calls", async () => {
+    await memory.initSessionTokens("s1");
+    await memory.recordSessionTokens("s1", baseColumns);
+    // 第二次调用，system 追加 5
+    const secondCall: RecordSessionTokensInput = {
+      text: 5,
+      user: 0,
+      assistant: 0,
+      flowControl: 0,
+      tool: 0,
+      reasoning: 0,
+    };
+    await memory.recordSessionTokens("s1", secondCall);
+    const result = await memory.getSessionTokens("s1");
+
+    expect(result).not.toBeNull();
+    expect(result!.text).toBe(15);
+  });
+
+  it("updates updatedAt on each call", async () => {
+    await memory.initSessionTokens("s1");
+    const first = await memory.getSessionTokens("s1");
+
+    // 确保时间推进
+    await new Promise((r) => setTimeout(r, 1));
+    await memory.recordSessionTokens("s1", baseColumns);
+    const second = await memory.getSessionTokens("s1");
+
+    // updatedAt 应在 record 后更新
+    expect(second!.updatedAt).not.toBe(first!.updatedAt);
+  });
+});
+
+// ─── recordSessionTokens with API telemetry ───
+
+describe("recordSessionTokens with API telemetry", () => {
+  let tmpDir: string;
+  let memory: MemorySystem;
+
+  beforeEach(async () => {
+    const setup = await setupMemory("vibe-pm-test-apit-");
+    tmpDir = setup.tmpDir;
+    memory = setup.memory;
+  });
+
+  afterEach(() => {
+    teardownMemory(tmpDir);
+  });
+
+  it("accumulates API fields", async () => {
+    await memory.initSessionTokens("s1");
+
+    const apiTelemetry: ApiTelemetry = {
+      input: 100,
+      output: 200,
+      reasoning: 50,
+      cache: { read: 25, write: 0 },
+    };
+    await memory.recordSessionTokens(
+      "s1",
+      { text: 0, user: 0, assistant: 0, flowControl: 0, tool: 0, reasoning: 0 },
+      apiTelemetry,
+    );
+    const result = await memory.getSessionTokens("s1");
+
+    expect(result).not.toBeNull();
+    expect(result!.apiInput).toBe(100);
+    expect(result!.apiOutput).toBe(200);
+    expect(result!.apiReasoning).toBe(50);
+    expect(result!.apiCacheRead).toBe(25);
+    expect(result!.apiCacheWrite).toBe(0);
+  });
+
+  it("calculates scaleFactor correctly", async () => {
+    await memory.initSessionTokens("s1");
+
+    const columns: RecordSessionTokensInput = {
+      text: 200,
+      user: 300,
+      assistant: 500,
+      flowControl: 0,
+      tool: 0,
+      reasoning: 0,
+    };
+    const apiTelemetry: ApiTelemetry = {
+      input: 800,
+      output: 600,
+      reasoning: 0,
+      cache: { read: 200, write: 0 },
+    };
+    await memory.recordSessionTokens("s1", columns, apiTelemetry);
+    const result = await memory.getSessionTokens("s1");
+
+    // scaleFactor = (apiInput + apiCacheRead + apiCacheWrite) / (system + user + assistant)
+    //             = (800 + 200 + 0) / (200 + 300 + 500) = 1000 / 1000 = 1.0
+    expect(result).not.toBeNull();
+    expect(result!.scaleFactor).toBe(1.0);
+  });
+
+  it("scaleFactor remains 1.0 when denominator is zero", async () => {
+    await memory.initSessionTokens("s1");
+
+    const columns: RecordSessionTokensInput = {
+      text: 0,
+      user: 0,
+      assistant: 0,
+      flowControl: 0,
+      tool: 0,
+      reasoning: 0,
+    };
+    const apiTelemetry: ApiTelemetry = {
+      input: 100,
+      output: 50,
+      reasoning: 0,
+      cache: { read: 0, write: 0 },
+    };
+    await memory.recordSessionTokens("s1", columns, apiTelemetry);
+    const result = await memory.getSessionTokens("s1");
+
+    // denominator = system+user+assistant = 0 → scaleFactor 保持默认 1.0
+    expect(result).not.toBeNull();
+    expect(result!.scaleFactor).toBe(1.0);
+  });
+});
+
+// ─── getSessionTokens ─────────────────────────
+
+describe("getSessionTokens", () => {
+  let tmpDir: string;
+  let memory: MemorySystem;
+
+  beforeEach(async () => {
+    const setup = await setupMemory("vibe-pm-test-gst-");
+    tmpDir = setup.tmpDir;
+    memory = setup.memory;
+  });
+
+  afterEach(() => {
+    teardownMemory(tmpDir);
+  });
+
+  it("returns null for non-existent session", async () => {
+    const result = await memory.getSessionTokens("nonexistent");
+    expect(result).toBeNull();
+  });
+
+  it("returns correct values after write", async () => {
+    await memory.initSessionTokens("s1");
+
+    const columns: RecordSessionTokensInput = {
+      text: 42,
+      user: 7,
+      assistant: 13,
+      flowControl: 3,
+      tool: 5,
+      reasoning: 8,
+    };
+    const apiTelemetry: ApiTelemetry = {
+      input: 200,
+      output: 100,
+      reasoning: 20,
+      cache: { read: 10, write: 0 },
+    };
+    await memory.recordSessionTokens("s1", columns, apiTelemetry);
+    const result = await memory.getSessionTokens("s1");
+
+    expect(result).not.toBeNull();
+    expect(result!.sessionId).toBe("s1");
+    expect(result!.text).toBe(42);
+    expect(result!.user).toBe(7);
+    expect(result!.assistant).toBe(13);
+    expect(result!.flowControl).toBe(3);
+    expect(result!.tool).toBe(5);
+    expect(result!.reasoning).toBe(8);
+    expect(result!.apiInput).toBe(200);
+    expect(result!.apiOutput).toBe(100);
+    expect(result!.apiReasoning).toBe(20);
+    expect(result!.apiCacheRead).toBe(10);
+    expect(result!.apiCacheWrite).toBe(0);
+    // scaleFactor = (input + cacheRead + cacheWrite) / (text + user + assistant)
+    //             = (200+10+0)/(42+7+13) = 210/62 ≈ 3.387...
+    expect(result!.scaleFactor).toBeCloseTo(210 / 62);
+    expect(typeof result!.startedAt).toBe("string");
+    expect(typeof result!.updatedAt).toBe("string");
+  });
+});

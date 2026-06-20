@@ -11,6 +11,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { MemorySystem } from "../../src/memory/memory-system.js";
 import type { CreateTaskInput } from "../../src/memory/types.js";
+import type { TokenCount } from "../../src/token/types.js";
 
 describe("Task Query Extensions", () => {
   let tmpDir: string;
@@ -104,7 +105,7 @@ describe("Task Query Extensions", () => {
         "bug-fix",
         "S1",
         "理解需求",
-        { System: 500, User: 300 },
+        { text: 500, user: 300, assistant: 0, flowControl: 0, tool: 0, reasoning: 0 },
       );
 
       const metrics = await memory.getFlowMetrics("ses_rse_new");
@@ -123,7 +124,7 @@ describe("Task Query Extensions", () => {
         "bug-fix",
         "S1",
         "理解需求",
-        { System: 100, User: 200 },
+        { text: 100, user: 200, assistant: 0, flowControl: 0, tool: 0, reasoning: 0 },
       );
 
       await memory.recordStepEntry(
@@ -131,7 +132,7 @@ describe("Task Query Extensions", () => {
         "bug-fix",
         "S1",
         "理解需求",
-        { System: 50, Assistant: 100 },
+        { text: 50, user: 0, assistant: 100, flowControl: 0, tool: 0, reasoning: 0 },
       );
 
       const metrics = await memory.getFlowMetrics("ses_rse_acc");
@@ -155,16 +156,13 @@ describe("Task Query Extensions", () => {
       await memory.createTask(baseTask(sid));
 
       await memory.recordStepEntry(sid, "bug-fix", "S1", "理解需求", {
-        System: 100,
-        User: 50,
+        text: 100, user: 50, assistant: 0, flowControl: 0, tool: 0, reasoning: 0,
       });
       await memory.recordStepEntry(sid, "bug-fix", "S2", "设计方案", {
-        Assistant: 200,
-        Tool: 80,
+        text: 0, user: 0, assistant: 200, flowControl: 0, tool: 80, reasoning: 0,
       });
       await memory.recordStepEntry(sid, "bug-fix", "S2", "设计方案", {
-        Assistant: 100,
-        Reasoning: 50,
+        text: 0, user: 0, assistant: 100, flowControl: 0, tool: 0, reasoning: 50,
       });
 
       const breakdown = await memory.getSourceTokenBreakdown(sid);
@@ -195,13 +193,13 @@ describe("Task Query Extensions", () => {
       await memory.createTask(baseTask(sid));
 
       await memory.recordStepEntry(sid, "bug-fix", "S1", "理解需求", {
-        System: 100,
+        text: 100, user: 0, assistant: 0, flowControl: 0, tool: 0, reasoning: 0,
       });
       await memory.recordStepEntry(sid, "bug-fix", "S2", "设计方案", {
-        Assistant: 200,
+        text: 0, user: 0, assistant: 200, flowControl: 0, tool: 0, reasoning: 0,
       });
       await memory.recordStepEntry(sid, "bug-fix", "S2", "设计方案", {
-        Assistant: 50,
+        text: 0, user: 0, assistant: 50, flowControl: 0, tool: 0, reasoning: 0,
       });
 
       const breakdown = await memory.getStepTokenBreakdown(sid);
