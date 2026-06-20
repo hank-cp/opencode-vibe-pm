@@ -41,9 +41,13 @@ export async function loadTaskStatus(
     return {
       type: "last",
       flow: last.flow,
+      currentStep: last.currentStep,
+      currentStepName: last.currentStepName,
       startAt: last.startAt,
       endAt: last.endAt,
       elapsed: formatElapsed(last.startAt, last.endAt),
+      specRef: last.specRef,
+      planRef: last.planRef,
     };
   }
 

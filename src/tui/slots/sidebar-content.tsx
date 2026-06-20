@@ -70,11 +70,16 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
           if (data.type === "last") {
             return (
               <box width="100%" flexDirection="column">
+                <text fg={t.text}>流程: {data.flow}</text>
+                <text fg={t.text}>步骤: 任务已结束</text>
                 <text fg={t.textMuted}>
-                  上一任务: {data.flow}，耗时 {elapsed}
+                  开始: {startTime}  耗时: {elapsed}
                 </text>
-                {data.endAt && (
-                  <text fg={t.textMuted}>结束: {data.endAt}</text>
+                {data.specRef && (
+                  <text fg={t.textMuted}>Spec: {data.specRef}</text>
+                )}
+                {data.planRef && (
+                  <text fg={t.textMuted}>Plan: {data.planRef}</text>
                 )}
               </box>
             );
