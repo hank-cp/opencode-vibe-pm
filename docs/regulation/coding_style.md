@@ -19,7 +19,7 @@
 ### Import 分组
 
 ```typescript
-// 1. Node 内置模块
+// 1. 运行时内置模块
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 

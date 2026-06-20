@@ -2,7 +2,7 @@
  * Task CRUD 测试 — AxioDB 单实例，整个文件共享 MemorySystem
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";

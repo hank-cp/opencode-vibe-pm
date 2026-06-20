@@ -4,7 +4,7 @@
  * 测试 createTuiPlugin 工厂函数和非 TUI 环境降级行为。
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 
 describe("createTuiPlugin", () => {
   it("returns a function with tui signature", async () => {

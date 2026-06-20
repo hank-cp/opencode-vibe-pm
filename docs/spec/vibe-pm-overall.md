@@ -118,7 +118,9 @@ sequenceDiagram
 
 | 组件 | 用途 |
 |------|------|
-| TypeScript (ES2022, NodeNext) | 实现语言 |
+| TypeScript (ES2022, strict) | 实现语言 |
+| Bun | 运行时 / 构建 / 测试 |
 | `@opencode-ai/plugin` SDK | 钩子/命令/工具注册 |
 | AxioDB | 任务状态存储 |
 | Zod | 运行时校验 |
+| tiktoken | Token 计数 |

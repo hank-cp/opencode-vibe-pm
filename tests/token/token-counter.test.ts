@@ -5,18 +5,18 @@
  * 覆盖 6 类来源分类、FlowControl 增量化拆分、边界情况。
  */
 
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { describe, it, expect, mock, beforeAll, afterAll } from "bun:test";
 import type { TokenSource } from "../../src/memory/types.js";
 import type { PartInfo } from "../../src/token/types.js";
 
 // Mock tiktoken: encode 返回长度 = text.length / 4（最小 1）
-vi.mock("tiktoken", () => ({
-  get_encoding: vi.fn((_encoding: string) => ({
-    encode: vi.fn((text: string) => {
+mock.module("tiktoken", () => ({
+  get_encoding: mock((_encoding: string) => ({
+    encode: mock((text: string) => {
       const len = Math.max(1, Math.ceil(text.length / 4));
       return new Uint32Array(len);
     }),
-    free: vi.fn(),
+    free: mock(() => {}),
   })),
 }));
 

@@ -5,23 +5,23 @@
  * 关联 Spec: vibe-pm-plugin-core.md
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, mock, beforeEach } from "bun:test";
 import type { Config, IPluginContext, ToolContext } from "../../src/core/types.js";
 import { registerCommands, registerTools } from "../../src/core/commands.js";
 
 // Mock FlowEngine for tool tests
 function createMockEngine() {
   return {
-    startTask: vi.fn().mockResolvedValue({
+    startTask: mock(() => Promise.resolve({
       sessionId: "test",
       flow: "research",
       currentStep: "S1",
       currentStepName: "就绪",
       summary: "测试任务",
       startAt: new Date().toISOString(),
-    }),
-    setStep: vi.fn().mockResolvedValue(undefined),
-    closeTask: vi.fn().mockResolvedValue({
+    })),
+    setStep: mock(() => Promise.resolve(undefined)),
+    closeTask: mock(() => Promise.resolve({
       sessionId: "test",
       flow: "research",
       currentStep: "S3",
@@ -29,7 +29,7 @@ function createMockEngine() {
       summary: "测试任务",
       startAt: new Date().toISOString(),
       closed: true,
-    }),
+    })),
   } as any;
 }
 
@@ -173,7 +173,7 @@ describe("registerTools", () => {
 
   it("pm_task_close_no_active_task: 无活跃任务时返回提示", async () => {
     const engine = createMockEngine();
-    engine.closeTask = vi.fn().mockResolvedValue(null);
+    engine.closeTask = mock(() => Promise.resolve(null));
     const tools = registerTools(mockCtx, engine);
 
     const result = await tools.pm_task_close.execute({}, mockToolCtx);

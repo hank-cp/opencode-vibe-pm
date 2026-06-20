@@ -6,10 +6,22 @@
  * Setup: 创建临时目录和 .vibe-pm.json 文件，测试后清理
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, mock, beforeEach, afterEach } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+
+// Mock logger BEFORE importing the module that uses it
+const mockLogger = {
+  info: mock(() => {}),
+  warn: mock(() => {}),
+  error: mock(() => {}),
+};
+
+mock.module("../../src/core/logger.js", () => ({
+  logger: mockLogger,
+}));
+
 import {
   loadConfig,
   DEFAULT_CONFIG,
@@ -17,23 +29,11 @@ import {
   writeConfig,
 } from "../../src/core/config.js";
 
-// Mock logger
-vi.mock("../../src/core/logger.js", () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  },
-}));
-
-import { logger } from "../../src/core/logger.js";
-
 describe("loadConfig", () => {
   let tmpDir: string;
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-pm-test-config-"));
-    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -44,7 +44,7 @@ describe("loadConfig", () => {
     const result = loadConfig(tmpDir);
 
     expect(result).toEqual(DEFAULT_CONFIG);
-    expect(logger.info).toHaveBeenCalled();
+    expect(mockLogger.info).toHaveBeenCalled();
   });
 
   it("loadConfig_override: 部分覆盖时返回合并后的配置", () => {
@@ -71,7 +71,7 @@ describe("loadConfig", () => {
     const result = loadConfig(tmpDir);
 
     expect(result).toEqual(DEFAULT_CONFIG);
-    expect(logger.warn).toHaveBeenCalled();
+    expect(mockLogger.warn).toHaveBeenCalled();
   });
 
   it("loadConfig_deep_merge: contextInjection 支持深度合并", () => {
@@ -97,7 +97,6 @@ describe("ensureDefaultConfig", () => {
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-pm-test-ecfg-"));
-    vi.clearAllMocks();
   });
 
   afterEach(() => {

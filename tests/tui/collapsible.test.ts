@@ -4,7 +4,7 @@
  * 测试 Collapsible 展开/折叠行为。
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 
 // Collapsible 组件使用 @opentui/solid testRender 需要原生模块支持，
 // 此处测试数据层和工具函数的逻辑正确性。

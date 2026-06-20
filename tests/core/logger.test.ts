@@ -5,7 +5,7 @@
  * Setup: 不需要文件系统，纯单元测试
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, mock, spyOn, beforeEach } from "bun:test";
 import {
   logger,
   initLogger,
@@ -15,22 +15,20 @@ import {
 function createMockClient() {
   return {
     app: {
-      log: vi.fn().mockResolvedValue(true),
+      log: (() => Promise.resolve(true)) as ReturnType<typeof mock>,
     },
   };
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
-  // 重置状态：重新初始化 mock client
-  const mock = createMockClient();
-  initLogger(mock);
+  const client = createMockClient();
+  initLogger(client);
   setLogEnabled(true);
 });
 
 describe("logger", () => {
   it("logger_uninitialized_no_throw: 未初始化时调用不抛异常", () => {
-    const mock = createMockClient();
+    const client = createMockClient();
     initLogger(null as unknown as ReturnType<typeof createMockClient>);
 
     expect(() => logger.info("test")).not.toThrow();
@@ -38,9 +36,9 @@ describe("logger", () => {
   });
 
   it("logger_disabled_no_call: setLogEnabled(false) 抑制调用", async () => {
-    const mock = createMockClient();
-    const logSpy = vi.spyOn(mock.app, "log");
-    initLogger(mock);
+    const client = createMockClient();
+    const logSpy = spyOn(client.app, "log");
+    initLogger(client);
     setLogEnabled(false);
 
     logger.info("should not log");
@@ -51,9 +49,9 @@ describe("logger", () => {
   });
 
   it("logger_re_enabled_calls: setLogEnabled(true) 恢复调用", async () => {
-    const mock = createMockClient();
-    const logSpy = vi.spyOn(mock.app, "log");
-    initLogger(mock);
+    const client = createMockClient();
+    const logSpy = spyOn(client.app, "log");
+    initLogger(client);
     setLogEnabled(false);
     setLogEnabled(true);
 
@@ -64,9 +62,9 @@ describe("logger", () => {
   });
 
   it("logger_info_calls_app_log: info 调用 app.log 传递正确参数", async () => {
-    const mock = createMockClient();
-    const logSpy = vi.spyOn(mock.app, "log");
-    initLogger(mock);
+    const client = createMockClient();
+    const logSpy = spyOn(client.app, "log");
+    initLogger(client);
 
     logger.info("hello world", { key: "value" });
 
@@ -80,9 +78,9 @@ describe("logger", () => {
   });
 
   it("logger_debug_warn_error_levels: 各级别正确传递", async () => {
-    const mock = createMockClient();
-    const logSpy = vi.spyOn(mock.app, "log");
-    initLogger(mock);
+    const client = createMockClient();
+    const logSpy = spyOn(client.app, "log");
+    initLogger(client);
 
     logger.debug("debug msg");
     logger.warn("warn msg");
@@ -95,9 +93,9 @@ describe("logger", () => {
   });
 
   it("logger_error_object_as_extra: Error 对象转换为 extra", async () => {
-    const mock = createMockClient();
-    const logSpy = vi.spyOn(mock.app, "log");
-    initLogger(mock);
+    const client = createMockClient();
+    const logSpy = spyOn(client.app, "log");
+    initLogger(client);
 
     const err = new Error("test error");
     logger.error("failed", err);
@@ -110,9 +108,9 @@ describe("logger", () => {
   });
 
   it("logger_non_object_data_as_detail: 非对象 data 放入 detail", async () => {
-    const mock = createMockClient();
-    const logSpy = vi.spyOn(mock.app, "log");
-    initLogger(mock);
+    const client = createMockClient();
+    const logSpy = spyOn(client.app, "log");
+    initLogger(client);
 
     logger.info("msg", 42);
 
@@ -122,9 +120,9 @@ describe("logger", () => {
   });
 
   it("logger_no_data_no_extra: 无 data 时不传 extra", async () => {
-    const mock = createMockClient();
-    const logSpy = vi.spyOn(mock.app, "log");
-    initLogger(mock);
+    const client = createMockClient();
+    const logSpy = spyOn(client.app, "log");
+    initLogger(client);
 
     logger.info("msg only");
 
@@ -134,9 +132,9 @@ describe("logger", () => {
   });
 
   it("logger_non_string_message: 非字符串 message 转字符串", async () => {
-    const mock = createMockClient();
-    const logSpy = vi.spyOn(mock.app, "log");
-    initLogger(mock);
+    const client = createMockClient();
+    const logSpy = spyOn(client.app, "log");
+    initLogger(client);
 
     logger.info({ obj: 1 });
 

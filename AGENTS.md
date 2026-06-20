@@ -50,10 +50,10 @@ OpenCode 插件。将 `AGENTS.md`/`rules/*.md` 全量加载替换为基于步骤
 ## 开发命令
 
 ```bash
-pnpm build          # tsc 编译到 dist/
-pnpm test           # vitest run（一次性）
-pnpm test:watch     # vitest watch 模式
-pnpm typecheck      # tsc --noEmit 仅类型检查
+bun run build       # tsc --emitDeclarationOnly + bun build 到 dist/
+bun test            # bun test（一次性）
+bun test --watch    # bun test watch 模式
+bun run typecheck   # tsc --noEmit 仅类型检查
 ```
 
 ## 核心概念

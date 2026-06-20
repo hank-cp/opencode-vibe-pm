@@ -5,7 +5,7 @@
  * 使用 mock tiktoken + 真实 MemorySystem + 真实 TokenCounter。
  */
 
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { describe, it, expect, mock, beforeAll, afterAll } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -15,15 +15,15 @@ import type { PartInfo } from "../../src/token/types.js";
 import type { CreateTaskInput } from "../../src/memory/types.js";
 
 // Mock tiktoken
-vi.mock("tiktoken", () => ({
-  get_encoding: vi.fn((_encoding: string) => ({
-    encode: vi.fn((text: string) => {
+mock.module("tiktoken", () => ({
+  get_encoding: mock((_encoding: string) => ({
+    encode: mock((text: string) => {
       const len = Math.max(1, Math.ceil(text.length / 4));
       return new Uint32Array(len);
     }),
-    free: vi.fn(),
+    free: mock(() => {}),
   })),
-  TiktokenEncoding: vi.fn(),
+  TiktokenEncoding: mock(() => {}),
 }));
 
 describe("Token Integration", () => {

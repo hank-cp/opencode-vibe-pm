@@ -86,9 +86,10 @@
 ### 技术栈
 
 - **语言**: TypeScript（严格模式）
+- **运行时**: Bun（开发环境：构建、测试、包管理）
 - **SDK**: `@opencode-ai/plugin`（OpenCode 插件开发）
 - **数据库**: AxioDB（结构化记忆存储）
-- **运行环境**: OpenCode 插件运行时
+- **运行环境**: OpenCode 插件运行时（Bun）
 - **TUI**: 终端信息展示
 
 ### 架构约束

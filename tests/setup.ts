@@ -1,6 +1,6 @@
-import { vi } from "vitest";
+import { mock } from "bun:test";
 
-vi.mock("@opentui/core", () => {
+mock.module("@opentui/core", () => {
   const mockRGBA = {
     fromInts: (r: number, g: number, b: number) => ({
       r,
@@ -23,7 +23,7 @@ vi.mock("@opentui/core", () => {
   return { RGBA: mockRGBA };
 });
 
-vi.mock("@opentui/solid", () => ({
+mock.module("@opentui/solid", () => ({
   useKeyboard: () => {},
   render: () => {},
   extend: () => {},
