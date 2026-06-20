@@ -17,7 +17,7 @@ export interface StepTransition {
 }
 
 export interface Task {
-  documentId: string;
+  id: string;
   sessionId: string;
   flow: string;
   currentStep: string;
@@ -121,8 +121,8 @@ export interface IMemorySystem {
   createTask(input: CreateTaskInput): Promise<Task>;
   getTask(sessionId: string): Promise<Task | null>;
   getActiveTask(sessionId: string): Promise<Task | null>;
-  updateStep(documentId: string, step: string, stepName: string): Promise<void>;
-  closeTask(documentId: string): Promise<void>;
+  updateStep(id: string, step: string, stepName: string): Promise<void>;
+  closeTask(id: string): Promise<void>;
   listActiveTasks(): Promise<Task[]>;
 
   // Discussion

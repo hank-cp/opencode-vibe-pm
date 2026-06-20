@@ -12,7 +12,7 @@ OpenCode 插件。将 `AGENTS.md`/`rules/*.md` 全量加载替换为基于步骤
 |------|------|
 | TypeScript (ES2022, NodeNext) | 实现语言 |
 | `@opencode-ai/plugin` SDK | 钩子/命令/工具注册 |
-| AxioDB | 嵌入式结构化记忆（任务状态、指标） |
+| SQLite (better-sqlite3) | 嵌入式结构化记忆（任务状态、指标） |
 | Zod | 运行时校验 |
 | tiktoken | Token 计数 |
 | Vitest | 测试框架 |
@@ -63,7 +63,7 @@ bun run typecheck   # tsc --noEmit 仅类型检查
 | 类型 | 存储 | 特点 |
 |------|------|------|
 | MD 文档记忆 | `docs/flow/`, `docs/regulation/`, `docs/spec/` | 稳定，沉淀记忆 |
-| 结构化记忆 | `AxioDB`（`.vibe-pm/`） | 频繁读写：任务状态、Discussion、FlowMetrics |
+| 结构化记忆 | `SQLite`（`.vibe-pm/`） | 频繁读写：任务状态、Discussion、FlowMetrics |
 
 ### 任务模型（FSM 驱动）
 
@@ -72,7 +72,7 @@ LLM 判断 FSM 状态转换，非硬编码规则。
 
 ### 上下文注入（每次对话）
 
-1. 从 AxioDB 读取当前流程和步骤
+1. 从 SQLite 读取当前流程和步骤
 2. 提取相关上下文：Flow 文档、任务状态、Constitution、当前步骤指定的 Regulation
 3. 移除无关消息（裁剪）
 
@@ -97,14 +97,14 @@ LLM 判断 FSM 状态转换，非硬编码规则。
 
 - **不要**在代码中硬编码流程步骤 —— 步骤定义在 `docs/flow/` 的 Markdown 中
 - **不要**绕过 TypeScript strict mode —— `tsconfig.json` 已启用 `strict: true`
-- **不要**在测试中 mock AxioDB 内部实现 —— 直接使用真实 AxioDB 实例（嵌入式数据库无副作用）
+- **不要**在测试中 mock SQLite 内部实现 —— 直接使用真实 SQLite 实例（嵌入式数据库无副作用）
 - **不要**在 `template-manager.ts` 中引入接口抽象层 —— 纯文件操作模块，直接按约定路径读写
 - **不要**修改 `docs/template/` 下内置模板的 `**Template ID**` 字段 —— 这是安装/卸载的唯一标识
 - **不要**手动创建 `.opencode/commands/` 下的文件 —— 由模板安装流程自动生成
 
 ## 注意事项
 
-- AxioDB 运行时数据在 `.vibe-pm/`，已通过 `.gitignore` 排除
+- SQLite 运行时数据在 `.vibe-pm/`，已通过 `.gitignore` 排除
 - `docs/flow/` 和 `docs/regulation/` 由用户操作产生，不纳入版本控制
 - Spec 文档（`docs/spec/`）是设计权威来源，代码修改前先确认对应 Spec
 - 测试镜像 `src/` 的目录结构：`tests/core/`、`tests/engine/`、`tests/memory/`、`tests/template/`

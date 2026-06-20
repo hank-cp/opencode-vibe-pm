@@ -115,13 +115,21 @@ export class FlowEngine {
       `  ✅ 3. 执行该步骤要求的全部动作           — 不越界`,
       `  ✅ 4. ⚠️ 标记 → question/confirm 工具   — 阻塞等用户`,
       `  ✅ 5. 查看"**完成后**" → 按 FSM 图转移`,
+      `  ✅ 6. FSM 转移到 [*] → 立即调用 pm_task_close() 工具结束任务`,
       ``,
-      `  1-5 全部完成之前，禁止看下一步骤。`,
+      `  1-6 全部完成之前，禁止看下一步骤。`,
+      ``,
+      `## 流程终结 🔚`,
+      ``,
+      `当最后的步骤完成后，FSM 转移到 [*]（终止状态）。此时必须：`,
+      ``,
+      `\`\`\``,
+      `1. 调用 pm_task_close() 工具                   — 无参数，直接调用`,
+      `2. 输出工具返回的关闭摘要                       — 告知用户任务已完成`,
       `\`\`\``,
       ``,
-      `## 流程终结`,
-      ``,
-      `当步骤完成后 FSM 转移到 [*]（终止状态）时，必须调用 pm_task_close() 工具正式结束任务。`,
+      `⛔ 未调用 pm_task_close() 就结束对话 = 流程执行失败。`,
+      `   任务状态将保持活跃，后续对话无法启动新任务。`,
       ``,
       `## 步骤门禁`,
       ``,
@@ -148,6 +156,7 @@ export class FlowEngine {
       `| 8 | 行为与 constitution 冲突 | constitution 要求最小变更，但你做了重构 → ❌ |`,
       `| 9 | 通过后台任务读取规则文件 | 用 explore/task agent 读取 /docs/flow 和 /docs/regulation 目录下的文件 → ❌ |`,
       `| 10 | 收到弱确认后自行推进 | 在 ⚠️ 步骤中，用户说「看起来可以」「试试吧」，你没有追问明确确认就直接执行/推进 → ❌ |`,
+      `| 11 | FSM 到 [*] 但未调用 pm_task_close() | 流程最后一步执行完但没调用 pm_task_close() 工具就直接结束对话 → ❌ |`,
       ``,
       `## 合规参考`,
       ``,
@@ -192,7 +201,7 @@ export class FlowEngine {
     const stepName = this.tryParseStepName(flowName, step) ?? step;
     const now = Date.now();
 
-    await this.memory.updateStep(task.documentId, step, stepName);
+    await this.memory.updateStep(task.id, step, stepName);
 
     // 从 stepTransitions 中找最后一次进入 oldStep 的记录，计算停留时间
     let stepDwellTime = 0;
@@ -210,7 +219,7 @@ export class FlowEngine {
     }
 
     // 持久化步骤转换记录
-    await this.memory.appendStepTransition(task.documentId, {
+    await this.memory.appendStepTransition(task.id, {
       fromStep: oldStep ?? "",
       toStep: step,
       at: new Date(now).toISOString(),
@@ -237,7 +246,7 @@ export class FlowEngine {
       await this.memory.recordStepExit(sessionId, task.currentStep, stepDwellTime, 0);
     }
 
-    await this.memory.closeTask(task.documentId);
+    await this.memory.closeTask(task.id);
     return { ...task, closed: true };
   }
 

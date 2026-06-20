@@ -6,34 +6,27 @@
  * Setup: 创建临时目录和 .vibe-pm.json 文件，测试后清理
  */
 
-import { describe, it, expect, mock, beforeEach, afterEach } from "bun:test";
+import { describe, it, expect, spyOn, beforeEach, afterEach } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-
-// Mock logger BEFORE importing the module that uses it
-const mockLogger = {
-  info: mock(() => {}),
-  warn: mock(() => {}),
-  error: mock(() => {}),
-};
-
-mock.module("../../src/core/logger.js", () => ({
-  logger: mockLogger,
-}));
-
 import {
   loadConfig,
   DEFAULT_CONFIG,
   ensureDefaultConfig,
   writeConfig,
 } from "../../src/core/config.js";
+import { logger } from "../../src/core/logger.js";
 
 describe("loadConfig", () => {
   let tmpDir: string;
+  let infoSpy: ReturnType<typeof spyOn>;
+  let warnSpy: ReturnType<typeof spyOn>;
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-pm-test-config-"));
+    infoSpy = spyOn(logger, "info");
+    warnSpy = spyOn(logger, "warn");
   });
 
   afterEach(() => {
@@ -44,7 +37,7 @@ describe("loadConfig", () => {
     const result = loadConfig(tmpDir);
 
     expect(result).toEqual(DEFAULT_CONFIG);
-    expect(mockLogger.info).toHaveBeenCalled();
+    expect(infoSpy).toHaveBeenCalled();
   });
 
   it("loadConfig_override: 部分覆盖时返回合并后的配置", () => {
@@ -71,7 +64,7 @@ describe("loadConfig", () => {
     const result = loadConfig(tmpDir);
 
     expect(result).toEqual(DEFAULT_CONFIG);
-    expect(mockLogger.warn).toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
   });
 
   it("loadConfig_deep_merge: contextInjection 支持深度合并", () => {

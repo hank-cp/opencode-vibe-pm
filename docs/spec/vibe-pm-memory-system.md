@@ -2,14 +2,14 @@
 
 **创建日期**: 2026-06-11
 **状态**: Implemented
-**输入来源**: XMind 设计文档 + S4 访谈（AxioDB 嵌入式、JSON 存储）
+**输入来源**: XMind 设计文档 + S4 访谈（SQLite 嵌入式、单文件存储）
 **最后更新**: 2026-06-12 — Memory System 实现完成
 
 ---
 
 ## 需求背景
 
-Memory System 是 vibe-pm 的数据层，负责结构化记忆的持久化存储。使用 AxioDB 作为嵌入式数据库，存储载体为 JSON 文件。管理三类核心数据：Task（任务状态）、Discussion（讨论项）、FlowMetrics（流程指标）。
+Memory System 是 vibe-pm 的数据层，负责结构化记忆的持久化存储。使用 SQLite (better-sqlite3) 作为嵌入式数据库，存储载体为单文件。管理三类核心数据：Task（任务状态）、Discussion（讨论项）、FlowMetrics（流程指标）。
 
 ---
 
@@ -20,7 +20,7 @@ Memory System 是 vibe-pm 的数据层，负责结构化记忆的持久化存储
 ```mermaid
 erDiagram
     Task {
-        string sessionId PK
+        string id PK
         string flow "流程名称"
         string currentStep "当前步骤 S1-Sn"
         string currentStepName "当前步骤名称"
@@ -66,7 +66,7 @@ erDiagram
 
 ```typescript
 interface Task {
-  sessionId: string;          // OpenCode session ID
+  id: string;                 // 自动生成 UUID
   flow: string;               // 流程名称，如 "project-build"
   currentStep: string;        // 当前步骤 ID，如 "S3"
   currentStepName: string;    // 当前步骤名称，如 "需求澄清访谈"
@@ -146,11 +146,9 @@ stateDiagram-v2
 
 ```
 .vibe-pm/
-├── data.json              # 主数据文件：所有记录在一个 JSON 文件中
-│   ├── tasks: Task[]
-│   ├── discussions: Discussion[]
-│   └── flowMetrics: FlowMetrics[]
-└── .schema                # Schema 版本标记（用于迁移）
+├── vibe-pm.db             # SQLite 数据库文件：包含三张表（tasks, discussions, flowMetrics）
+├── tui-data.json          # TUI 跨进程桥接数据（文件缓存，非 SQLite 存储）
+└── data/                  # 【已废弃】旧 AxioDB 数据目录（可手动删除）
 ```
 
 ### 接口设计
@@ -195,28 +193,42 @@ interface IMemorySystem {
 }
 ```
 
-### AxioDB 集成
+### SQLite 集成
 
-基于 AxioDB v9.6.6，关键发现：
-- **不支持 `$set` 操作符**：`UpdateOne({ field: value })` 直接传纯对象
-- **Query 返回格式**：`{ statusCode: 200, data: { documents: [...] } }`
-- **单实例限制**：每进程只能创建一个 AxioDB 实例
+基于 better-sqlite3 v11，使用预编译语句和 WAL 模式：
 
 ```typescript
-import { AxioDB } from "axiodb";
+import Database from "better-sqlite3";
 
 class MemorySystem implements IMemorySystem {
-  private db: AxioDB;
+  private db: Database.Database;
 
   async init(dataDir: string): Promise<void> {
-    this.db = new AxioDB({
-      CustomPath: dataDir,
-      RootName: "vibe-pm",
-    });
-    const appDb = await this.db.createDB("vibe-pm");
-    this.tasks = await appDb.createCollection("tasks");
-    this.discussions = await appDb.createCollection("discussions");
-    this.flowMetrics = await appDb.createCollection("flowMetrics");
+    this.db = new Database(`${dataDir}/vibe-pm.db`);
+    this.db.pragma("journal_mode = WAL");
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS tasks (
+        id TEXT PRIMARY KEY,
+        sessionId TEXT NOT NULL,
+        flow TEXT NOT NULL,
+        currentStep TEXT NOT NULL,
+        currentStepName TEXT NOT NULL,
+        startAt TEXT NOT NULL,
+        endAt TEXT,
+        closed INTEGER NOT NULL DEFAULT 0,
+        summary TEXT NOT NULL,
+        specRef TEXT,
+        planRef TEXT,
+        stepTransitions JSON
+      );
+      -- 其他两表类似
+    `);
+
+    // 预编译语句提升性能
+    this.stmtInsertTask = this.db.prepare("INSERT INTO tasks (...) VALUES (...)");
+    this.stmtGetActiveTask = this.db.prepare("SELECT * FROM tasks WHERE sessionId = ? AND closed = 0 LIMIT 1");
+    // ...
   }
 }
 ```
@@ -294,7 +306,7 @@ class MemorySystem implements IMemorySystem {
 
 ### 技术约束
 
-- 依赖 AxioDB，其 API 可能变化
+- 依赖 better-sqlite3，其 API 稳定成熟
 - JSON 文件作为存储载体，大数据量下性能可能下降——初期项目规模下影响可忽略
 - 若 AxioDB 不支持索引/查询，可能需要内存缓存 + 全量 JSON 读写
 
@@ -305,7 +317,7 @@ class MemorySystem implements IMemorySystem {
 
 ### 已知风险
 
-- AxioDB 的稳定性、并发安全性待验证
+- 旧 AxioDB 数据无法自动迁移（用户确认丢弃，不影响）
 - JSON 文件随项目增长可能变大，需设计归档/清理策略
 - 若未来需要多项目共享数据，JSON 文件方案不可行——但当前阶段仅单项目使用
 
@@ -320,7 +332,7 @@ class MemorySystem implements IMemorySystem {
 
 ### 已实现功能
 
-- AxioDB 嵌入式数据库集成（v9.6.6）
+- SQLite 嵌入式数据库集成 (better-sqlite3)
 - Task CRUD（创建、查询、更新步骤、关闭、列表）
 - Discussion CRUD（创建、决议、按条件过滤）
 - FlowMetrics CRUD（步骤进入/退出指标记录、聚合查询）
@@ -335,6 +347,7 @@ class MemorySystem implements IMemorySystem {
 
 ### 技术笔记
 
-- AxioDB `UpdateOne()` 不支持 `$set` 操作符，需传纯对象
-- AxioDB 查询返回 `data.documents` 嵌套包装
-- AxioDB 单进程实例限制，测试需共享 MemorySystem（beforeAll/afterAll）
+- better-sqlite3 使用预编译语句，性能优于动态 SQL
+- WAL 模式支持并发读（单写），适合多 TUI 轮询场景
+- tokensBySource 使用 JSON 列类型（SQLite 3.38+ 原生支持），配合 json_extract() / json_set() 操作
+- 每进程可创建多个 Database 实例，测试和主进程无冲突

@@ -88,14 +88,15 @@
 - **语言**: TypeScript（严格模式）
 - **运行时**: Bun（开发环境：构建、测试、包管理）
 - **SDK**: `@opencode-ai/plugin`（OpenCode 插件开发）
-- **数据库**: AxioDB（结构化记忆存储）
+- **数据库**: SQLite (bun:sqlite，结构化记忆存储)
 - **运行环境**: OpenCode 插件运行时（Bun）
 - **TUI**: 终端信息展示
 
 ### 架构约束
 
 - 插件通过 `@opencode-ai/plugin` SDK 与 OpenCode 宿主通信，禁止手写 OpenCode 交互类型
-- 结构化记忆通过 AxioDB 读写，不直接操作文件
+- 结构化记忆通过 SQLite 读写
+- 存储 JSON 数据时，SQLite 列使用 JSON 类型声明（非 TEXT），利用 json_extract() / json_set() 进行查询和更新
 - MD 文档记忆通过文件系统读取，不缓存过时内容
 - TUI 展示与插件核心逻辑解耦
 
