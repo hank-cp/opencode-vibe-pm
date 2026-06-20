@@ -7,7 +7,7 @@
  */
 
 import type { TuiPluginModule } from "@opencode-ai/plugin/tui";
-import { createTuiPlugin } from "./tui-plugin.js";
+import { createTuiPlugin } from "./tui-plugin.jsx";
 
 console.error("[vibe-pm TUI] 模块已加载");
 

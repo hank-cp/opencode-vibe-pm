@@ -9,7 +9,7 @@ import { describe, it, expect } from "vitest";
 describe("createTuiPlugin", () => {
   it("returns a function with tui signature", async () => {
     const { createTuiPlugin } = await import(
-      "../../src/tui/tui-plugin.js"
+      "../../src/tui/tui-plugin.jsx"
     );
     const plugin = createTuiPlugin();
     expect(typeof plugin).toBe("function");
@@ -19,7 +19,7 @@ describe("createTuiPlugin", () => {
 
   it("does not throw in non-TUI environment", async () => {
     const { createTuiPlugin } = await import(
-      "../../src/tui/tui-plugin.js"
+      "../../src/tui/tui-plugin.jsx"
     );
     const plugin = createTuiPlugin();
 
@@ -52,7 +52,7 @@ describe("createTuiPlugin", () => {
 
   it("accepts external memory system", async () => {
     const { createTuiPlugin } = await import(
-      "../../src/tui/tui-plugin.js"
+      "../../src/tui/tui-plugin.jsx"
     );
     const mockMemory = {
       getActiveTask: async () => null,
