@@ -1,7 +1,7 @@
 import type { JSX } from "solid-js";
 import type { TuiPluginApi } from "@opencode-ai/plugin/tui";
 import type { TaskStatusData, TokenData } from "../types.js";
-import { SOURCE_COLORS, compactTokens, visualWidth, formatElapsed } from "../types.js";
+import { SOURCE_COLORS, compactTokens, formatElapsed } from "../types.js";
 import { Collapsible } from "../components/collapsible.jsx";
 import { EmptyState } from "../components/empty-state.jsx";
 import { RGBA } from "@opentui/core";
@@ -18,7 +18,7 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
   const theme = () => props.api.theme.current;
 
   return (
-    <box width="100%" flexDirection="column">
+    <box width="100%" flexDirection="column" paddingRight={1}>
       <box width="100%" flexDirection="row" marginBottom={1}>
         <text fg={theme().primary}>vibe-pm</text>
       </box>
@@ -85,11 +85,12 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
       </box>
 
       <box width="100%" flexDirection="column" marginBottom={1}>
+        <text>Token 分布</text>
         {(() => {
           const td = props.tokenData();
           if (td.totalTokens <= 0 || td.sourceBreakdown.length === 0) return (
             <box width="100%" flexDirection="row" height={1}>
-              <text fg={RGBA.fromInts(89,89,89)}>{"█".repeat(SIDEBAR_WIDTH - 1)} 0</text>
+              <text fg={RGBA.fromInts(89,89,89)}>{"█".repeat(SIDEBAR_WIDTH - 2)} 0</text>
             </box>
           );
           const total = td.totalTokens;
@@ -98,7 +99,8 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
             pct: Math.max(1, Math.round((s.tokens / total) * 100)),
             color: SOURCE_COLORS[s.source as keyof typeof SOURCE_COLORS] ?? RGBA.fromInts(128,128,128)
           }));
-          const barTotal = SIDEBAR_WIDTH;
+          const totalText = compactTokens(total);
+          const barTotal = Math.max(1, SIDEBAR_WIDTH - totalText.length - 1);
           const counts = segs.map(s => Math.max(1, Math.floor((s.tokens / total) * barTotal)));
           let sum = counts.reduce((a,b)=>a+b,0);
           const remainders = segs.map((s,i)=>({r:(s.tokens/total)*barTotal - counts[i], i})).sort((a,b)=>b.r-a.r);
@@ -113,7 +115,7 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
       </box>
 
       <box width="100%" flexDirection="column" marginBottom={1}>
-        <Collapsible title="Token 分布详情" defaultCollapsed={true} titleColor={theme().text}>
+        <Collapsible title="Token 详情" defaultCollapsed={true} titleColor={theme().text}>
           {(() => {
             const td = props.tokenData();
             if (td.sourceBreakdown.length === 0) return (<text fg={theme().textMuted}>暂无数据</text>);
@@ -122,22 +124,20 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
                 const left = entry.source;
                 const pct = td.totalTokens > 0 ? Math.round(entry.tokens/td.totalTokens*100) : 0;
                 const right = `${compactTokens(entry.tokens)} (${pct}%)`;
-                const pad = Math.max(1, SIDEBAR_WIDTH - visualWidth(left) - visualWidth(right));
                 const color = SOURCE_COLORS[entry.source as keyof typeof SOURCE_COLORS] ?? RGBA.fromInts(128,128,128);
-                return (<box width="100%" height={1}>
+                return (<box width="100%" height={1} flexDirection="row" justifyContent="space-between">
                   <text fg={color}>{left}</text>
-                  <text fg={theme().textMuted}>{" ".repeat(pad)}{right}</text>
+                  <text fg={theme().textMuted}>{right}</text>
                 </box>);
               })}
               {/* Cache */}
               {td.cachedTokens > 0 && (() => {
                 const cachePct = Math.round(td.cachedTokens / (td.cachedTokens + td.uncachedTokens) * 100);
                 const right = `${compactTokens(td.cachedTokens)} (${cachePct}%)`;
-                const pad = Math.max(1, SIDEBAR_WIDTH - visualWidth("Ca") - visualWidth(right));
                 return (
-                  <box width="100%" height={1}>
+                  <box width="100%" height={1} flexDirection="row" justifyContent="space-between">
                     <text fg={RGBA.fromInts(200, 200, 200)}>Cache</text>
-                    <text fg={theme().textMuted}>{" ".repeat(pad)}{right}</text>
+                    <text fg={theme().textMuted}>{right}</text>
                   </box>
                 );
               })()}
@@ -151,18 +151,20 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
           {(() => {
             const td = props.tokenData();
             if (td.stepBreakdown.length === 0) return (<text fg={theme().textMuted}>暂无数据</text>);
-            const steps = [...td.stepBreakdown].sort((a,b) => a.step.localeCompare(b.step));
-            const maxTk = Math.max(...steps.map(s => s.tokensConsumed), 1);
+            const steps = [...td.stepBreakdown].sort((a,b) =>
+              (parseInt(a.step.replace('S', ''), 10) || 0) -
+              (parseInt(b.step.replace('S', ''), 10) || 0)
+            );
+            const stepTokensTotal = steps.reduce((sum, s) => sum + s.tokensConsumed, 0);
             return (<box width="100%" flexDirection="column">
               {steps.map(step => {
-                const barW = Math.max(1, Math.round(step.tokensConsumed/maxTk*20));
-                const left = `${step.step} ${"█".repeat(barW)} ${step.stepName}`;
-                const right = `${compactTokens(step.tokensConsumed)} (${step.stepInCount}次)`;
-                const pad = Math.max(1, SIDEBAR_WIDTH - visualWidth(left) - visualWidth(right));
+                const pct = stepTokensTotal > 0 ? Math.round(step.tokensConsumed / stepTokensTotal * 100) : 0;
+                const left = `${step.step} ${step.stepName}`;
+                const right = `${compactTokens(step.tokensConsumed)} - ${pct}% - x${step.stepInCount}`;
                 return (
-                  <box width="100%" height={1}>
+                  <box width="100%" height={1} flexDirection="row" justifyContent="space-between">
                     <text fg={theme().text}>{left}</text>
-                    <text fg={theme().textMuted}>{" ".repeat(pad)}{right}</text>
+                    <text fg={theme().textMuted}>{right}</text>
                   </box>
                 );
               })}
