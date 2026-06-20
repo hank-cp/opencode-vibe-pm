@@ -1,7 +1,7 @@
 /**
  * MemorySystem — vibe-pm 数据层
  *
- * 基于 SQLite (better-sqlite3) 管理 Task / Discussion / FlowMetrics 三类结构化记忆。
+ * 基于 SQLite (bun:sqlite) 管理 Task / Discussion / FlowMetrics 三类结构化记忆。
  */
 import { Database, Statement } from "bun:sqlite";
 import * as crypto from "node:crypto";
