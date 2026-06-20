@@ -4,8 +4,8 @@
   "type": "module",
   "main": "./dist/index.js",
   "scripts": {
-    "build": "tsc --emitDeclarationOnly && bun build ./src/index.ts --outfile ./dist/index.js --target bun --format esm",
-    "postinstall": "node scripts/patch-opentui-jsx-runtime.mjs",
+    "clean:dist": "bun -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true })\"",
+    "build": "bun run clean:dist && tsc --emitDeclarationOnly && bun run scripts/build-tui.ts",
     "test": "bun test",
     "test:watch": "bun test --watch",
     "typecheck": "tsc --noEmit"
