@@ -1,11 +1,12 @@
 /**
  * MemorySystem — vibe-pm 数据层
  *
- * 基于 AxioDB 嵌入式 JSON 数据库，管理 Task / Discussion / FlowMetrics 三类结构化记忆。
+ * 基于 SQLite (better-sqlite3) 管理 Task / Discussion / FlowMetrics 三类结构化记忆。
  */
-
-import { AxioDB } from "axiodb";
+import Database from "better-sqlite3";
 import * as crypto from "node:crypto";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { logger } from "../core/logger.js";
 import type {
   Task,
@@ -21,107 +22,171 @@ import type {
 } from "./types.js";
 import { DuplicateTaskError } from "./errors.js";
 
-// ─── AxioDB 返回类型 ───
-
-/**
- * AxioDB 查询执行结果的结构。
- * `data.documents` 通常包含匹配到的文档数组。
- */
-interface AxioResult {
-  statusCode: number;
-  data: unknown;
-  message?: string;
-}
-
 // ─── 内部辅助 ───
 
-/**
- * 从 AxioDB 查询结果中提取文档数组。
- * 返回空数组作为安全兜底，而非抛出异常。
- */
-function unwrapArray(result: AxioResult): unknown[] {
-  if (result.statusCode !== 200) return [];
-  const data = result.data as Record<string, unknown> | undefined;
-  if (data?.documents && Array.isArray(data.documents)) {
-    return data.documents;
-  }
-  return [];
-}
-
-/**
- * 从 AxioDB 查询结果中提取第一条文档。
- * 无匹配时返回 null。
- */
-function unwrapSingle(result: AxioResult): unknown | null {
-  if (result.statusCode !== 200) return null;
-  const data = result.data as Record<string, unknown> | undefined;
-  if (data?.documents && Array.isArray(data.documents)) {
-    return (data.documents[0] as unknown) ?? null;
-  }
-  return null;
-}
-
-/** 生成 UUID v4，用于 Discussion 和 FlowMetrics 文档的 id 字段。 */
 function generateId(): string {
   return crypto.randomUUID();
 }
 
-// ─── Collection 类型别名 ───
-
-/**
- * AxioDB collection 实例的类型。
- * 通过类型推导避免直接依赖 AxioDB 内部类型。
- */
-type AxioCollection = Awaited<
-  ReturnType<Awaited<ReturnType<AxioDB["createDB"]>>["createCollection"]>
->;
+/** 解析 JSON 列，容错返回默认值 */
+function parseJSON<T>(raw: unknown, fallback: T): T {
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw) as T; } catch {
+      logger.debug(`[vibe-pm] parseJSON: failed to parse JSON, using fallback`);
+    }
+  }
+  return fallback;
+}
 
 // ─── MemorySystem ───
 
 /**
  * vibe-pm 的结构化记忆层。
  *
- * 基于 AxioDB 管理三类数据：
+ * 基于 SQLite (better-sqlite3) 管理三类数据：
  * - tasks：FSM 驱动的任务状态
  * - discussions：非紧急讨论项（碎片时间友好，异步审阅）
  * - flowMetrics：按步骤采集的 Token 消耗、停留时间等指标
  */
 export class MemorySystem implements IMemorySystem {
-  private tasks!: AxioCollection;
-  private discussions!: AxioCollection;
-  private flowMetrics!: AxioCollection;
+  private db!: Database.Database;
+
+  // Prepared statements (lazily initialized after init())
+  private stmtInsertTask!: Database.Statement;
+  private stmtGetTaskBySession!: Database.Statement;
+  private stmtGetActiveTaskBySession!: Database.Statement;
+  private stmtUpdateTaskStep!: Database.Statement;
+  private stmtCloseTask!: Database.Statement;
+  private stmtListActiveTasks!: Database.Statement;
+  private stmtGetTaskById!: Database.Statement;
+  private stmtUpdateTaskTransitions!: Database.Statement;
+
+  private stmtInsertDiscussion!: Database.Statement;
+  private stmtGetDiscussionsBySession!: Database.Statement;
+  private stmtGetAllDiscussions!: Database.Statement;
+  private stmtResolveDiscussion!: Database.Statement;
+
+  private stmtGetMetricsBySessionStep!: Database.Statement;
+  private stmtUpdateMetrics!: Database.Statement;
+  private stmtInsertMetrics!: Database.Statement;
+  private stmtGetMetricsBySession!: Database.Statement;
+  private stmtGetMetricsByFlow!: Database.Statement;
+
+  private stmtGetClosedTasksBySession!: Database.Statement;
 
   /**
-   * 初始化数据库连接与集合。
+   * 初始化数据库连接与表结构。
    *
-   * 在指定目录下创建 AxioDB 实例，并建立 tasks / discussions / flowMetrics 三个 collection。
+   * 在指定目录下创建 SQLite 数据库文件，并建立三张表。
    * 使用前必须调用一次。
    *
-   * @param dataDir AxioDB 数据文件存储目录（通常为 `.vibe-pm/`）
+   * @param dataDir 数据库文件存储目录（通常为 `.vibe-pm/`）
    */
   async init(dataDir: string): Promise<void> {
-    const db = new AxioDB({
-      CustomPath: dataDir,
-      // "." 让 AxioDB 不额外创建 RootName 子目录，数据直接放在 dataDir 下
-      RootName: ".",
-    });
+    // 关闭旧连接（支持重新初始化）
+    this.db?.close();
+    const dbPath = `${dataDir}/vibe-pm.db`;
 
-    const appDb = await db.createDB("data");
-    this.tasks = await appDb.createCollection("tasks");
-    this.discussions = await appDb.createCollection("discussions");
-    this.flowMetrics = await appDb.createCollection("flowMetrics");
+    // 确保父目录存在（better-sqlite3 不会自动创建）
+    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+
+    this.db = new Database(dbPath);
+    this.db.pragma("journal_mode = WAL");
+
+    // ─── DDL ───
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS tasks (
+        id TEXT PRIMARY KEY,
+        sessionId TEXT NOT NULL,
+        flow TEXT NOT NULL,
+        currentStep TEXT NOT NULL,
+        currentStepName TEXT NOT NULL,
+        startAt TEXT NOT NULL,
+        endAt TEXT,
+        closed INTEGER NOT NULL DEFAULT 0,
+        summary TEXT NOT NULL,
+        specRef TEXT,
+        planRef TEXT,
+        stepTransitions JSON
+      );
+
+      CREATE TABLE IF NOT EXISTS discussions (
+        id TEXT PRIMARY KEY,
+        fromSessionId TEXT NOT NULL,
+        priority TEXT NOT NULL,
+        importance INTEGER NOT NULL,
+        severity INTEGER NOT NULL,
+        issue TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        solution TEXT NOT NULL,
+        decision TEXT,
+        taskSummary TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        resolvedAt TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS flowMetrics (
+        id TEXT PRIMARY KEY,
+        sessionId TEXT NOT NULL,
+        flow TEXT NOT NULL,
+        step TEXT NOT NULL,
+        stepName TEXT NOT NULL,
+        stepInCount INTEGER NOT NULL DEFAULT 1,
+        tokensConsumed INTEGER NOT NULL DEFAULT 0,
+        tokensBySource JSON,
+        dwellTime INTEGER NOT NULL DEFAULT 0,
+        humanInterventionTime INTEGER NOT NULL DEFAULT 0,
+        userInputTokens INTEGER NOT NULL DEFAULT 0,
+        taskSummary TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_tasks_sessionId ON tasks(sessionId);
+      CREATE INDEX IF NOT EXISTS idx_tasks_sessionId_closed ON tasks(sessionId, closed);
+      CREATE INDEX IF NOT EXISTS idx_discussions_fromSessionId ON discussions(fromSessionId);
+      CREATE INDEX IF NOT EXISTS idx_flowMetrics_sessionId ON flowMetrics(sessionId);
+      CREATE INDEX IF NOT EXISTS idx_flowMetrics_sessionId_step ON flowMetrics(sessionId, step);
+      CREATE INDEX IF NOT EXISTS idx_flowMetrics_flow ON flowMetrics(flow);
+    `);
+
+    // ─── Prepared Statements ───
+    this.stmtInsertTask = this.db.prepare(`
+      INSERT INTO tasks (id, sessionId, flow, currentStep, currentStepName, startAt, endAt, closed, summary, specRef, planRef, stepTransitions)
+      VALUES (@id, @sessionId, @flow, @currentStep, @currentStepName, @startAt, @endAt, @closed, @summary, @specRef, @planRef, @stepTransitions)
+    `);
+    this.stmtGetTaskBySession = this.db.prepare("SELECT * FROM tasks WHERE sessionId = ? LIMIT 1");
+    this.stmtGetActiveTaskBySession = this.db.prepare("SELECT * FROM tasks WHERE sessionId = ? AND closed = 0 LIMIT 1");
+    this.stmtUpdateTaskStep = this.db.prepare("UPDATE tasks SET currentStep = ?, currentStepName = ? WHERE id = ?");
+    this.stmtCloseTask = this.db.prepare("UPDATE tasks SET closed = 1, endAt = ? WHERE id = ?");
+    this.stmtListActiveTasks = this.db.prepare("SELECT * FROM tasks WHERE closed = 0");
+    this.stmtGetTaskById = this.db.prepare("SELECT * FROM tasks WHERE id = ? LIMIT 1");
+    this.stmtUpdateTaskTransitions = this.db.prepare("UPDATE tasks SET stepTransitions = ? WHERE id = ?");
+    this.stmtGetClosedTasksBySession = this.db.prepare("SELECT * FROM tasks WHERE sessionId = ? AND closed = 1");
+
+    this.stmtInsertDiscussion = this.db.prepare(`
+      INSERT INTO discussions (id, fromSessionId, priority, importance, severity, issue, reason, solution, decision, taskSummary, createdAt, resolvedAt)
+      VALUES (@id, @fromSessionId, @priority, @importance, @severity, @issue, @reason, @solution, @decision, @taskSummary, @createdAt, @resolvedAt)
+    `);
+    this.stmtGetDiscussionsBySession = this.db.prepare("SELECT * FROM discussions WHERE fromSessionId = ?");
+    this.stmtGetAllDiscussions = this.db.prepare("SELECT * FROM discussions");
+    this.stmtResolveDiscussion = this.db.prepare("UPDATE discussions SET decision = ?, resolvedAt = ? WHERE id = ?");
+
+    this.stmtGetMetricsBySessionStep = this.db.prepare("SELECT * FROM flowMetrics WHERE sessionId = ? AND step = ? LIMIT 1");
+    this.stmtUpdateMetrics = this.db.prepare(`
+      UPDATE flowMetrics SET tokensConsumed = ?, tokensBySource = ?, userInputTokens = ?, stepInCount = ?, dwellTime = ?, humanInterventionTime = ?
+      WHERE id = ?
+    `);
+    this.stmtInsertMetrics = this.db.prepare(`
+      INSERT INTO flowMetrics (id, sessionId, flow, step, stepName, stepInCount, tokensConsumed, tokensBySource, dwellTime, humanInterventionTime, userInputTokens, taskSummary)
+      VALUES (@id, @sessionId, @flow, @step, @stepName, @stepInCount, @tokensConsumed, @tokensBySource, @dwellTime, @humanInterventionTime, @userInputTokens, @taskSummary)
+    `);
+    this.stmtGetMetricsBySession = this.db.prepare("SELECT * FROM flowMetrics WHERE sessionId = ?");
+    this.stmtGetMetricsByFlow = this.db.prepare("SELECT * FROM flowMetrics WHERE flow = ?");
   }
 
   // ═══════════════════════════════════════════
   // Task CRUD
   // ═══════════════════════════════════════════
 
-  /**
-   * 创建新任务。
-   *
-   * 同一 session 不允许同时存在多个活跃任务 ——
-   * 若已有未关闭的 Task，抛出 {@link DuplicateTaskError}。
-   */
   async createTask(input: CreateTaskInput): Promise<Task> {
     const existing = await this.getActiveTask(input.sessionId);
     if (existing) {
@@ -130,128 +195,67 @@ export class MemorySystem implements IMemorySystem {
 
     const task: Task = {
       ...input,
-      documentId: generateId(),
+      id: generateId(),
       closed: false,
     };
 
-    await this.tasks.insert(task);
+    this.stmtInsertTask.run({
+      ...task,
+      endAt: null,
+      specRef: task.specRef ?? null,
+      planRef: task.planRef ?? null,
+      stepTransitions: null,
+      closed: 0,
+    });
+
     return task;
   }
 
-  /** 按 sessionId 查询任务。无匹配时返回 null。 */
   async getTask(sessionId: string): Promise<Task | null> {
-    const result = (await this.tasks
-      .query({ sessionId })
-      .Limit(1)
-      .exec()) as AxioResult;
-
-    return unwrapSingle(result) as Task | null;
+    const row = this.stmtGetTaskBySession.get(sessionId) as Record<string, unknown> | undefined;
+    return row ? this.rowToTask(row) : null;
   }
 
-  /** 查询 session 下未关闭的活跃任务。无匹配时返回 null。 */
   async getActiveTask(sessionId: string): Promise<Task | null> {
-    const result = (await this.tasks
-      .query({ sessionId, closed: false })
-      .Limit(1)
-      .exec()) as AxioResult;
-
-    return unwrapSingle(result) as Task | null;
+    const row = this.stmtGetActiveTaskBySession.get(sessionId) as Record<string, unknown> | undefined;
+    return row ? this.rowToTask(row) : null;
   }
 
-  async updateStep(
-    documentId: string,
-    step: string,
-    stepName: string,
-  ): Promise<void> {
-    const result = await this.tasks
-      .update({ documentId })
-      .UpdateOne({
-        currentStep: step,
-        currentStepName: stepName,
-      });
+  async updateStep(id: string, step: string, stepName: string): Promise<void> {
+    this.stmtUpdateTaskStep.run(step, stepName, id);
+  }
 
-    if ((result as AxioResult).statusCode !== 200) {
-      throw new Error(
-        `Failed to update step for document ${documentId}: ${(result as AxioResult).message ?? "unknown error"}`,
-      );
+  async closeTask(id: string): Promise<void> {
+    const result = this.stmtCloseTask.run(new Date().toISOString(), id);
+    if (result.changes === 0) {
+      // Task not found - silently ignore as per original behavior
+      return;
     }
   }
 
-  async closeTask(documentId: string): Promise<void> {
-    try {
-      const result = await this.tasks
-        .update({ documentId })
-        .UpdateOne({
-          closed: true,
-          endAt: new Date().toISOString(),
-        });
-
-      const status = (result as AxioResult).statusCode;
-      if (status !== 200) {
-        const msg = (result as AxioResult).message ?? "";
-        if (msg.includes("No data found")) return;
-        throw new Error(
-          `Failed to close task for document ${documentId}: ${msg || "unknown error"}`,
-        );
-      }
-    } catch (err) {
-      if (err instanceof Error && !err.message.startsWith("Failed to close")) {
-        throw err;
-      }
-    }
-  }
-
-  /** 查询所有未关闭的任务。 */
   async listActiveTasks(): Promise<Task[]> {
-    const result = (await this.tasks
-      .query({ closed: false })
-      .exec()) as AxioResult;
-
-    return unwrapArray(result) as Task[];
+    const rows = this.stmtListActiveTasks.all() as Record<string, unknown>[];
+    return rows.map((r) => this.rowToTask(r));
   }
 
-  /**
-   * 向任务追加一条步骤转换记录。
-   *
-   * 读取当前 stepTransitions 数组后追加，再写回。
-   * 单 session 单线程场景下安全。
-   */
-  async appendStepTransition(
-    documentId: string,
-    transition: StepTransition,
-  ): Promise<void> {
-    const result = (await this.tasks
-      .query({ documentId })
-      .Limit(1)
-      .exec()) as AxioResult;
+  async appendStepTransition(id: string, transition: StepTransition): Promise<void> {
+    const row = this.stmtGetTaskById.get(id) as Record<string, unknown> | undefined;
+    if (!row) throw new Error(`Task not found: ${id}`);
 
-    const task = unwrapSingle(result) as Task | null;
-    if (!task) throw new Error(`Task not found: ${documentId}`);
-
-    const transitions = [...(task.stepTransitions ?? []), transition];
-
-    await this.tasks
-      .update({ documentId })
-      .UpdateOne({ stepTransitions: transitions });
+    const existingTransitions = parseJSON<StepTransition[]>(row["stepTransitions"], []);
+    const transitions = [...existingTransitions, transition];
+    this.stmtUpdateTaskTransitions.run(JSON.stringify(transitions), id);
   }
 
   // ═══════════════════════════════════════════
   // Discussion CRUD
   // ═══════════════════════════════════════════
 
-  /**
-   * 创建讨论项。
-   *
-   * 若未传入 `taskSummary`，自动从关联 Task 的 `summary` 字段填充。
-   */
   async createDiscussion(input: CreateDiscussionInput): Promise<Discussion> {
-    // 若未传 taskSummary，从关联 Task 自动填充
     let taskSummary = input.taskSummary ?? "";
     if (!taskSummary) {
       const task = await this.getTask(input.fromSessionId);
-      if (task) {
-        taskSummary = task.summary;
-      }
+      if (task) taskSummary = task.summary;
     }
 
     const discussion: Discussion = {
@@ -267,58 +271,34 @@ export class MemorySystem implements IMemorySystem {
       createdAt: new Date().toISOString(),
     };
 
-    await this.discussions.insert(discussion);
+    this.stmtInsertDiscussion.run({
+      ...discussion,
+      decision: null,
+      resolvedAt: null,
+    });
+
     return discussion;
   }
 
-  /** 查询指定 session 关联的所有讨论项。 */
   async getDiscussions(sessionId: string): Promise<Discussion[]> {
-    const result = (await this.discussions
-      .query({ fromSessionId: sessionId })
-      .exec()) as AxioResult;
-
-    return unwrapArray(result) as Discussion[];
+    const rows = this.stmtGetDiscussionsBySession.all(sessionId) as Record<string, unknown>[];
+    return rows.map((r) => this.rowToDiscussion(r));
   }
 
-  /**
-   * 查询所有未解决的讨论项。
-   *
-   * 判断依据：decision 字段为空（即尚未做出决定）。
-   */
   async getUnresolvedDiscussions(): Promise<Discussion[]> {
-    const result = (await this.discussions
-      .query({})
-      .exec()) as AxioResult;
-
-    // AxioDB 不支持 $exists 在大规模文档中稳定，改为 JS 过滤
-    const all = unwrapArray(result) as Discussion[];
-    return all.filter((d) => !d.decision);
+    const rows = this.stmtGetAllDiscussions.all() as Record<string, unknown>[];
+    return rows
+      .map((r) => this.rowToDiscussion(r))
+      .filter((d) => !d.decision);
   }
 
-  /** 为指定讨论项设置决定内容，并记录解决时间。 */
   async resolveDiscussion(id: string, decision: string): Promise<void> {
-    await this.discussions
-      .update({ id })
-      .UpdateOne({
-        decision,
-        resolvedAt: new Date().toISOString(),
-      });
+    this.stmtResolveDiscussion.run(decision, new Date().toISOString(), id);
   }
 
-  /**
-   * 按条件列出讨论项。
-   *
-   * @param filter.priority 按优先级过滤
-   * @param filter.unresolved 仅返回未解决项
-   */
-  async listDiscussions(
-    filter?: { priority?: string; unresolved?: boolean },
-  ): Promise<Discussion[]> {
-    const result = (await this.discussions
-      .query({})
-      .exec()) as AxioResult;
-
-    let all = unwrapArray(result) as Discussion[];
+  async listDiscussions(filter?: { priority?: string; unresolved?: boolean }): Promise<Discussion[]> {
+    const rows = this.stmtGetAllDiscussions.all() as Record<string, unknown>[];
+    let all = rows.map((r) => this.rowToDiscussion(r));
 
     if (filter?.priority) {
       all = all.filter((d) => d.priority === filter.priority);
@@ -334,15 +314,6 @@ export class MemorySystem implements IMemorySystem {
   // FlowMetrics CRUD
   // ═══════════════════════════════════════════
 
-  /**
-   * 记录进入步骤事件。
-   *
-   * 两次调用逻辑：
-   * - 该 session+step 已有记录 → 累加 `stepInCount`、`tokensConsumed`、`tokensBySource` 各项、`userInputTokens`
-   * - 无记录 → 创建新的 FlowMetrics 文档，同时回填 `taskSummary`
-   *
-   * @param tokensBySource 按来源分类的 token 计数。内部从中推导 tokensConsumed（总和）和 userInputTokens（来源 "User"）
-   */
   async recordStepEntry(
     sessionId: string,
     flow: string,
@@ -353,40 +324,30 @@ export class MemorySystem implements IMemorySystem {
     const newTotal = Object.values(tokensBySource).reduce((a, b) => a + b, 0);
     const newUserTokens = tokensBySource["User"] ?? 0;
 
-    // 查找是否已有此 session+step 的记录
-    const existing = (await this.flowMetrics
-      .query({ sessionId, step })
-      .Limit(1)
-      .exec()) as AxioResult;
+    const existing = this.stmtGetMetricsBySessionStep.get(sessionId, step) as Record<string, unknown> | undefined;
 
-    const existingRecord = unwrapSingle(existing) as FlowMetrics | null;
-
-    if (existingRecord) {
-      // 累加 tokensBySource 各项
-      const merged: Record<string, number> = {
-        ...existingRecord.tokensBySource,
-      };
+    if (existing) {
+      const existingTokens = parseJSON<Record<string, number>>(existing["tokensBySource"], {});
+      const merged: Record<string, number> = { ...existingTokens };
       for (const [source, tokens] of Object.entries(tokensBySource)) {
         merged[source] = (merged[source] ?? 0) + tokens;
       }
 
-      await this.flowMetrics
-        .update({ id: existingRecord.id })
-        .UpdateOne({
-          tokensConsumed: existingRecord.tokensConsumed + newTotal,
-          tokensBySource: merged,
-          userInputTokens:
-            existingRecord.userInputTokens + newUserTokens,
-        });
+      this.stmtUpdateMetrics.run(
+        (existing["tokensConsumed"] as number) + newTotal,
+        JSON.stringify(merged),
+        (existing["userInputTokens"] as number) + newUserTokens,
+        existing["stepInCount"],
+        existing["dwellTime"],
+        existing["humanInterventionTime"],
+        existing["id"],
+      );
     } else {
-      // 获取 taskSummary
       let taskSummary = "";
       const task = await this.getTask(sessionId);
-      if (task) {
-        taskSummary = task.summary;
-      }
+      if (task) taskSummary = task.summary;
 
-      const metrics: FlowMetrics = {
+      this.stmtInsertMetrics.run({
         id: generateId(),
         sessionId,
         flow,
@@ -394,14 +355,12 @@ export class MemorySystem implements IMemorySystem {
         stepName,
         stepInCount: 1,
         tokensConsumed: newTotal,
-        tokensBySource,
+        tokensBySource: JSON.stringify(tokensBySource),
         dwellTime: 0,
         humanInterventionTime: 0,
         userInputTokens: newUserTokens,
         taskSummary,
-      };
-
-      await this.flowMetrics.insert(metrics);
+      });
     }
   }
 
@@ -412,20 +371,21 @@ export class MemorySystem implements IMemorySystem {
     stepName: string,
     taskSummary: string,
   ): Promise<void> {
-    const existing = (await this.flowMetrics
-      .query({ sessionId, step })
-      .Limit(1)
-      .exec()) as AxioResult;
+    const existing = this.stmtGetMetricsBySessionStep.get(sessionId, step) as Record<string, unknown> | undefined;
 
-    const existingRecord = unwrapSingle(existing) as FlowMetrics | null;
-
-    if (existingRecord) {
-      await this.flowMetrics
-        .update({ id: existingRecord.id })
-        .UpdateOne({ stepInCount: existingRecord.stepInCount + 1 });
-      logger.info(`[vibe-pm] incrementStepCount: step=${step} count=${existingRecord.stepInCount + 1}`);
+    if (existing) {
+      this.stmtUpdateMetrics.run(
+        existing["tokensConsumed"],
+        existing["tokensBySource"],
+        existing["userInputTokens"],
+        (existing["stepInCount"] as number) + 1,
+        existing["dwellTime"],
+        existing["humanInterventionTime"],
+        existing["id"],
+      );
+      logger.info(`[vibe-pm] incrementStepCount: step=${step} count=${(existing["stepInCount"] as number) + 1}`);
     } else {
-      const metrics: FlowMetrics = {
+      this.stmtInsertMetrics.run({
         id: generateId(),
         sessionId,
         flow,
@@ -433,64 +393,45 @@ export class MemorySystem implements IMemorySystem {
         stepName,
         stepInCount: 1,
         tokensConsumed: 0,
-        tokensBySource: { System: 0, FlowControl: 0, User: 0, Assistant: 0, Tool: 0, Reasoning: 0 },
+        tokensBySource: JSON.stringify({ System: 0, FlowControl: 0, User: 0, Assistant: 0, Tool: 0, Reasoning: 0 }),
         dwellTime: 0,
         humanInterventionTime: 0,
         userInputTokens: 0,
         taskSummary,
-      };
-      await this.flowMetrics.insert(metrics);
+      });
     }
   }
 
-  /**
-   * 记录退出步骤事件。
-   *
-   * 累加 `dwellTime` 和 `humanInterventionTime`。
-   * 如果找不到对应的进入记录（异常情况），静默跳过。
-   */
   async recordStepExit(
     sessionId: string,
     step: string,
     dwellTime: number,
     humanInterventionTime: number,
   ): Promise<void> {
-    // 查找 session+step 记录并更新退出时间
-    const existing = (await this.flowMetrics
-      .query({ sessionId, step })
-      .Limit(1)
-      .exec()) as AxioResult;
+    const existing = this.stmtGetMetricsBySessionStep.get(sessionId, step) as Record<string, unknown> | undefined;
 
-    const existingRecord = unwrapSingle(existing) as FlowMetrics | null;
-
-    if (existingRecord) {
-      await this.flowMetrics
-        .update({ id: existingRecord.id })
-        .UpdateOne({
-          dwellTime: existingRecord.dwellTime + dwellTime,
-          humanInterventionTime:
-            existingRecord.humanInterventionTime + humanInterventionTime,
-        });
-      logger.info(`[vibe-pm] recordStepExit: step=${step} dwellTime=${dwellTime}ms total=${existingRecord.dwellTime + dwellTime}ms`);
+    if (existing) {
+      this.stmtUpdateMetrics.run(
+        existing["tokensConsumed"],
+        existing["tokensBySource"],
+        existing["userInputTokens"],
+        existing["stepInCount"],
+        (existing["dwellTime"] as number) + dwellTime,
+        (existing["humanInterventionTime"] as number) + humanInterventionTime,
+        existing["id"],
+      );
+      logger.info(`[vibe-pm] recordStepExit: step=${step} dwellTime=${dwellTime}ms total=${(existing["dwellTime"] as number) + dwellTime}ms`);
     }
   }
 
-  /** 查询指定 session 的所有步骤指标记录。 */
   async getFlowMetrics(sessionId: string): Promise<FlowMetrics[]> {
-    const result = (await this.flowMetrics
-      .query({ sessionId })
-      .exec()) as AxioResult;
-
-    return unwrapArray(result) as FlowMetrics[];
+    const rows = this.stmtGetMetricsBySession.all(sessionId) as Record<string, unknown>[];
+    return rows.map((r) => this.rowToFlowMetrics(r));
   }
 
-  /** 查询指定流程的所有步骤指标记录（跨 session 汇总）。 */
   async getFlowMetricsByFlow(flow: string): Promise<FlowMetrics[]> {
-    const result = (await this.flowMetrics
-      .query({ flow })
-      .exec()) as AxioResult;
-
-    return unwrapArray(result) as FlowMetrics[];
+    const rows = this.stmtGetMetricsByFlow.all(flow) as Record<string, unknown>[];
+    return rows.map((r) => this.rowToFlowMetrics(r));
   }
 
   // ═══════════════════════════════════════════
@@ -498,18 +439,13 @@ export class MemorySystem implements IMemorySystem {
   // ═══════════════════════════════════════════
 
   async getLastClosedTask(sessionId: string): Promise<Task | null> {
-    const result = (await this.tasks
-      .query({ sessionId, closed: true })
-      .exec()) as AxioResult;
-
-    const tasks = unwrapArray(result) as Task[];
+    const rows = this.stmtGetClosedTasksBySession.all(sessionId) as Record<string, unknown>[];
+    const tasks = rows.map((r) => this.rowToTask(r));
     tasks.sort((a, b) => (b.endAt ?? "").localeCompare(a.endAt ?? ""));
     return tasks[0] ?? null;
   }
 
-  async getSourceTokenBreakdown(
-    sessionId: string,
-  ): Promise<SourceTokenBreakdown[]> {
+  async getSourceTokenBreakdown(sessionId: string): Promise<SourceTokenBreakdown[]> {
     const metrics = await this.getFlowMetrics(sessionId);
     const aggregated: Record<string, number> = {};
     for (const m of metrics) {
@@ -525,9 +461,7 @@ export class MemorySystem implements IMemorySystem {
     }));
   }
 
-  async getStepTokenBreakdown(
-    sessionId: string,
-  ): Promise<StepTokenBreakdown[]> {
+  async getStepTokenBreakdown(sessionId: string): Promise<StepTokenBreakdown[]> {
     const metrics = await this.getFlowMetrics(sessionId);
     return metrics.map((m) => ({
       step: m.step,
@@ -535,5 +469,63 @@ export class MemorySystem implements IMemorySystem {
       stepInCount: m.stepInCount,
       tokensConsumed: m.tokensConsumed,
     }));
+  }
+
+  // ═══════════════════════════════════════════
+  // Row mapping helpers
+  // ═══════════════════════════════════════════
+
+  private rowToTask(row: Record<string, unknown>): Task {
+    return {
+      id: row["id"] as string,
+      sessionId: row["sessionId"] as string,
+      flow: row["flow"] as string,
+      currentStep: row["currentStep"] as string,
+      currentStepName: row["currentStepName"] as string,
+      startAt: row["startAt"] as string,
+      endAt: (row["endAt"] as string) ?? undefined,
+      closed: !!row["closed"],
+      summary: row["summary"] as string,
+      specRef: (row["specRef"] as string) ?? undefined,
+      planRef: (row["planRef"] as string) ?? undefined,
+      stepTransitions: parseJSON<StepTransition[]>(row["stepTransitions"], []) as StepTransition[] | undefined,
+    };
+  }
+
+  private rowToDiscussion(row: Record<string, unknown>): Discussion {
+    return {
+      id: row["id"] as string,
+      fromSessionId: row["fromSessionId"] as string,
+      priority: row["priority"] as Discussion["priority"],
+      importance: row["importance"] as Discussion["importance"],
+      severity: row["severity"] as Discussion["severity"],
+      issue: row["issue"] as string,
+      reason: row["reason"] as string,
+      solution: row["solution"] as string,
+      decision: (row["decision"] as string) ?? undefined,
+      taskSummary: row["taskSummary"] as string,
+      createdAt: row["createdAt"] as string,
+      resolvedAt: (row["resolvedAt"] as string) ?? undefined,
+    };
+  }
+
+  private rowToFlowMetrics(row: Record<string, unknown>): FlowMetrics {
+    return {
+      id: row["id"] as string,
+      sessionId: row["sessionId"] as string,
+      flow: row["flow"] as string,
+      step: row["step"] as string,
+      stepName: row["stepName"] as string,
+      stepInCount: row["stepInCount"] as number,
+      tokensConsumed: row["tokensConsumed"] as number,
+      tokensBySource: parseJSON<Record<TokenSource, number>>(
+        row["tokensBySource"],
+        {} as Record<TokenSource, number>,
+      ),
+      dwellTime: row["dwellTime"] as number,
+      humanInterventionTime: row["humanInterventionTime"] as number,
+      userInputTokens: row["userInputTokens"] as number,
+      taskSummary: row["taskSummary"] as string,
+    };
   }
 }

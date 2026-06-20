@@ -1,5 +1,5 @@
 /**
- * 数据文件测试 — AxioDB 单实例，整个文件共享 MemorySystem
+ * 数据文件测试 — SQLite 单文件，整个文件共享 MemorySystem
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
@@ -22,9 +22,9 @@ describe("Data File", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("init_creates_data_on_first_run: 首次运行创建数据目录", () => {
-    const dataDir = path.join(tmpDir, "data");
-    expect(fs.existsSync(dataDir)).toBe(true);
+  it("init_creates_db_file_on_first_run: 首次运行创建 SQLite 数据库文件", () => {
+    const dbPath = path.join(tmpDir, "vibe-pm.db");
+    expect(fs.existsSync(dbPath)).toBe(true);
   });
 
   it("can_create_and_query_after_init: init 后可以正常 CRUD", async () => {

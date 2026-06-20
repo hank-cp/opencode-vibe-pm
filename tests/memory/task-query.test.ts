@@ -50,12 +50,12 @@ describe("Task Query Extensions", () => {
       // 所以需要不同 session）
 
       // t3 最先关闭
-      await memory.closeTask(t3.documentId);
+      await memory.closeTask(t3.id);
       // 稍等确保时间戳不同
       await new Promise((r) => setTimeout(r, 5));
-      await memory.closeTask(t2.documentId);
+      await memory.closeTask(t2.id);
       await new Promise((r) => setTimeout(r, 5));
-      await memory.closeTask(t1.documentId);
+      await memory.closeTask(t1.id);
 
       // t1（sid）是最晚关闭的
       const last = await memory.getLastClosedTask(sid);
@@ -82,7 +82,7 @@ describe("Task Query Extensions", () => {
     it("sets endAt to a current timestamp on close", async () => {
       const beforeClose = new Date().toISOString();
       const task = await memory.createTask(baseTask("ses_endat"));
-      await memory.closeTask(task.documentId);
+      await memory.closeTask(task.id);
 
       const closed = await memory.getTask("ses_endat");
       expect(closed).toBeDefined();

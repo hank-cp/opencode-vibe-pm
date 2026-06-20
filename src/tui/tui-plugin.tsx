@@ -4,13 +4,12 @@
  * 参考 opencode-goal-mode Pattern B：
  * - createSignal + setInterval + onCleanup 全在 slot 回调内
  * - session_id 从 props 获取
- * - 数据通过 tui-bridge 文件读取（绕过 AxioDB 跨进程缓存）
+ * - 数据优先通过 tui-bridge 文件读取（绕过跨进程 DB 访问问题）
+ * - Bun 兼容：不直接引入 better-sqlite3，通过注入的 IMemorySystem 接口工作
  */
 
-import * as path from "node:path";
 import { createSignal, onCleanup } from "solid-js";
 import type { TuiPlugin, TuiPluginApi } from "@opencode-ai/plugin/tui";
-import { MemorySystem } from "../memory/memory-system.js";
 import type { IMemorySystem } from "../memory/types.js";
 import type { TaskStatusData, TokenData } from "./types.js";
 import { readTuiData, initTuiBridge } from "../shared/tui-bridge.js";
@@ -22,19 +21,17 @@ export function createTuiPlugin(memory?: IMemorySystem): TuiPlugin {
   return async (api: TuiPluginApi): Promise<void> => {
     try {
       const projectDir = api.state.path.directory ?? ".";
-      const dataDir = path.resolve(projectDir, ".vibe-pm");
 
-      // 尝试使用注入的或全局的 MemorySystem，否则回退到独立实例
-      const sharedMemory: IMemorySystem =
+      // 使用注入的 MemorySystem（主进程通过 __vibePmMemory 注入），
+      // 或全局作用域中已有的实例。不在此处创建独立实例——
+      // Bun 环境不支持 better-sqlite3 native addon，创建会失败。
+      const sharedMemory: IMemorySystem | undefined =
         memory ??
-        (globalThis as Record<string, unknown>).__vibePmMemory as IMemorySystem | undefined ??
-        await (async () => {
-          const ms = new MemorySystem();
-          await ms.init(dataDir);
-          return ms;
-        })();
+        (globalThis as Record<string, unknown>).__vibePmMemory as IMemorySystem | undefined;
 
-      // 初始化桥接目录（用于文件读取）
+      // 初始化桥接目录（用于跨进程文件读取，主路径）
+      const dataDir = (sharedMemory as unknown as { dataDir?: string })?.dataDir
+        ?? `${projectDir}/.vibe-pm`;
       initTuiBridge(dataDir);
 
       console.error("[vibe-pm] TUI ready, dataDir=" + dataDir);
@@ -59,16 +56,16 @@ export function createTuiPlugin(memory?: IMemorySystem): TuiPlugin {
             );
 
             function refresh() {
-              // 优先读桥接文件（跨进程数据最新），回退到 AxioDB
+              // 优先读桥接文件（跨进程数据最新，Bun/Node 通用）
               const bridge = readTuiData();
               if (bridge) {
                 setTaskStatus(bridge.taskStatus);
                 setTokenData(bridge.tokenData);
                 return;
               }
-              // 回退：从 MemorySystem 读取（可能缓存延迟）
+              // 回退：从 MemorySystem 直接读取（仅当注入实例可用时）
               const sid = sessionId;
-              if (sid) {
+              if (sid && sharedMemory) {
                 void sharedMemory.getActiveTask(sid).then((active) => {
                   if (active) {
                     setTaskStatus({

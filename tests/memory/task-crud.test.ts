@@ -1,5 +1,5 @@
 /**
- * Task CRUD 测试 — AxioDB 单实例，整个文件共享 MemorySystem
+ * Task CRUD 测试 — SQLite :memory:，整个文件共享 MemorySystem
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
@@ -46,7 +46,7 @@ describe("Task CRUD", () => {
   it("getActiveTask_filters_closed: 只返回未关闭的任务", async () => {
     await memory.createTask(baseTask("active"));
     const closedTask = await memory.createTask(baseTask("closed"));
-    await memory.closeTask(closedTask.documentId);
+    await memory.closeTask(closedTask.id);
 
     expect(await memory.getActiveTask("ses_active")).toBeDefined();
     expect(await memory.getActiveTask("ses_closed")).toBeNull();
@@ -54,7 +54,7 @@ describe("Task CRUD", () => {
 
   it("updateStep_updates_both: 同步更新步骤编号和名称", async () => {
     const task = await memory.createTask(baseTask("step"));
-    await memory.updateStep(task.documentId, "S4", "设计方案");
+    await memory.updateStep(task.id, "S4", "设计方案");
     const updated = await memory.getTask(task.sessionId);
     expect(updated!.currentStep).toBe("S4");
     expect(updated!.currentStepName).toBe("设计方案");
@@ -78,7 +78,7 @@ describe("Task CRUD", () => {
   it("closeTask_writes_endAt: 关闭任务时写入结束时间", async () => {
     const beforeClose = new Date().toISOString();
     const task = await memory.createTask(baseTask("endat"));
-    await memory.closeTask(task.documentId);
+    await memory.closeTask(task.id);
 
     const closed = await memory.getTask("ses_endat");
     expect(closed).toBeDefined();
@@ -137,7 +137,7 @@ describe("Task CRUD", () => {
       toStep: "S2",
       at: new Date().toISOString(),
     };
-    await memory.appendStepTransition(task.documentId, transition);
+    await memory.appendStepTransition(task.id, transition);
 
     const updated = await memory.getTask("ses_tr0");
     expect(updated!.stepTransitions).toBeDefined();
@@ -151,8 +151,8 @@ describe("Task CRUD", () => {
     const t1: StepTransition = { fromStep: "S1", toStep: "S2", at: new Date().toISOString() };
     const t2: StepTransition = { fromStep: "S2", toStep: "S3", at: new Date().toISOString() };
 
-    await memory.appendStepTransition(task.documentId, t1);
-    await memory.appendStepTransition(task.documentId, t2);
+    await memory.appendStepTransition(task.id, t1);
+    await memory.appendStepTransition(task.id, t2);
 
     const updated = await memory.getTask("ses_tr1");
     expect(updated!.stepTransitions).toHaveLength(2);
