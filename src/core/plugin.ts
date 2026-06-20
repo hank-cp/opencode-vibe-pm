@@ -5,42 +5,8 @@ import { logger, initLogger } from "./logger.js";
 import { MemorySystem } from "../memory/index.js";
 import { FlowEngine } from "../engine/index.js";
 import { TokenCounter } from "../token/index.js";
-import { writeTuiData, initTuiBridge } from "../shared/tui-bridge.js";
 import type { PartInfo } from "../token/types.js";
 import type { Plugin, PluginInput, Hooks, IPluginContext, Config } from "./types.js";
-
-async function flushTuiBridge(memory: MemorySystem, sessionId: string): Promise<void> {
-  try {
-    const active = await memory.getActiveTask(sessionId);
-    const last = active ? null : await memory.getLastClosedTask(sessionId);
-    const sourceBreakdown = await memory.getSourceTokenBreakdown(sessionId);
-    const stepBreakdown = await memory.getStepTokenBreakdown(sessionId);
-    const totalTokens = sourceBreakdown.reduce((s, e) => s + e.tokens, 0);
-
-    if (active) {
-      writeTuiData({
-        taskStatus: {
-          type: "active", flow: active.flow,
-          currentStep: active.currentStep, currentStepName: active.currentStepName,
-          startAt: active.startAt, specRef: active.specRef, planRef: active.planRef,
-        },
-        tokenData: { totalTokens, sourceBreakdown, stepBreakdown },
-      });
-    } else if (last) {
-      writeTuiData({
-        taskStatus: { type: "last", flow: last.flow, startAt: last.startAt, endAt: last.endAt },
-        tokenData: { totalTokens, sourceBreakdown, stepBreakdown },
-      });
-    } else {
-      writeTuiData({
-        taskStatus: { type: "empty" },
-        tokenData: { totalTokens: 0, sourceBreakdown: [], stepBreakdown: [] },
-      });
-    }
-  } catch {
-    // 桥接写入是尽力而为的
-  }
-}
 
 export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => {
   ensureDefaultConfig(ctx.directory);
@@ -52,7 +18,6 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
 
   const memory = new MemorySystem();
   await memory.init(dataDir);
-  initTuiBridge(dataDir);
 
   const engine = new FlowEngine(memory, ctx.directory);
 
@@ -92,11 +57,9 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
     "experimental.chat.messages.transform": async (_input, output) => {
       const originalPartsCache = new Map<string, PartInfo[]>();
       const flowSessions = new Set<string>();
-      const touchedSessions = new Set<string>();
 
       for (const msg of output.messages) {
         const info = msg.info as { role?: string; id?: string; sessionID?: string };
-        if (info.sessionID) touchedSessions.add(info.sessionID);
         if (info.role !== "user" || !info.sessionID) continue;
         const parts = msg.parts as { type: string; text: string }[];
         const flow = engine.detectFlowCmd(parts.filter((p) => p.type === "text").map((p) => p.text).join("\n"));
@@ -126,11 +89,6 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
             );
           } catch { /* best-effort */ }
         }
-      }
-
-      // 为所有受影响的 session 写入桥接数据（fire-and-forget，不阻塞消息处理）
-      for (const sid of touchedSessions) {
-        void flushTuiBridge(memory, sid);
       }
 
       for (const msg of output.messages) {

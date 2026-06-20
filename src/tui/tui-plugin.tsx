@@ -4,15 +4,17 @@
  * 参考 opencode-goal-mode Pattern B：
  * - createSignal + setInterval + onCleanup 全在 slot 回调内
  * - session_id 从 props 获取
- * - 数据优先通过 tui-bridge 文件读取（绕过跨进程 DB 访问问题）
- * - Bun 兼容：不直接引入 better-sqlite3，通过注入的 IMemorySystem 接口工作
+ * - 数据通过 IMemorySystem 直连 bun:sqlite 获取（WAL 模式支持并发读）
+ * - 若未外部注入 MemorySystem，则自行创建实例连接 .vibe-pm/vibe-pm.db
  */
 
 import { createSignal, onCleanup } from "solid-js";
 import type { TuiPlugin, TuiPluginApi } from "@opencode-ai/plugin/tui";
 import type { IMemorySystem } from "../memory/types.js";
+import { MemorySystem } from "../memory/memory-system.js";
 import type { TaskStatusData, TokenData } from "./types.js";
-import { readTuiData, initTuiBridge } from "../shared/tui-bridge.js";
+import { loadTaskStatus } from "./data/task-status.js";
+import { loadTokenData } from "./data/token-data.js";
 import { SidebarContent } from "./slots/sidebar-content.jsx";
 
 const POLL_INTERVAL_MS = 1000;
@@ -22,19 +24,18 @@ export function createTuiPlugin(memory?: IMemorySystem): TuiPlugin {
     try {
       const projectDir = api.state.path.directory ?? ".";
 
-      // 使用注入的 MemorySystem（主进程通过 __vibePmMemory 注入），
-      // 或全局作用域中已有的实例。不在此处创建独立实例——
-      // Bun 环境不支持 better-sqlite3 native addon，创建会失败。
-      const sharedMemory: IMemorySystem | undefined =
+      const sharedMemory: IMemorySystem =
         memory ??
-        (globalThis as Record<string, unknown>).__vibePmMemory as IMemorySystem | undefined;
+        (globalThis as Record<string, unknown>).__vibePmMemory as IMemorySystem ??
+        await (async () => {
+          const ms = new MemorySystem();
+          const dd = `${projectDir}/.vibe-pm`;
+          await ms.init(dd);
+          console.error(`[vibe-pm] TUI created MemorySystem, dataDir=${dd}`);
+          return ms;
+        })();
 
-      // 初始化桥接目录（用于跨进程文件读取，主路径）
-      const dataDir = (sharedMemory as unknown as { dataDir?: string })?.dataDir
-        ?? `${projectDir}/.vibe-pm`;
-      initTuiBridge(dataDir);
-
-      console.error("[vibe-pm] TUI ready, dataDir=" + dataDir);
+      console.error("[vibe-pm] TUI ready");
 
       api.slots.register({
         order: 150,
@@ -55,26 +56,16 @@ export function createTuiPlugin(memory?: IMemorySystem): TuiPlugin {
               { equals: false },
             );
 
-            function refresh() {
-              // 优先读桥接文件（跨进程数据最新，Bun/Node 通用）
-              const bridge = readTuiData();
-              if (bridge) {
-                setTaskStatus(bridge.taskStatus);
-                setTokenData(bridge.tokenData);
-                return;
-              }
-              // 回退：从 MemorySystem 直接读取（仅当注入实例可用时）
-              const sid = sessionId;
-              if (sid && sharedMemory) {
-                void sharedMemory.getActiveTask(sid).then((active) => {
-                  if (active) {
-                    setTaskStatus({
-                      type: "active", flow: active.flow,
-                      currentStep: active.currentStep, currentStepName: active.currentStepName,
-                      startAt: active.startAt, specRef: active.specRef, planRef: active.planRef,
-                    });
-                  }
-                });
+            async function refresh() {
+              try {
+                const [status, tokens] = await Promise.all([
+                  loadTaskStatus(sharedMemory, sessionId!),
+                  loadTokenData(sharedMemory, sessionId!),
+                ]);
+                setTaskStatus(status);
+                setTokenData(tokens);
+              } catch (err) {
+                console.error("[vibe-pm] refresh error:", err);
               }
             }
 
