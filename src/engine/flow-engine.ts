@@ -270,7 +270,10 @@ export class FlowEngine {
       try {
         const raw = fs.readFileSync(fp, "utf-8");
         const m = raw.match(new RegExp(`###\\s+${stepId}:\\s*(.+)`, "i"));
-        if (m) return m[1].trim();
+        if (m) {
+          const cleaned = m[1].trim().replace(/\[.*?\]|⚠️\s*/g, '').trim();
+          return cleaned || null;
+        }
       } catch {}
     }
     return null;

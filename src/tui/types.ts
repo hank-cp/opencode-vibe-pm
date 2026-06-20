@@ -68,7 +68,7 @@ export const SOURCE_COLORS: Record<string, RGBA> = {
   FlowControl: RGBA.fromInts(54, 176, 200),     // #36B0C8 冷青
   Text:        RGBA.fromInts(74, 144, 217),     // #4A90D9 冷蓝
   Tool:        RGBA.fromInts(176, 123, 237),     // #B07BED 暖紫
-  Reasoning:   RGBA.fromInts(155, 155, 155),     // #9B9B9B 暖灰
+  Reasoning:   RGBA.fromInts(106, 104, 255),     // #9B9B9B 暖蓝
 };
 
 // ─── Helpers ───

@@ -51,7 +51,7 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
             return (
               <box width="100%" flexDirection="column">
                 <text fg={t.text}>流程: {data.flow}</text>
-                <text fg={t.text}>
+                <text fg={t.warning}>
                   步骤: {data.currentStep} — {data.currentStepName}
                 </text>
                 <text fg={t.textMuted}>
@@ -71,7 +71,7 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
             return (
               <box width="100%" flexDirection="column">
                 <text fg={t.text}>流程: {data.flow}</text>
-                <text fg={t.text}>步骤: 任务已结束</text>
+                <text fg={t.success}>步骤: 任务已结束</text>
                 <text fg={t.textMuted}>
                   开始: {startTime}  耗时: {elapsed}
                 </text>
