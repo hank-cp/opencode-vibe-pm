@@ -3,7 +3,7 @@
 **创建日期**: 2026-06-17
 **状态**: Implemented
 **输入来源**: 用户需求
-**最后更新**: 2026-06-18 — 同步至实现状态：模块结构、数据加载方式、TokenBar 渲染、构建配置皆与代码一致；代码审查合规修复（onMouseUp、flexGrow 消除、SIDEBAR_WIDTH 常量）
+**最后更新**: 2026-06-20 — TUI 直连 bun:sqlite：移除 tui-bridge 文件桥接，TUI 进程自行实例化 MemorySystem 连接 .vibe-pm/vibe-pm.db
 
 ---
 
@@ -107,7 +107,7 @@ graph TB
     subgraph OpenCode["OpenCode 宿主"]
         subgraph ServerPlugin["Server Plugin"]
             FE["Flow Engine"]
-            MS["MemorySystem<br/>（含 Metrics 扩展接口）"]
+            MS["MemorySystem<br/>（bun:sqlite 后端）"]
         end
 
         subgraph TuiPlugin["TUI Plugin（本 Spec）"]
@@ -120,17 +120,18 @@ graph TB
     end
 
     subgraph Storage["持久化"]
-        AxioDB["AxioDB (.vibe-pm/)<br/>tasks / flowMetrics"]
+        SQLite["SQLite (.vibe-pm/vibe-pm.db)<br/>tasks / discussions / flowMetrics<br/>WAL 模式，支持并发读"]
     end
 
-    Hooks -->|"messages.transform / chat.message"| FE
+    Hooks -->|"messages.transform"| FE
     FE -->|"任务 + Token 数据"| MS
-    MS -->|"读写"| AxioDB
+    MS -->|"bun:sqlite 读写"| SQLite
 
     TuiAPI -->|"事件 / session 数据"| TR
-    MS -->|"闭包注入"| TR
+    TR -->|"自行实例化"| MS
     TR -->|"读取数据"| comps
     comps -->|"渲染到 sidebar_content"| TuiAPI
+    TuiPlugin -->|"直连 bun:sqlite（只读）"| SQLite
 ```
 
 ### 关键路径：TUI 渲染
@@ -139,13 +140,18 @@ graph TB
 sequenceDiagram
     participant OC as OpenCode Events
     participant SC as SidebarContent
-    participant MS as IMemorySystem
+    participant MS as IMemorySystem (bun:sqlite)
+    participant DB as SQLite (WAL)
     participant Slot as sidebar_content
 
+    Note over SC: 自行实例化 MemorySystem(dataDir)
+    Note over MS: 连接 .vibe-pm/vibe-pm.db
+
     OC->>SC: message.updated / session.updated
-    SC->>SC: 防抖 150ms
+    SC->>SC: 轮询间隔 1s
     SC->>MS: loadTaskStatus(sessionId)
     SC->>MS: loadTokenData(sessionId)
+    MS->>DB: SELECT（只读查询）
     alt 有活跃任务
         MS-->>SC: TaskStatusData (type: "active")
     else 无活跃任务
@@ -154,8 +160,6 @@ sequenceDiagram
     MS-->>SC: TokenData (sourceBreakdown + stepBreakdown)
     SC->>SC: 计算色块占比（块字符 █）
     SC->>Slot: re-render JSX
-
-    Note over SC: 兜底：每 5s 定时轮询
 ```
 
 ### TUI 组件布局设计 
@@ -428,7 +432,7 @@ function compactTokens(tokens: number): string;
 
 | 约束 | 说明 |
 |------|------|
-| 数据层解耦 | TUI 不直接操作 AxioDB，所有数据通过 IMemorySystem 接口读取 |
+| 数据层解耦 | TUI 通过 `IMemorySystem` 接口读取数据，后端为 `bun:sqlite`（WAL 模式支持并发读）。TUI 进程自行实例化 `MemorySystem`，不依赖进程间桥接。 |
 | 异步安全 | TUI 渲染不应阻塞 OpenCode 主线程，所有 I/O 操作异步化 |
 | 降级策略 | IMemorySystem 不可用时 TUI 显示错误状态，不抛异常到 OpenCode 宿主 |
 | 非 TUI 兼容 | TUI 模块在 headless/Web 模式静默跳过，确保不影响非 TUI 用户 |
@@ -495,3 +499,4 @@ function compactTokens(tokens: number): string;
 - Collapsible 仅支持 `onMouseUp` 切换，无键盘快捷键绑定（`@opentui/keymap` 已安装但未在该组件中使用）
 - TokenBar 在 totalTokens > 0 但某些来源为 0 时仅显示非零色块，与 Spec 中"占比条显示 6 个色块"的验收场景不完全一致
 - 构建需要 post-build 脚本 `jsx-shim.mjs`，增加构建复杂度（`jsx: "preserve"` 导致 `.tsx` 编译为 `.jsx`，需 shim 桥接 `.js` 导入）
+- `createTuiPlugin()` 当前无参数调用（`index.ts`），内部自行创建 `MemorySystem` 实例；若需注入外部实例，通过可选 `memory` 参数传入

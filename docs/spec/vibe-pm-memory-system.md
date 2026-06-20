@@ -3,13 +3,13 @@
 **创建日期**: 2026-06-11
 **状态**: Implemented
 **输入来源**: XMind 设计文档 + S4 访谈（SQLite 嵌入式、单文件存储）
-**最后更新**: 2026-06-12 — Memory System 实现完成
+**最后更新**: 2026-06-20 — 切换至 bun:sqlite，移除 tui-bridge 桥接文件
 
 ---
 
 ## 需求背景
 
-Memory System 是 vibe-pm 的数据层，负责结构化记忆的持久化存储。使用 SQLite (better-sqlite3) 作为嵌入式数据库，存储载体为单文件。管理三类核心数据：Task（任务状态）、Discussion（讨论项）、FlowMetrics（流程指标）。
+Memory System 是 vibe-pm 的数据层，负责结构化记忆的持久化存储。使用 SQLite (bun:sqlite) 作为嵌入式数据库，存储载体为单文件。管理三类核心数据：Task（任务状态）、Discussion（讨论项）、FlowMetrics（流程指标）。
 
 ---
 
@@ -147,7 +147,6 @@ stateDiagram-v2
 ```
 .vibe-pm/
 ├── vibe-pm.db             # SQLite 数据库文件：包含三张表（tasks, discussions, flowMetrics）
-├── tui-data.json          # TUI 跨进程桥接数据（文件缓存，非 SQLite 存储）
 └── data/                  # 【已废弃】旧 AxioDB 数据目录（可手动删除）
 ```
 
@@ -195,17 +194,17 @@ interface IMemorySystem {
 
 ### SQLite 集成
 
-基于 better-sqlite3 v11，使用预编译语句和 WAL 模式：
+基于 bun:sqlite（Bun 内置模块），使用预编译语句和 WAL 模式：
 
 ```typescript
-import Database from "better-sqlite3";
+import { Database } from "bun:sqlite";
 
 class MemorySystem implements IMemorySystem {
-  private db: Database.Database;
+  private db: Database;
 
   async init(dataDir: string): Promise<void> {
-    this.db = new Database(`${dataDir}/vibe-pm.db`);
-    this.db.pragma("journal_mode = WAL");
+    this.db = new Database(`${dataDir}/vibe-pm.db`, { create: true });
+    this.db.run("PRAGMA journal_mode = WAL");
 
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS tasks (
@@ -306,9 +305,9 @@ class MemorySystem implements IMemorySystem {
 
 ### 技术约束
 
-- 依赖 better-sqlite3，其 API 稳定成熟
-- JSON 文件作为存储载体，大数据量下性能可能下降——初期项目规模下影响可忽略
-- 若 AxioDB 不支持索引/查询，可能需要内存缓存 + 全量 JSON 读写
+- 依赖 bun:sqlite（Bun 内置模块，无需额外安装）
+- WAL 模式支持并发读（单写），TUI 进程可同时打开同一数据库文件
+- JSON 列使用 SQLite JSON 类型声明，配合 json_extract() / json_set() 进行查询和更新
 
 ### 业务约束
 
@@ -332,7 +331,7 @@ class MemorySystem implements IMemorySystem {
 
 ### 已实现功能
 
-- SQLite 嵌入式数据库集成 (better-sqlite3)
+- SQLite 嵌入式数据库集成 (bun:sqlite)
 - Task CRUD（创建、查询、更新步骤、关闭、列表）
 - Discussion CRUD（创建、决议、按条件过滤）
 - FlowMetrics CRUD（步骤进入/退出指标记录、聚合查询）
@@ -347,7 +346,7 @@ class MemorySystem implements IMemorySystem {
 
 ### 技术笔记
 
-- better-sqlite3 使用预编译语句，性能优于动态 SQL
+- bun:sqlite 使用预编译语句，性能优于动态 SQL
 - WAL 模式支持并发读（单写），适合多 TUI 轮询场景
 - tokensBySource 使用 JSON 列类型（SQLite 3.38+ 原生支持），配合 json_extract() / json_set() 操作
 - 每进程可创建多个 Database 实例，测试和主进程无冲突
