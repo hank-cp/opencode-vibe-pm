@@ -12,7 +12,7 @@ import type { TokenData, TokenSourceEntry } from "../types.js";
 /**
  * 应用展示公式：将 session_tokens 原始数据转换为 TUI 展示值（4 来源）。
  *
- * - TOTAL  = if api has data → apiInput + apiOutput;  else → text + user + assistant
+ * - TOTAL  = (user + assistant) * scaleFactor
  * - FLOW_CONTROL = flowControl * scaleFactor
  * - TEXT = text * scaleFactor
  * - TOOL = tool * scaleFactor

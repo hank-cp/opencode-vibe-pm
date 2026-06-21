@@ -113,8 +113,8 @@ describe("loadTokenData", () => {
     // Text = 1000 * 1 = 1000
     // Tool = 1500 * 1 = 1500
     // Reasoning = 800 * 1 = 800
-    // TOTAL = text + user + assistant = 10000 (no API data)
-    expect(result.totalTokens).toBe(10000);
+    // TOTAL = (user + assistant) * scaleFactor = (3000 + 6000) * 1 = 9000
+    expect(result.totalTokens).toBe(9000);
     expect(result.sourceBreakdown).toHaveLength(4);
     expect(result.stepBreakdown).toHaveLength(2);
     
@@ -175,8 +175,8 @@ describe("loadTokenData", () => {
       } as unknown as Parameters<typeof loadTokenData>[0],
       "test-session",
     );
-    // TOTAL = apiInput + apiOutput = 5000 + 7000 = 12000 (API data present)
-    expect(result.totalTokens).toBe(12000);
+    // TOTAL = (user + assistant) * scaleFactor = (3000 + 6000) * 2 = 18000
+    expect(result.totalTokens).toBe(18000);
     // Text = 1000 * 2 = 2000
     // FlowControl = 500 * 2 = 1000
     // Tool = 1500 * 2 = 3000
