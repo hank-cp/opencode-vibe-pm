@@ -2,14 +2,12 @@
  * Task CRUD 测试 — SQLite :memory:，整个文件共享 MemorySystem
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import {afterAll, beforeAll, describe, expect, it} from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { MemorySystem } from "../../src/memory/memory-system.js";
-import { DuplicateTaskError } from "../../src/memory/errors.js";
-import type { CreateTaskInput, StepTransition } from "../../src/memory/types.js";
-import type { TokenCount } from "../../src/token/types.js";
+import {DuplicateTaskError, MemorySystem} from "../../src/memory";
+import type {CreateTaskInput, StepTransition} from "../../src/memory/types.js";
 
 describe("Task CRUD", () => {
   let tmpDir: string;

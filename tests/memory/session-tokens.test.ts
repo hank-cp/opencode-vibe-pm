@@ -2,12 +2,13 @@
  * Session Tokens CRUD 测试 — SQLite tmp dir，每个 describe 独立 MemorySystem
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
+import {afterEach, beforeEach, describe, expect, it} from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { MemorySystem } from "../../src/memory/memory-system.js";
-import type { RecordSessionTokensInput, ApiTelemetry } from "../../src/memory/types.js";
+import {MemorySystem} from "../../src/memory";
+import type {RecordSessionTokensInput} from "../../src/memory/types.js";
+import {ApiTelemetry} from "../../src/token";
 
 // ─── 辅助函数 ─────────────────────────────────
 

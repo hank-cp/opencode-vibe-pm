@@ -73,6 +73,12 @@ const COMMANDS: CommandMeta[] = [
     executable: true,
   },
   {
+    name: "pm-task-current-step",
+    description: "获取当前活跃任务所在步骤",
+    template: "Get the current step of the active task. Returns empty if no active task.",
+    executable: true,
+  },
+  {
     name: "pm-config",
     description: "查看或修改插件配置",
     template: "View or modify vibe-pm configuration in .vibe-pm.json",
@@ -111,6 +117,7 @@ export function registerCommands(opencodeConfig: Config): void {
 export function registerTools(
   ctx: IPluginContext,
   engine: FlowEngine,
+  memory: MemorySystem,
 ): Record<string, ToolDefinition> {
   const tools: Record<string, ToolDefinition> = {};
 
@@ -124,11 +131,13 @@ export function registerTools(
       } else if (cmd.name === "pm-task-start") {
         tools.pm_task_start = createTaskStartTool(engine);
       } else if (cmd.name === "pm-task-set-step") {
-        tools.pm_task_set_step = createTaskSetStepTool(engine);
+        tools.pm_task_set_step = createTaskSetStepTool(engine, memory);
       } else if (cmd.name === "pm-task-refresh") {
-      tools.pm_task_refresh = createTaskRefreshTool(engine);
+      tools.pm_task_refresh = createTaskRefreshTool(engine, memory);
     } else if (cmd.name === "pm-task-close") {
       tools.pm_task_close = createTaskCloseTool(engine);
+    } else if (cmd.name === "pm-task-current-step") {
+      tools.pm_task_current_step = createTaskCurrentStepTool(engine, memory);
     }
   }
 
@@ -152,7 +161,7 @@ function createTaskStartTool(engine: FlowEngine): ToolDefinition {
     ): Promise<string> {
       const sessionId = toolCtx.sessionID;
       if (!sessionId) {
-        return "[vibe-pm] 错误：无法获取当前 Session ID。请在新对话中重试。";
+        return JSON.stringify({ ok: false, error: "无法获取当前 Session ID。请在新对话中重试。" });
       }
 
       try {
@@ -164,22 +173,25 @@ function createTaskStartTool(engine: FlowEngine): ToolDefinition {
           planRef: args.planRef,
         });
 
-        return [
-          `[vibe-pm] ✅ 任务已手动创建（系统通常会自动创建，此工具为兜底）`,
-          `- 流程: ${task.flow}`,
-          `- 当前步骤: ${task.currentStep} - ${task.currentStepName}`,
-          `- 摘要: ${task.summary}`,
-          `- 开始时间: ${task.startAt}`,
-        ].join("\n");
+        return JSON.stringify({
+          ok: true,
+          sessionId: task.sessionId,
+          taskId: task.id,
+          step: task.currentStep,
+          stepName: task.currentStepName,
+          flow: task.flow,
+          summary: task.summary,
+          startAt: task.startAt,
+        });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "未知错误";
-        return `[vibe-pm] ❌ 任务创建失败：${msg}`;
+        return JSON.stringify({ ok: false, error: msg });
       }
     },
   });
 }
 
-function createTaskSetStepTool(engine: FlowEngine): ToolDefinition {
+function createTaskSetStepTool(engine: FlowEngine, memory: MemorySystem): ToolDefinition {
   return tool({
     description: "Manually jump to a specific step",
     args: {
@@ -191,29 +203,59 @@ function createTaskSetStepTool(engine: FlowEngine): ToolDefinition {
     ): Promise<string> {
       const sessionId = toolCtx.sessionID;
       if (!sessionId) {
-        return "[vibe-pm] 错误：无法获取当前 Session ID。";
+        return JSON.stringify({ ok: false, error: "无法获取当前 Session ID。" });
       }
 
       try {
         await engine.setStep(sessionId, args.step);
-        return `[vibe-pm] ✅ 已跳转到步骤 ${args.step}。`;
+        const task = await memory.getActiveTask(sessionId);
+        if (!task) {
+          return JSON.stringify({ ok: false, error: "步骤设置成功但无法获取任务状态。" });
+        }
+        return JSON.stringify({
+          ok: true,
+          sessionId: task.sessionId,
+          taskId: task.id,
+          step: task.currentStep,
+          stepName: task.currentStepName,
+        });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "未知错误";
-        return `[vibe-pm] ❌ 步骤跳转失败：${msg}`;
+        return JSON.stringify({ ok: false, error: msg });
       }
     },
   });
 }
 
-function createTaskRefreshTool(_engine: FlowEngine): ToolDefinition {
+function createTaskRefreshTool(engine: FlowEngine, memory: MemorySystem): ToolDefinition {
   return tool({
     description: "Re-inject context for the current step",
     args: {},
     async execute(
       _args: Record<string, never>,
-      _toolCtx: ToolContext,
+      toolCtx: ToolContext,
     ): Promise<string> {
-      return "[vibe-pm] 上下文注入已改为文件引用模式。LLM 自行读取 docs/flow/ 和 docs/regulation/ 下的文件。";
+      const sessionId = toolCtx.sessionID;
+      if (!sessionId) {
+        return JSON.stringify({ ok: false, error: "无法获取当前 Session ID。" });
+      }
+
+      try {
+        const task = await memory.getActiveTask(sessionId);
+        if (!task) {
+          return JSON.stringify({ ok: false });
+        }
+        return JSON.stringify({
+          ok: true,
+          sessionId: task.sessionId,
+          taskId: task.id,
+          step: task.currentStep,
+          stepName: task.currentStepName,
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "未知错误";
+        return JSON.stringify({ ok: false, error: msg });
+      }
     },
   });
 }
@@ -228,25 +270,60 @@ function createTaskCloseTool(engine: FlowEngine): ToolDefinition {
     ): Promise<string> {
       const sessionId = toolCtx.sessionID;
       if (!sessionId) {
-        return "[vibe-pm] 错误：无法获取当前 Session ID。";
+        return JSON.stringify({ ok: false, error: "无法获取当前 Session ID。" });
       }
 
       try {
         const task = await engine.closeTask(sessionId);
         if (!task) {
-          return "[vibe-pm] 当前无活跃任务，无需关闭。";
+          return JSON.stringify({ ok: false });
         }
 
-        return [
-          `[vibe-pm] ✅ 任务已关闭`,
-          `- 流程: ${task.flow}`,
-          `- 最终步骤: ${task.currentStep} - ${task.currentStepName}`,
-          `- 摘要: ${task.summary}`,
-          `- 开始时间: ${task.startAt}`,
-        ].join("\n");
+        return JSON.stringify({
+          ok: true,
+          sessionId: task.sessionId,
+          taskId: task.id,
+          step: task.currentStep,
+          stepName: task.currentStepName,
+          flow: task.flow,
+          summary: task.summary,
+        });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "未知错误";
-        return `[vibe-pm] ❌ 任务关闭失败：${msg}`;
+        return JSON.stringify({ ok: false, error: msg });
+      }
+    },
+  });
+}
+
+function createTaskCurrentStepTool(engine: FlowEngine, memory: MemorySystem): ToolDefinition {
+  return tool({
+    description: "Get the current step of the active task. Returns JSON {ok:false} if no active task.",
+    args: {},
+    async execute(
+      _args: Record<string, never>,
+      toolCtx: ToolContext,
+    ): Promise<string> {
+      const sessionId = toolCtx.sessionID;
+      if (!sessionId) {
+        return JSON.stringify({ ok: false, error: "无法获取当前 Session ID" });
+      }
+
+      try {
+        const task = await memory.getActiveTask(sessionId);
+        if (!task) {
+          return JSON.stringify({ ok: false });
+        }
+        return JSON.stringify({
+          ok: true,
+          sessionId: task.sessionId,
+          taskId: task.id,
+          step: task.currentStep,
+          stepName: task.currentStepName,
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "未知错误";
+        return JSON.stringify({ ok: false, error: msg });
       }
     },
   });

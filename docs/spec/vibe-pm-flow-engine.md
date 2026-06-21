@@ -45,6 +45,9 @@ Flow Engine 不再解析 Flow 步骤或管理 FSM 状态机。LLM 自行读取 f
 #### `closeTask(sessionId): Promise<Task | null>`
 关闭任务。调用 `MemorySystem.closeTask()`，清理内存缓存。
 
+#### `getCurrentStep(sessionId: string): Promise<Task | null>`
+查询当前活跃任务。委托 `MemorySystem.getActiveTask()`，返回完整 Task 对象或 null。
+
 #### `resolveFlowFromCommand(command: string): string | null`
 从命令名解析 flow 名称。依赖 `buildCommandFlowMap()`。
 

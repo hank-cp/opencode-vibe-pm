@@ -33,7 +33,7 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
 
   return {
     config: async (c: Config) => { registerCommands(c); },
-    tool: registerTools(pluginCtx, engine),
+    tool: registerTools(pluginCtx, engine, memory),
 
     "experimental.chat.messages.transform": async (_input, output) => {
       const flowSessions = new Set<string>();

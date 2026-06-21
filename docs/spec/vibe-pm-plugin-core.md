@@ -104,6 +104,7 @@ tool: {
 | `/pm-task-set-step` | config + tool | 手动跳转步骤 |
 | `/pm-task-refresh` | config + tool | 重新注入当前步骤上下文 |
 | `/pm-task-close` | config + tool | 关闭任务，触发分析 |
+| `/pm-task-current-step` | config + tool | 获取当前活跃任务所在步骤，返回 JSON |
 | `/pm-config` | config（声明式）| 查看或修改 .vibe-pm.json 配置 |
 
 ### 生命周期钩子编排
