@@ -74,15 +74,16 @@ describe("registerCommands", () => {
     config = {} as Config;
   });
 
-  it("register_all_commands: 注册全部 6 个 /pm-* 命令", () => {
+  it("register_all_commands: 注册全部 7 个 /pm-* 命令", () => {
     registerCommands(config);
 
     const cmd = config.command as Record<string, { template: string; description?: string; agent?: string }> | undefined;
     expect(cmd).toBeDefined();
     const names = Object.keys(cmd!);
-    expect(names).toHaveLength(6);
+    expect(names).toHaveLength(7);
     expect(names).toContain("pm-install-flow");
     expect(names).toContain("pm-uninstall-flow");
+    expect(names).toContain("pm-refine-flow");
     expect(names).toContain("pm-task-set-step");
     expect(names).toContain("pm-task-close");
     expect(names).toContain("pm-task-current-step");
@@ -90,7 +91,6 @@ describe("registerCommands", () => {
 
     for (const name of names) {
       expect(cmd![name].description).toBeTruthy();
-      expect(cmd![name].agent).toBe("build");
     }
   });
 

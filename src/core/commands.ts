@@ -77,9 +77,33 @@ interface CommandDeclaration {
 export function registerCommands(opencodeConfig: Config): void {
   const commands = (opencodeConfig.command ??= {}) as Record<string, CommandDeclaration>;
   for (const cmd of COMMANDS) {
-    logger.info(`Registered commands: ${cmd.name}`);
     commands[cmd.name] = { template: cmd.template || "", description: cmd.description };
-    // commands[cmd.name] = { template: cmd.template || "", description: cmd.description, agent: "build" };
+  }
+}
+
+export function registerFlowCommands(opencodeConfig: Config, projectDir: string): void {
+  const commands = (opencodeConfig.command ??= {}) as Record<string, CommandDeclaration>;
+  const flowDir = path.join(projectDir, "docs", "flow");
+  if (!fs.existsSync(flowDir)) return;
+
+  for (const file of fs.readdirSync(flowDir)) {
+    if (!file.endsWith(".md")) continue;
+    try {
+      const raw = fs.readFileSync(path.join(flowDir, file), "utf-8");
+      const m = raw.match(/\*\*Command\*\*:\s*`?(.+?)`?\s*$/m);
+      if (!m) continue;
+
+      const command = m[1].trim();
+      const cmdName = command.startsWith("/") ? command.slice(1) : command;
+      const flowName = file.replace(/^flow-/, "").replace(/\.md$/, "");
+
+      commands[cmdName] = {
+        template: `Start a task under the "${flowName}" flow`,
+        description: `Start a new ${flowName} task`,
+      };
+    } catch {
+      // skip unparseable files
+    }
   }
 }
 

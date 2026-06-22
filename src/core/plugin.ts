@@ -1,6 +1,6 @@
 import * as path from "node:path";
 import {ensureDefaultConfig, loadConfig} from "./config.js";
-import {registerCommands, registerFlowTools, registerTools} from "./commands.js";
+import {registerCommands, registerFlowCommands, registerFlowTools, registerTools} from "./commands.js";
 import {initLogger, logger} from "./logger.js";
 import {MemorySystem} from "../memory";
 import {FlowEngine} from "../engine";
@@ -32,7 +32,10 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
   }
 
   return {
-    config: async (c: Config) => { registerCommands(c); },
+    config: async (c: Config) => {
+      registerCommands(c);
+      registerFlowCommands(c, ctx.directory);
+    },
     tool: (() => {
       const tools = Object.assign(registerTools(pluginCtx, engine, memory),
                            registerFlowTools(pluginCtx, engine));
