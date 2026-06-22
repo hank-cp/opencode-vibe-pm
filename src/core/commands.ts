@@ -10,11 +10,12 @@ import {tool} from "@opencode-ai/plugin";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import {Config, IPluginContext, ToolContext, ToolDefinition} from "./types.js";
-import {installTemplate, scanTemplates} from "../template";
+import {installTemplate, scanTemplates, uninstallFlow} from "../template";
 import {loadConfig, writeConfig} from "./config.js";
 import {writeDcpConfig} from "../integration";
 import type {FlowEngine} from "../engine";
 import type {MemorySystem} from "../memory";
+import {logger} from "./logger";
 
 // ─── 命令清单 ───
 
@@ -70,14 +71,15 @@ const COMMANDS: CommandMeta[] = [
 interface CommandDeclaration {
   template: string;
   description: string;
-  agent: string;
+  agent?: string;
 }
 
 export function registerCommands(opencodeConfig: Config): void {
   const commands = (opencodeConfig.command ??= {}) as Record<string, CommandDeclaration>;
   for (const cmd of COMMANDS) {
-    if (!cmd.executable) continue;
-    commands[cmd.name] = { template: cmd.template || "", description: cmd.description, agent: "build" };
+    logger.info(`Registered commands: ${cmd.name}`);
+    commands[cmd.name] = { template: cmd.template || "", description: cmd.description };
+    // commands[cmd.name] = { template: cmd.template || "", description: cmd.description, agent: "build" };
   }
 }
 
@@ -98,6 +100,8 @@ export function registerTools(
 
     if (cmd.name === "pm-install-flow") {
       tools.pm_install_flow = createInstallFlowTool(ctx, engine);
+    } else if (cmd.name === "pm-uninstall-flow") {
+      tools.pm_uninstall_flow = createUninstallFlowTool(ctx);
     } else if (cmd.name === "pm-config") {
       tools.pm_config = createConfigTool(ctx);
     } else if (cmd.name === "pm-task-set-step") {
@@ -295,7 +299,7 @@ function createInstallFlowTool(
       if (args.templateId) {
         try {
           installTemplate(ctx.projectDir, args.templateId);
-          return `[vibe-pm] 流程 "${args.templateId}" 已成功安装。\n\n已安装到：\n- docs/flow/flow-${args.templateId}.md\n\n命令 \`/pm-${args.templateId}\` 已就绪。`;
+          return `[vibe-pm] 流程 "${args.templateId}" 已成功安装。\n\n已安装到：\n- docs/flow/flow-${args.templateId}.md\n\n⚠️ 请重启 OpenCode 后使用 \`/pm-${args.templateId}\` 命令启动任务。`;
         } catch (err) {
           const msg =
             err instanceof Error ? err.message : "未知错误";
@@ -320,6 +324,29 @@ function createInstallFlowTool(
   });
 }
 
+// ─── pm-uninstall-flow 实现 ───
+
+function createUninstallFlowTool(ctx: IPluginContext): ToolDefinition {
+  return tool({
+    description: "Remove an installed flow and its command",
+    args: {
+      flowName: tool.schema.string().describe("要移除的流程名称（如 spec-driven-dev）"),
+    },
+    async execute(
+      args: { flowName: string },
+      _toolCtx: ToolContext,
+    ): Promise<string> {
+      try {
+        uninstallFlow(ctx.projectDir, args.flowName);
+        return `[vibe-pm] 流程 "${args.flowName}" 已移除。\n\n⚠️ 请重启 OpenCode 使变更生效。`;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "未知错误";
+        return `[vibe-pm] 卸载失败：${msg}`;
+      }
+    },
+  });
+}
+
 // ─── Flow Tool 注册 ───
 
 export function registerFlowTools(
@@ -333,15 +360,8 @@ export function registerFlowTools(
   for (const file of fs.readdirSync(flowDir)) {
     if (!file.endsWith(".md")) continue;
     try {
-      const raw = fs.readFileSync(path.join(flowDir, file), "utf-8");
-      const m = raw.match(/\*\*Command\*\*:\s*`?(.+?)`?\s*$/m);
-      if (!m) continue;
-
-      const command = m[1].trim();
-      const cmdName = command.startsWith("/") ? command.slice(1) : command;
       const flowName = file.replace(/^flow-/, "").replace(/\.md$/, "");
-
-
+      logger.info(`registerFlowTools: found flow ${flowName}`)
       tools[flowNameToToolKey(flowName)] = createFlowStartTool(ctx, engine, flowName);
     } catch {
       // skip unparseable files

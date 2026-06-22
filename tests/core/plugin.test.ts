@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { describe, it, expect, beforeAll, afterAll, mock } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -10,7 +10,13 @@ function mockInput(dir: string): PluginInput {
     directory: dir,
     worktree: dir,
     serverUrl: new URL("http://localhost"),
-    client: {} as ReturnType<(...args: any[]) => any>,
+    client: {
+      session: {
+        message: mock(() => Promise.resolve({
+          data: { parts: [{ type: "text", text: "test user request" }] },
+        })),
+      },
+    } as any,
     project: {} as PluginInput["project"],
     experimental_workspace: { register: () => {} },
     $: {} as PluginInput["$"],
@@ -52,10 +58,11 @@ describe("VibePMPlugin", () => {
   });
 
   it("injects protect when active task exists", async () => {
-    // Create an active task first (new design requires active task, not just flow command)
-    const createResult = await (hooks.tool as Record<string, { execute: (args: unknown, ctx: unknown) => Promise<string> }>).pm_task_start.execute(
-      { flow: "test-flow", summary: "test task" },
-      { sessionID: "s1" },
+    // Use the flow tool to create a task (pm_task_start is no longer a standalone tool)
+    const tools = hooks.tool as Record<string, { execute: (args: unknown, ctx: unknown) => Promise<string> }>;
+    const createResult = await tools.pm_test_flow.execute(
+      { summary: "test task" },
+      { sessionID: "s1", messageID: "msg-1" },
     );
     const parsed = JSON.parse(createResult);
     expect(parsed.ok).toBe(true);
@@ -73,9 +80,9 @@ describe("VibePMPlugin", () => {
     expect(parts[1].synthetic).toBe(true);
 
     // Clean up
-    await (hooks.tool as Record<string, { execute: (args: unknown, ctx: unknown) => Promise<string> }>).pm_task_close.execute(
+    await tools.pm_task_close.execute(
       {},
-      { sessionID: "s1" },
+      { sessionID: "s1", messageID: "msg-1" },
     );
   });
 
@@ -105,10 +112,9 @@ describe("VibePMPlugin", () => {
   it("injects_protect_when_active_task_exists: 有活跃任务时注入 protect", async () => {
     const tools = hooks.tool as Record<string, { execute: (args: unknown, ctx: unknown) => Promise<string> }>;
 
-    // Create active task first
-    const createResult = await tools.pm_task_start.execute(
-      { flow: "test-flow", summary: "dedup test" },
-      { sessionID: "sd" },
+    const createResult = await tools.pm_test_flow.execute(
+      { summary: "dedup test" },
+      { sessionID: "sd", messageID: "msg-d" },
     );
     expect(JSON.parse(createResult).ok).toBe(true);
 
@@ -122,6 +128,6 @@ describe("VibePMPlugin", () => {
     expect(o2.messages[0].parts.length).toBe(2);
 
     // Clean up
-    await tools.pm_task_close.execute({}, { sessionID: "sd" });
+    await tools.pm_task_close.execute({}, { sessionID: "sd", messageID: "msg-d" });
   });
 });

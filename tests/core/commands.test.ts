@@ -74,26 +74,21 @@ describe("registerCommands", () => {
     config = {} as Config;
   });
 
-  it("register_all_commands: 注册全部 9 个 /pm-* 命令", () => {
+  it("register_all_commands: 注册全部 6 个 /pm-* 命令", () => {
     registerCommands(config);
 
     const cmd = config.command as Record<string, { template: string; description?: string; agent?: string }> | undefined;
     expect(cmd).toBeDefined();
     const names = Object.keys(cmd!);
-    expect(names).toHaveLength(9);
+    expect(names).toHaveLength(6);
     expect(names).toContain("pm-install-flow");
     expect(names).toContain("pm-uninstall-flow");
-    expect(names).toContain("pm-refine-flow");
-    expect(names).toContain("pm-task-start");
     expect(names).toContain("pm-task-set-step");
-    expect(names).toContain("pm-task-refresh");
     expect(names).toContain("pm-task-close");
     expect(names).toContain("pm-task-current-step");
     expect(names).toContain("pm-config");
 
-    // 验证每个命令有 template 和 description
     for (const name of names) {
-      expect(cmd![name].template).toBeTruthy();
       expect(cmd![name].description).toBeTruthy();
       expect(cmd![name].agent).toBe("build");
     }
@@ -101,7 +96,7 @@ describe("registerCommands", () => {
 
   it("command_no_duplicate_key: 重复注册后者覆盖前者", () => {
     (config as Record<string, unknown>).command = {
-      "pm-task-start": {
+      "pm-install-flow": {
         template: "old template",
         description: "old desc",
         agent: "build",
@@ -111,9 +106,7 @@ describe("registerCommands", () => {
     registerCommands(config);
 
     const cmd = config.command as Record<string, { template: string; description?: string; agent?: string }> | undefined;
-    // 后者覆盖，不抛异常
-    expect(cmd!["pm-task-start"].template).not.toBe("old template");
-    expect(Object.keys(cmd!)).toHaveLength(9);
+    expect(cmd!["pm-install-flow"].template).toBe("");
   });
 });
 
@@ -127,6 +120,7 @@ describe("registerTools", () => {
     },
     projectDir: "/test",
     dataDir: "/test/.vibe-pm",
+    client: {} as any,
   };
 
   const mockToolCtx: ToolContext = {
@@ -140,61 +134,19 @@ describe("registerTools", () => {
     ask: async () => {},
   };
 
-  it("register_executable_tools: 注册 7 个可执行工具", async () => {
+  it("register_executable_tools: 注册 6 个可执行工具", async () => {
     const engine = createMockEngine();
     const memory = await createTempMemory();
     const tools = registerTools(mockCtx, engine, memory);
 
     const toolNames = Object.keys(tools);
-    expect(toolNames).toHaveLength(7);
+    expect(toolNames).toHaveLength(6);
     expect(toolNames).toContain("pm_install_flow");
+    expect(toolNames).toContain("pm_uninstall_flow");
     expect(toolNames).toContain("pm_config");
-    expect(toolNames).toContain("pm_task_start");
     expect(toolNames).toContain("pm_task_set_step");
-    expect(toolNames).toContain("pm_task_refresh");
     expect(toolNames).toContain("pm_task_close");
     expect(toolNames).toContain("pm_task_current_step");
-
-    // 声明式命令不在 tool 注册中
-    expect(toolNames).not.toContain("pm_uninstall_flow");
-    expect(toolNames).not.toContain("pm_refine_flow");
-  });
-
-  it("pm_task_start_creates_task: 任务创建返回 JSON 成功消息", async () => {
-    const engine = createMockEngine();
-    const memory = await createTempMemory();
-    const tools = registerTools(mockCtx, engine, memory);
-
-    const result = await tools.pm_task_start.execute(
-      { flow: "research", summary: "测试摘要" },
-      mockToolCtx,
-    );
-    const parsed = JSON.parse(result);
-    expect(parsed.ok).toBe(true);
-    expect(parsed.flow).toBe("research");
-    expect(parsed.step).toBe("S1");
-    expect(parsed.stepName).toBe("就绪");
-    expect(parsed.taskId).toBe("task-mock-001");
-    expect(engine.startTask).toHaveBeenCalledWith({
-      sessionId: "test",
-      flow: "research",
-      summary: "测试摘要",
-    });
-  });
-
-  it("pm_task_start_no_session: toolCtx 无 sessionID 时返回 JSON 错误", async () => {
-    const engine = createMockEngine();
-    const memory = await createTempMemory();
-    const tools = registerTools(mockCtx, engine, memory);
-    const noSessionCtx: ToolContext = { ...mockToolCtx, sessionID: "" };
-
-    const result = await tools.pm_task_start.execute(
-      { flow: "research", summary: "测试" },
-      noSessionCtx,
-    );
-    const parsed = JSON.parse(result);
-    expect(parsed.ok).toBe(false);
-    expect(parsed.error).toContain("Session ID");
   });
 
   it("pm_task_set_step_jumps: 跳转步骤返回 JSON", async () => {
@@ -213,31 +165,6 @@ describe("registerTools", () => {
     expect(parsed.sessionId).toBe("test");
     expect(parsed.taskId).toBeTruthy();
     expect(engine.setStep).toHaveBeenCalledWith("test", "S3");
-  });
-
-  it("pm_task_refresh_returns_json: 刷新返回 JSON 格式", async () => {
-    const engine = createMockEngine();
-    const memory = await createTempMemory();
-    await seedTask(memory, mockToolCtx.sessionID);
-    const tools = registerTools(mockCtx, engine, memory);
-
-    const result = await tools.pm_task_refresh.execute({}, mockToolCtx);
-    const parsed = JSON.parse(result);
-    expect(parsed.ok).toBe(true);
-    expect(parsed.step).toBeTruthy();
-    expect(parsed.stepName).toBeTruthy();
-    expect(parsed.sessionId).toBe("test");
-    expect(parsed.taskId).toBeTruthy();
-  });
-
-  it("pm_task_refresh_no_task: 无活跃任务时返回 {ok:false}", async () => {
-    const engine = createMockEngine();
-    const memory = await createTempMemory();
-    const tools = registerTools(mockCtx, engine, memory);
-
-    const result = await tools.pm_task_refresh.execute({}, mockToolCtx);
-    const parsed = JSON.parse(result);
-    expect(parsed.ok).toBe(false);
   });
 
   it("pm_task_close_closes_task: 关闭任务返回 JSON", async () => {

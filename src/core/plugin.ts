@@ -34,8 +34,10 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
   return {
     config: async (c: Config) => { registerCommands(c); },
     tool: (() => {
-      return Object.assign(registerTools(pluginCtx, engine, memory),
+      const tools = Object.assign(registerTools(pluginCtx, engine, memory),
                            registerFlowTools(pluginCtx, engine));
+      logger.info(`registering tools: ${JSON.stringify(tools)}`);
+      return tools;
     })(),
 
     "experimental.chat.messages.transform": async (_input, output) => {

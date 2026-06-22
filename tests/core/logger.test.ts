@@ -72,7 +72,7 @@ describe("logger", () => {
     expect(logSpy).toHaveBeenCalledTimes(1);
     const call = logSpy.mock.calls[0][0];
     expect(call.body.level).toBe("info");
-    expect(call.body.message).toBe("hello world");
+    expect(call.body.message).toBe("[vibe-pm] hello world");
     expect(call.body.extra).toEqual({ key: "value" });
     expect(call.body.service).toBeTruthy();
   });
@@ -140,6 +140,6 @@ describe("logger", () => {
 
     await new Promise((r) => setTimeout(r, 0));
     expect(logSpy).toHaveBeenCalledTimes(1);
-    expect(logSpy.mock.calls[0][0].body.message).toBe("[object Object]");
+    expect(logSpy.mock.calls[0][0].body.message).toBe("[vibe-pm] [object Object]");
   });
 });
