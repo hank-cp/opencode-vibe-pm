@@ -189,8 +189,8 @@ export class MemorySystem implements IMemorySystem {
 
     // ─── Prepared Statements ───
     this.stmtInsertTask = this.db.prepare(`
-      INSERT INTO tasks (id, sessionId, flow, currentStep, currentStepName, startAt, endAt, closed, summary, stepTransitions)
-      VALUES ($id, $sessionId, $flow, $currentStep, $currentStepName, $startAt, $endAt, $closed, $summary, $stepTransitions)
+      INSERT INTO tasks (id, sessionId, flow, currentStep, currentStepName, startAt, endAt, closed, summary, userRequest, stepTransitions)
+      VALUES ($id, $sessionId, $flow, $currentStep, $currentStepName, $startAt, $endAt, $closed, $summary, $userRequest, $stepTransitions)
     `);
     this.stmtGetTaskBySession = this.db.prepare("SELECT * FROM tasks WHERE sessionId = ? LIMIT 1");
     this.stmtGetActiveTaskBySession = this.db.prepare("SELECT * FROM tasks WHERE sessionId = ? AND closed = 0 LIMIT 1");

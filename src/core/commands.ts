@@ -98,8 +98,8 @@ export function registerFlowCommands(opencodeConfig: Config, projectDir: string)
       const flowName = file.replace(/^flow-/, "").replace(/\.md$/, "");
 
       commands[cmdName] = {
-        template: `Start a task under the "${flowName}" flow`,
-        description: `Start a new ${flowName} task`,
+        template: `Start a task under the "${flowName}" flow — call the pm_${flowName.replace(/-/g, "_")} tool with summary and userRequest`,
+        description: `Start a new ${flowName} task by calling the pm_${flowName.replace(/-/g, "_")} tool. Pass the user's original request as userRequest parameter.`,
       };
     } catch {
       // skip unparseable files
@@ -399,47 +399,94 @@ function flowNameToToolKey(flowName: string): string {
 }
 
 function createFlowStartTool(ctx: IPluginContext, engine: FlowEngine, flowName: string): ToolDefinition {
+  function extractText(parts: Array<any>): string {
+    return parts
+      .filter((p: any) => p.type === "text")
+      .map((p: any) => p.text)
+      .join("\n");
+  }
+
   return tool({
-    description: `Start a new task under the "${flowName}" flow`,
+    description: `Start a new task under the "${flowName}" flow. Call this tool BEFORE any analysis or implementation. Pass the user's original request as userRequest.`,
     args: {
       summary: tool.schema.string().optional().describe("任务摘要"),
+      userRequest: tool.schema.string().optional().describe("用户原始请求全文 — 务必传递以保存任务上下文和去重")
     },
     async execute(
-        args: { summary?: string },
+        args: { summary?: string; userRequest?: string; },
         toolCtx: ToolContext,
     ): Promise<string> {
       const { sessionID, messageID } = toolCtx;
       if (!sessionID) {
+        logger.warn(`createFlowStartTool(${flowName}): no sessionID`);
         return JSON.stringify({ ok: false, error: "无法获取当前 Session ID。" });
       }
-      if (!messageID) {
-        return JSON.stringify({ ok: false, error: "无法获取当前 Message ID。" });
+
+      logger.info(`createFlowStartTool(${flowName}): sessionID=${sessionID} messageID=${messageID ?? "N/A"} summary=${args.summary ?? "N/A"} userRequest=${args.userRequest ? "provided" : "extracting"}`);
+
+      // ── Extract userRequest ──
+      let userRequest = args.userRequest ?? "";
+
+      // 1) If not provided, try the message that triggered the tool (messageID from ToolContext)
+      if (!userRequest && messageID) {
+        logger.info(`createFlowStartTool(${flowName}): trying message fetch via messageID=${messageID}`);
+        try {
+          const response = await ctx.client.session.message({
+            path: { id: sessionID, messageID },
+          });
+          const msg = response.data;
+          if (msg && Array.isArray((msg as any).parts)) {
+            userRequest = extractText((msg as any).parts);
+            logger.info(`createFlowStartTool(${flowName}): extracted from message, len=${userRequest.length}`);
+          }
+        } catch (err) {
+          logger.warn(`createFlowStartTool(${flowName}): message fetch failed: ${err}`);
+        }
       }
 
-      const response = await ctx.client.session.message({
-        path: {
-          id: sessionID,
-          messageID: messageID,
-        },
-      });
-
-      const singleMessage = response.data;
-      if (!singleMessage || !Array.isArray(singleMessage.parts)) {
-        return `Message ${messageID} could not be retrieved directly.`;
+      // 2) Fallback: list recent session messages, pick the latest user message
+      if (!userRequest) {
+        logger.info(`createFlowStartTool(${flowName}): trying session messages list`);
+        try {
+          const msgsResponse = await ctx.client.session.messages({
+            path: { id: sessionID },
+            query: { limit: 5 },
+          });
+          const messages = msgsResponse.data;
+          if (Array.isArray(messages)) {
+            for (let i = messages.length - 1; i >= 0; i--) {
+              const m = messages[i] as any;
+              const role = m.info?.role;
+              if (role === "user") {
+                userRequest = extractText(m.parts ?? []);
+                logger.info(`createFlowStartTool(${flowName}): extracted from session messages[${i}], len=${userRequest.length}`);
+                break;
+              }
+            }
+          }
+        } catch (err) {
+          logger.warn(`createFlowStartTool(${flowName}): session messages fetch failed: ${err}`);
+        }
       }
 
-      let userRequest = singleMessage.parts
-        .filter((p: any) => p.type === "text")
-        .map((p: any) => p.text)
-        .join("\n");
+      // 3) Final fallback: use summary
+      if (!userRequest && args.summary) {
+        logger.info(`createFlowStartTool(${flowName}): fallback to summary as userRequest`);
+        userRequest = args.summary;
+      }
+
+      logger.info(`createFlowStartTool(${flowName}): final userRequest len=${userRequest.length}`);
+
+      const summary = args.summary || "";
 
       try {
         const task = await engine.startTask({
           sessionId: sessionID,
           flow: flowName,
-          summary: args.summary ?? "",
-          userRequest: userRequest
+          summary,
+          userRequest,
         });
+        logger.info(`createFlowStartTool(${flowName}): task created id=${task.id} step=${task.currentStep}`);
         return JSON.stringify({
           ok: true,
           sessionId: task.sessionId,
@@ -452,6 +499,7 @@ function createFlowStartTool(ctx: IPluginContext, engine: FlowEngine, flowName: 
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "未知错误";
+        logger.error(`createFlowStartTool(${flowName}): startTask failed: ${msg}`);
         return JSON.stringify({ ok: false, error: msg });
       }
     },

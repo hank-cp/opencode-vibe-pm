@@ -176,17 +176,27 @@ export class FlowEngine {
 
 
   async startTask(params: StartTaskParams): Promise<Task> {
-    if (!this.flowExists(params.flow)) throw new FlowNotFoundError(params.flow);
+    logger.info(`FlowEngine.startTask: flow=${params.flow} sessionId=${params.sessionId} summary=${params.summary} userRequestLen=${params.userRequest?.length ?? 0}`);
+
+    if (!this.flowExists(params.flow)) {
+      logger.warn(`FlowEngine.startTask: flow ${params.flow} not found`);
+      throw new FlowNotFoundError(params.flow);
+    }
 
     const isDup = await this.memory.checkDuplicateUserRequest(params.sessionId, params.userRequest);
     if (isDup) {
+      logger.warn(`FlowEngine.startTask: duplicate userRequest detected for session ${params.sessionId}`);
       throw new Error(`This task has been started in Session ${params.sessionId}`);
     }
 
     const existing = await this.memory.getActiveTask(params.sessionId);
-    if (existing) throw new Error(`Session ${params.sessionId} already has active task: ${existing.flow}. Close it before starting a new task.`);
+    if (existing) {
+      logger.warn(`FlowEngine.startTask: session ${params.sessionId} already has active task ${existing.flow}`);
+      throw new Error(`Session ${params.sessionId} already has active task: ${existing.flow}. Close it before starting a new task.`);
+    }
+
     try {
-      return await this.memory.createTask({
+      const task = await this.memory.createTask({
         sessionId: params.sessionId,
         flow: params.flow,
         currentStep: "",
@@ -195,7 +205,10 @@ export class FlowEngine {
         summary: params.summary,
         userRequest: params.userRequest,
       });
+      logger.info(`FlowEngine.startTask: task created id=${task.id}`);
+      return task;
     } catch (err) {
+      logger.error(`FlowEngine.startTask: createTask failed: ${err}`);
       if (err instanceof DuplicateTaskError) throw new Error(`Session ${params.sessionId} already has active task.`);
       throw err;
     }
