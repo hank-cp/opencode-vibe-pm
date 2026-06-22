@@ -88,7 +88,7 @@ async function write(
 
   try {
     const service = getCallerFile();
-    const msg = typeof message === "string" ? message : String(message);
+    const msg = "[vibe-pm] " + (typeof message === "string" ? message : String(message));
 
     await client.app.log({
       body: {

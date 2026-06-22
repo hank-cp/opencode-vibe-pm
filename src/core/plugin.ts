@@ -1,6 +1,6 @@
 import * as path from "node:path";
 import {ensureDefaultConfig, loadConfig} from "./config.js";
-import {registerCommands, registerTools} from "./commands.js";
+import {registerCommands, registerFlowTools, registerTools} from "./commands.js";
 import {initLogger, logger} from "./logger.js";
 import {MemorySystem} from "../memory";
 import {FlowEngine} from "../engine";
@@ -13,7 +13,7 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
   ensureDefaultConfig(ctx.directory);
   const config = loadConfig(ctx.directory);
   const dataDir = path.resolve(ctx.directory, config.dataDir);
-  const pluginCtx: IPluginContext = { config, projectDir: ctx.directory, dataDir };
+  const pluginCtx: IPluginContext = { config, projectDir: ctx.directory, dataDir, client: ctx.client };
   initLogger(ctx.client);
   logger.info(`vibe-pm initializing in ${ctx.directory}`);
 
@@ -33,64 +33,96 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
 
   return {
     config: async (c: Config) => { registerCommands(c); },
-    tool: registerTools(pluginCtx, engine, memory),
+    tool: (() => {
+      return Object.assign(registerTools(pluginCtx, engine, memory),
+                           registerFlowTools(pluginCtx, engine));
+    })(),
 
     "experimental.chat.messages.transform": async (_input, output) => {
-      const flowSessions = new Set<string>();
+      const msg0 = output.messages[0];
+      const info0 = msg0?.info as { sessionID?: string } | undefined;
+      const sid = info0?.sessionID;
+      if (!sid) return;
 
+      // TODO debug code, need continuous observation
+      const flowSessions = new Set<string>();
       for (const msg of output.messages) {
-        const info = msg.info
-        if (info.role !== "user" || !info.sessionID) continue;
-        const parts = msg.parts;
-        const flow = engine.detectFlowCmd(parts.filter((p) => p.type === "text").map((p) => p.text).join("\n"));
-        if (flow) {
-          flowSessions.add(info.sessionID);
-          await engine.ensureTaskAndInject(info.sessionID, flow, parts, info.id ?? "", info.sessionID);
-        }
+        flowSessions.add(msg.info.sessionID ?? "");
       }
+      logger.info(`sessionIds in flow: ${flowSessions.size}`);
+
+      const task = await memory.getActiveTask(sid);
+
+      // ═══ LOOP: accumulate token counts + detect outOfControl ═══
+      const totalTokens: TokenCount = { text: 0, user: 0, assistant: 0, flowControl: 0, tool: 0, reasoning: 0 };
+      const stepTokens: TokenCount = { text: 0, user: 0, assistant: 0, flowControl: 0, tool: 0, reasoning: 0 };
+      let outOfControl = false;
+      let apiTelemetry: ApiTelemetry | undefined;
 
       if (tokenCounter) {
-        let apiTelemetry: ApiTelemetry | undefined = undefined;
-        let sessionId: string | undefined;
-        const total: TokenCount = { text: 0, user: 0, assistant: 0, flowControl: 0, tool: 0, reasoning: 0 }
         for (const msg of output.messages) {
           const info = msg.info;
           if (!info.sessionID) continue;
-          sessionId = info.sessionID
-          apiTelemetry = (info as AssistantMessage).tokens;
 
-          // Count tokens unconditionally
           const result = tokenCounter.countContextTokens(msg);
-          total.text += result.text;
-          total.user += result.user;
-          total.assistant += result.assistant;
-          total.flowControl += result.flowControl;
-          total.tool += result.tool;
-          total.reasoning += result.reasoning;
+          totalTokens.text += result.text;
+          totalTokens.user += result.user;
+          totalTokens.assistant += result.assistant;
+          totalTokens.flowControl += result.flowControl;
+          totalTokens.tool += result.tool;
+          totalTokens.reasoning += result.reasoning;
 
-          // Also write to flowMetrics if active task exists (per-step tracking)
-          const task = await memory.getActiveTask(info.sessionID);
           if (task) {
-            memory.recordStepEntry(info.sessionID, task.flow, task.currentStep, task.currentStepName, result).catch(e => {
-              logger.error(`[vibe-pm] recordStepEntry failed: ${e}`)
-            });
+            stepTokens.text += result.text;
+            stepTokens.user += result.user;
+            stepTokens.assistant += result.assistant;
+            stepTokens.flowControl += result.flowControl;
+            stepTokens.tool += result.tool;
+            stepTokens.reasoning += result.reasoning;
           }
 
-          logger.debug(
-            `[vibe-pm] transform: sid=${info.sessionID} role=${info.role} step=${task?.currentStep ?? 'N/A'}`,
-          );
+          if (info.role === "assistant") {
+            apiTelemetry = (info as AssistantMessage).tokens;
+
+            if (task && !outOfControl) {
+              const stepCalled = (task.stepTransitions?.length ?? 0) > 0;
+              const hasTodo = msg.parts.some(
+                (p) => p.type === "tool" && (p as { name?: string }).name === "todowrite",
+              );
+              if (hasTodo && !stepCalled) {
+                outOfControl = true;
+                logger.info(`transform: outOfControl detected sid=${sid}`);
+              }
+            }
+          }
         }
 
-        if (sessionId) {
-          memory.recordSessionTokens(sessionId, total, apiTelemetry).catch(e => {
-            logger.error(`[vibe-pm] recordSessionTokens failed: ${e}`);
+        memory.recordSessionTokens(sid, totalTokens, apiTelemetry).catch((e: unknown) => {
+          logger.error(`recordSessionTokens failed: ${e}`);
+        });
+
+        if (task) {
+          memory.recordStepTokens(sid, task.flow, task.currentStep, task.currentStepName, stepTokens).catch((e: unknown) => {
+            logger.error(`recordStepTokens failed: ${e}`);
           });
         }
       }
 
-      for (const msg of output.messages) {
-        const info = msg.info as { role?: string; id?: string; sessionID?: string };
-        if (!flowSessions.has(info.sessionID ?? "")) {
+      // ═══ INJECT: flow control + warning (on first user message) ═══
+      if (task) {
+        const userMsg = output.messages.find((m) => (m.info as { role?: string }).role === "user");
+        if (userMsg) {
+          const umInfo = userMsg.info as { id?: string; sessionID?: string };
+          engine.injectFlowControlPrompt(sid, task.flow, userMsg.parts, umInfo.id ?? "", umInfo.sessionID ?? "");
+          if (outOfControl) {
+            engine.injectFlowWarningPrompt(sid, userMsg.parts, umInfo.id ?? "", umInfo.sessionID ?? "");
+          }
+        }
+      }
+
+      // ═══ CLEANUP: remove stale synthetic parts (only when no active task) ═══
+      if (!task) {
+        for (const msg of output.messages) {
           engine.removeControlPrompt(msg.parts as { type: string; text: string }[]);
         }
       }
@@ -103,9 +135,9 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
         if (sessionId) {
           try {
             await memory.initSessionTokens(sessionId);
-            logger.info(`[vibe-pm] session_tokens initialized for ${sessionId}`);
+            logger.info(`session_tokens initialized for ${sessionId}`);
           } catch (err) {
-            logger.warn(`[vibe-pm] session_tokens init failed: ${err}`);
+            logger.warn(`session_tokens init failed: ${err}`);
           }
         }
       }

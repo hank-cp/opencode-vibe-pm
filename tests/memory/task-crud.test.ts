@@ -90,7 +90,7 @@ describe("Task CRUD", () => {
     const sid = "ses_rse_crud";
     await memory.createTask(baseTask("rse_crud"));
 
-    await memory.recordStepEntry(sid, "project-build", "S1", "理解需求", {
+    await memory.recordStepTokens(sid, "project-build", "S1", "理解需求", {
       text: 200, user: 100, assistant: 0, flowControl: 0, tool: 0, reasoning: 0,
     });
 
@@ -106,10 +106,10 @@ describe("Task CRUD", () => {
     const sid = "ses_rse_acc_crud";
     await memory.createTask(baseTask("rse_acc_crud"));
 
-    await memory.recordStepEntry(sid, "project-build", "S2", "实现", {
+    await memory.recordStepTokens(sid, "project-build", "S2", "实现", {
       text: 50, user: 80, assistant: 0, flowControl: 0, tool: 0, reasoning: 0,
     });
-    await memory.recordStepEntry(sid, "project-build", "S2", "实现", {
+    await memory.recordStepTokens(sid, "project-build", "S2", "实现", {
       text: 30, user: 0, assistant: 120, flowControl: 0, tool: 0, reasoning: 0,
     });
 

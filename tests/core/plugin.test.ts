@@ -51,7 +51,15 @@ describe("VibePMPlugin", () => {
     expect(typeof hooks.event).toBe("function");
   });
 
-  it("injects synthetic part when auto-slash-command pm-* found", async () => {
+  it("injects protect when active task exists", async () => {
+    // Create an active task first (new design requires active task, not just flow command)
+    const createResult = await (hooks.tool as Record<string, { execute: (args: unknown, ctx: unknown) => Promise<string> }>).pm_task_start.execute(
+      { flow: "test-flow", summary: "test task" },
+      { sessionID: "s1" },
+    );
+    const parsed = JSON.parse(createResult);
+    expect(parsed.ok).toBe(true);
+
     const output = makeTransformOutput([
       { role: "user", sessionID: "s1", parts: [{ type: "text", text: "<auto-slash-command>\n/pm-test start\n</auto-slash-command>" }] },
     ]);
@@ -63,6 +71,12 @@ describe("VibePMPlugin", () => {
     expect(parts[1].type).toBe("text");
     expect(parts[1].text).toContain("<protect>");
     expect(parts[1].synthetic).toBe(true);
+
+    // Clean up
+    await (hooks.tool as Record<string, { execute: (args: unknown, ctx: unknown) => Promise<string> }>).pm_task_close.execute(
+      {},
+      { sessionID: "s1" },
+    );
   });
 
   it("skips when no auto-slash-command", async () => {
@@ -88,7 +102,16 @@ describe("VibePMPlugin", () => {
     expect(output.messages[0].parts.length).toBe(1);
   });
 
-  it("injects_protect_when_parts_clean: 同 session 多次触发命令会重新注入 protect", async () => {
+  it("injects_protect_when_active_task_exists: 有活跃任务时注入 protect", async () => {
+    const tools = hooks.tool as Record<string, { execute: (args: unknown, ctx: unknown) => Promise<string> }>;
+
+    // Create active task first
+    const createResult = await tools.pm_task_start.execute(
+      { flow: "test-flow", summary: "dedup test" },
+      { sessionID: "sd" },
+    );
+    expect(JSON.parse(createResult).ok).toBe(true);
+
     const cmd = "<auto-slash-command>\n/pm-test dedup\n</auto-slash-command>";
     const o1 = makeTransformOutput([{ role: "user", sessionID: "sd", parts: [{ type: "text", text: cmd }] }]);
     await hooks["experimental.chat.messages.transform"]!({}, o1 as Parameters<NonNullable<typeof hooks["experimental.chat.messages.transform"]>>[1]);
@@ -97,5 +120,8 @@ describe("VibePMPlugin", () => {
     const o2 = makeTransformOutput([{ role: "user", sessionID: "sd", parts: [{ type: "text", text: cmd }] }]);
     await hooks["experimental.chat.messages.transform"]!({}, o2 as Parameters<NonNullable<typeof hooks["experimental.chat.messages.transform"]>>[1]);
     expect(o2.messages[0].parts.length).toBe(2);
+
+    // Clean up
+    await tools.pm_task_close.execute({}, { sessionID: "sd" });
   });
 });

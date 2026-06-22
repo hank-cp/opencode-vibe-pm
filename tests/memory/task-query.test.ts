@@ -99,7 +99,7 @@ describe("Task Query Extensions", () => {
       // 先创建任务以便 recordStepEntry 能关联 taskSummary
       await memory.createTask(baseTask("ses_rse_new"));
 
-      await memory.recordStepEntry(
+      await memory.recordStepTokens(
         "ses_rse_new",
         "bug-fix",
         "S1",
@@ -118,7 +118,7 @@ describe("Task Query Extensions", () => {
     it("accumulates tokensBySource on repeated entries", async () => {
       await memory.createTask(baseTask("ses_rse_acc"));
 
-      await memory.recordStepEntry(
+      await memory.recordStepTokens(
         "ses_rse_acc",
         "bug-fix",
         "S1",
@@ -126,7 +126,7 @@ describe("Task Query Extensions", () => {
         { text: 100, user: 200, assistant: 0, flowControl: 0, tool: 0, reasoning: 0 },
       );
 
-      await memory.recordStepEntry(
+      await memory.recordStepTokens(
         "ses_rse_acc",
         "bug-fix",
         "S1",
@@ -154,13 +154,13 @@ describe("Task Query Extensions", () => {
 
       await memory.createTask(baseTask(sid));
 
-      await memory.recordStepEntry(sid, "bug-fix", "S1", "理解需求", {
+      await memory.recordStepTokens(sid, "bug-fix", "S1", "理解需求", {
         text: 100, user: 50, assistant: 0, flowControl: 0, tool: 0, reasoning: 0,
       });
-      await memory.recordStepEntry(sid, "bug-fix", "S2", "设计方案", {
+      await memory.recordStepTokens(sid, "bug-fix", "S2", "设计方案", {
         text: 0, user: 0, assistant: 200, flowControl: 0, tool: 80, reasoning: 0,
       });
-      await memory.recordStepEntry(sid, "bug-fix", "S2", "设计方案", {
+      await memory.recordStepTokens(sid, "bug-fix", "S2", "设计方案", {
         text: 0, user: 0, assistant: 100, flowControl: 0, tool: 0, reasoning: 50,
       });
 
@@ -191,13 +191,13 @@ describe("Task Query Extensions", () => {
 
       await memory.createTask(baseTask(sid));
 
-      await memory.recordStepEntry(sid, "bug-fix", "S1", "理解需求", {
+      await memory.recordStepTokens(sid, "bug-fix", "S1", "理解需求", {
         text: 100, user: 0, assistant: 0, flowControl: 0, tool: 0, reasoning: 0,
       });
-      await memory.recordStepEntry(sid, "bug-fix", "S2", "设计方案", {
+      await memory.recordStepTokens(sid, "bug-fix", "S2", "设计方案", {
         text: 0, user: 0, assistant: 200, flowControl: 0, tool: 0, reasoning: 0,
       });
-      await memory.recordStepEntry(sid, "bug-fix", "S2", "设计方案", {
+      await memory.recordStepTokens(sid, "bug-fix", "S2", "设计方案", {
         text: 0, user: 0, assistant: 50, flowControl: 0, tool: 0, reasoning: 0,
       });
 

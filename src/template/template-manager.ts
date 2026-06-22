@@ -70,19 +70,6 @@ function parseTemplateMeta(raw: string, bundleDir: string): TemplateMeta | null 
   };
 }
 
-function generateCommandFile(meta: TemplateMeta): string {
-  const flowRef = `docs/flow/flow-${meta.id}.md`;
-  return [
-    `# ${meta.name}`,
-    ``,
-    `## 流程控制`,
-    ``,
-    `当触发 \`${meta.command}\` 命令时，系统将注入文件引用标签。`,
-    ``,
-    `流程文件：\`${flowRef}\``,
-  ].join("\n") + "\n";
-}
-
 // ─── 语言检测 ───
 
 interface LanguageDetector {
@@ -944,17 +931,6 @@ export function installTemplate(
 
   // 写入 DCP 保护配置（如果 DCP 插件已安装）
   writeDcpConfig(projectDir);
-
-  // 生成 Command 文件到 .opencode/commands/
-  if (meta.command) {
-    const cmdDir = getCommandsDir(projectDir);
-    fs.mkdirSync(cmdDir, { recursive: true });
-
-    const cmdFileName = stripLeadingSlash(meta.command) + ".md";
-    const cmdPath = path.join(cmdDir, cmdFileName);
-    const cmdContent = generateCommandFile(meta);
-    fs.writeFileSync(cmdPath, cmdContent, "utf-8");
-  }
 }
 
 // ─── Regulation 安装 ───
@@ -1032,22 +1008,6 @@ export function uninstallFlow(projectDir: string, flowName: string): void {
 
   if (!removed) {
     throw new Error(`Flow "${flowName}" not found in /docs/flow/.`);
-  }
-
-  // 同时清理对应的 Command 文件
-  const cmdDir = getCommandsDir(projectDir);
-  if (fs.existsSync(cmdDir)) {
-    // 尝试根据 flowName 推断 command 文件名
-    const cmdFileName = `pm-${flowName}.md`;
-    const cmdPath = path.join(cmdDir, cmdFileName);
-    if (fs.existsSync(cmdPath)) {
-      fs.rmSync(cmdPath);
-    }
-    // 也尝试不带 pm- 前缀的文件名
-    const altCmdPath = path.join(cmdDir, `${flowName}.md`);
-    if (fs.existsSync(altCmdPath)) {
-      fs.rmSync(altCmdPath);
-    }
   }
 }
 

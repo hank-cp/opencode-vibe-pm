@@ -31,6 +31,8 @@ export interface Task {
   summary: string;
   specRef?: string;
   planRef?: string;
+  /** 用户原始请求内容（<user-request> 标签内文本），用于去重 */
+  userRequest?: string;
   /** 步骤转换历史，按时间顺序记录。从第二条记录开始，可通过相邻记录的 at 差值计算停留时间 */
   stepTransitions?: StepTransition[];
 }
@@ -44,6 +46,7 @@ export interface CreateTaskInput {
   summary: string;
   specRef?: string;
   planRef?: string;
+  userRequest?: string;
 }
 
 // ─── Discussion ───
@@ -174,7 +177,7 @@ export interface IMemorySystem {
   }): Promise<Discussion[]>;
 
   // FlowMetrics
-  recordStepEntry(
+  recordStepTokens(
     sessionId: string,
     flow: string,
     step: string,

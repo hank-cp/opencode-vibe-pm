@@ -7,7 +7,7 @@ import {Database, Statement} from "bun:sqlite";
 import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import {logger} from "../core/logger.js";
+import {logger} from "../core";
 import type {
   CreateDiscussionInput,
   CreateTaskInput,
@@ -22,7 +22,7 @@ import type {
   TokenSource
 } from "./types.js";
 import {DuplicateTaskError} from "./errors.js";
-import {ApiTelemetry, TokenCount} from "../token/types";
+import {ApiTelemetry, TokenCount} from "../token";
 
 // ─── 内部辅助 ───
 
@@ -34,7 +34,7 @@ function generateId(): string {
 function parseJSON<T>(raw: unknown, fallback: T): T {
   if (typeof raw === "string") {
     try { return JSON.parse(raw) as T; } catch {
-      logger.debug(`[vibe-pm] parseJSON: failed to parse JSON, using fallback`);
+      logger.debug(`parseJSON: failed to parse JSON, using fallback`);
     }
   }
   return fallback;
@@ -83,6 +83,7 @@ export class MemorySystem implements IMemorySystem {
   private stmtGetMetricsByFlow!: Statement;
 
   private stmtGetClosedTasksBySession!: Statement;
+  private stmtCheckDupUserRequest!: Statement;
 
   private stmtInitSessionTokens!: Statement;
   private stmtGetSessionTokens!: Statement;
@@ -120,6 +121,7 @@ export class MemorySystem implements IMemorySystem {
         summary TEXT NOT NULL,
         specRef TEXT,
         planRef TEXT,
+        userRequest TEXT,
         stepTransitions JSON
       );
 
@@ -181,6 +183,12 @@ export class MemorySystem implements IMemorySystem {
       CREATE INDEX IF NOT EXISTS idx_session_tokens_sessionId ON session_tokens(sessionId);
     `);
 
+    // Migration: add userRequest column (idempotent, fails silently if column exists)
+    try {
+      this.db.run("ALTER TABLE tasks ADD COLUMN userRequest TEXT");
+      this.db.run("CREATE INDEX IF NOT EXISTS idx_tasks_userRequest ON tasks(sessionId, userRequest)");
+    } catch { /* column/index already exists */ }
+
     // ─── Prepared Statements ───
     this.stmtInsertTask = this.db.prepare(`
       INSERT INTO tasks (id, sessionId, flow, currentStep, currentStepName, startAt, endAt, closed, summary, specRef, planRef, stepTransitions)
@@ -194,6 +202,9 @@ export class MemorySystem implements IMemorySystem {
     this.stmtGetTaskById = this.db.prepare("SELECT * FROM tasks WHERE id = ? LIMIT 1");
     this.stmtUpdateTaskTransitions = this.db.prepare("UPDATE tasks SET stepTransitions = ? WHERE id = ?");
     this.stmtGetClosedTasksBySession = this.db.prepare("SELECT * FROM tasks WHERE sessionId = ? AND closed = 1");
+    this.stmtCheckDupUserRequest = this.db.prepare(
+      "SELECT COUNT(*) AS cnt FROM tasks WHERE sessionId = ? AND userRequest = ? AND userRequest IS NOT NULL AND closed = 0"
+    );
 
     this.stmtInsertDiscussion = this.db.prepare(`
       INSERT INTO discussions (id, fromSessionId, priority, importance, severity, issue, reason, solution, decision, taskSummary, createdAt, resolvedAt)
@@ -246,11 +257,18 @@ export class MemorySystem implements IMemorySystem {
       endAt: null,
       specRef: task.specRef ?? null,
       planRef: task.planRef ?? null,
+      userRequest: task.userRequest ?? null,
       stepTransitions: null,
       closed: 0,
     }));
 
     return task;
+  }
+
+  async checkDuplicateUserRequest(sessionId: string, userRequest: string): Promise<boolean> {
+    if (!userRequest) return false;
+    const row = this.stmtCheckDupUserRequest.get(sessionId, userRequest) as { cnt: number } | undefined;
+    return (row?.cnt ?? 0) > 0;
   }
 
   async getTask(sessionId: string): Promise<Task | null> {
@@ -356,7 +374,7 @@ export class MemorySystem implements IMemorySystem {
   // FlowMetrics CRUD
   // ═══════════════════════════════════════════
 
-  async recordStepEntry(
+  async recordStepTokens(
     sessionId: string,
     flow: string,
     step: string,
@@ -439,7 +457,7 @@ export class MemorySystem implements IMemorySystem {
         existing["humanInterventionTime"],
         existing["id"],
       );
-      logger.info(`[vibe-pm] incrementStepCount: step=${step} count=${(existing["stepInCount"] as number) + 1}`);
+      logger.info(`incrementStepCount: step=${step} count=${(existing["stepInCount"] as number) + 1}`);
     } else {
       this.stmtInsertMetrics.run(prefixKeys({
         id: generateId(),
@@ -476,7 +494,7 @@ export class MemorySystem implements IMemorySystem {
         (existing["humanInterventionTime"] as number) + humanInterventionTime,
         existing["id"],
       );
-      logger.info(`[vibe-pm] recordStepExit: step=${step} dwellTime=${dwellTime}ms total=${(existing["dwellTime"] as number) + dwellTime}ms`);
+      logger.info(`recordStepExit: step=${step} dwellTime=${dwellTime}ms total=${(existing["dwellTime"] as number) + dwellTime}ms`);
     }
   }
 
@@ -608,6 +626,7 @@ export class MemorySystem implements IMemorySystem {
       summary: row["summary"] as string,
       specRef: (row["specRef"] as string) ?? undefined,
       planRef: (row["planRef"] as string) ?? undefined,
+      userRequest: (row["userRequest"] as string) ?? undefined,
       stepTransitions: parseJSON<StepTransition[]>(row["stepTransitions"], []) as StepTransition[] | undefined,
     };
   }

@@ -102,7 +102,7 @@ describe("Token Integration", () => {
       const result = tokenCounter.countContextTokens(msg);
 
       // 记录到 memory — recordStepEntry 现在接受 TokenCount
-      await memory.recordStepEntry(
+      await memory.recordStepTokens(
         sessionId,
         "bug-fix",
         "S1",
@@ -156,7 +156,7 @@ describe("Token Integration", () => {
 
       const result = tokenCounter.countContextTokens(msg);
 
-      await memory.recordStepEntry(
+      await memory.recordStepTokens(
         sessionId,
         "bug-fix",
         "S1",

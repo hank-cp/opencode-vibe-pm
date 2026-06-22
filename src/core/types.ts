@@ -7,6 +7,10 @@
 
 // ─── SDK Re-exports ───
 
+/** 模块可以贡献的钩子子集，类型来自 SDK */
+import type {Hooks, ToolDefinition} from "@opencode-ai/plugin";
+import type {OpencodeClient} from "@opencode-ai/sdk";
+
 export type {
   Plugin,
   PluginInput,
@@ -40,6 +44,7 @@ export interface IPluginContext {
   readonly config: PluginConfig;
   readonly projectDir: string;
   readonly dataDir: string;
+  readonly client: OpencodeClient;
 }
 
 // ─── Logger ───
@@ -51,13 +56,4 @@ export interface ILogger {
   error(...args: unknown[]): void;
 }
 
-// ─── Module System ───
-
-/** 模块可以贡献的钩子子集，类型来自 SDK */
-import type { Hooks } from "@opencode-ai/plugin";
-
-export interface ModuleHooks extends Partial<Hooks> {
-  // 模块可以贡献任意钩子子集
-}
-
-export type ModuleInit = (ctx: IPluginContext) => ModuleHooks;
+export type ToolDefinitionWithKey = ToolDefinition & { toolKey: string; };

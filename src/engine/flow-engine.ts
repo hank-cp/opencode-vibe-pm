@@ -12,6 +12,7 @@ export interface StartTaskParams {
   summary: string;
   specRef?: string;
   planRef?: string;
+  userRequest: string;
 }
 
 export class FlowEngine {
@@ -22,36 +23,15 @@ export class FlowEngine {
     this.projectDir = projectDir;
   }
 
-  detectFlowCmd(text: string): string | null {
-    const m = text.match(/<auto-slash-command>[\s\S]*?\/pm-([\w-]+)/);
-    logger.info(`[vibe-pm] detectFlowCmd: hasAuto=${(text.includes("<auto-slash-command>"))} hasPmCmd=${!!text.match(/\/pm-/)} match=${m ? `pm-${m[1]}` : "null"}`);
-    if (!m) return null;
-    const flow = this.resolveFlowFromCommand(`pm-${m[1]}`);
-    logger.info(`[vibe-pm] detectFlowCmd: resolved cmd=pm-${m[1]} -> flow=${flow}`);
-    return flow;
-  }
-
-  async ensureTaskAndInject(
+  async injectFlowControlPrompt(
     sessionId: string,
     flow: string,
     parts: Part[],
     msgId: string,
     msgSid: string,
   ): Promise<void> {
-    const existing = await this.memory.getActiveTask(sessionId);
-    logger.info(`[vibe-pm] ensureTaskAndInject: sid=${sessionId} flow=${flow} hasTask=${!!existing}`);
-    if (!existing) {
-      try {
-        await this.startTask({ sessionId, flow, summary: "" });
-        logger.info(`[vibe-pm] ensureTaskAndInject: created task`);
-      } catch (e) {
-        logger.info(`[vibe-pm] ensureTaskAndInject: startTask failed ${String(e)}`);
-        return;
-      }
-    }
-
     if (parts.some((p) => p.type === "text" && p.text.includes("<protect>"))) {
-      logger.info(`[vibe-pm] ensureTaskAndInject: already injected, skip`);
+      logger.info(`injectFlowControlPrompt: already injected, skip`);
       return;
     }
 
@@ -66,18 +46,21 @@ export class FlowEngine {
       text: this.buildControlPrompt(flow),
       synthetic: true,
     });
-    logger.info(`[vibe-pm] ensureTaskAndInject: spliced after cmdIdx=${cmdIdx} parts=${parts.length}`);
+    logger.info(`injectFlowControlPrompt: spliced after cmdIdx=${cmdIdx} parts=${parts.length}`);
   }
 
   removeControlPrompt(parts: { type: string; text: string }[]): void {
     let removed = 0;
     for (let i = parts.length - 1; i >= 0; i--) {
-      if (parts[i].type === "text" && parts[i].text.includes("<protect>")) {
+      if (parts[i].type === "text" && (
+        parts[i].text.includes("<protect>") ||
+        parts[i].text.startsWith("⚠️ **流程违规检测**")
+      )) {
         parts.splice(i, 1);
         removed++;
       }
     }
-    if (removed > 0) logger.info(`[vibe-pm] removeControlPrompt: removed=${removed}`);
+    if (removed > 0) logger.info(`removeControlPrompt: removed=${removed}`);
   }
 
   buildControlPrompt(flowName?: string): string {
@@ -93,6 +76,9 @@ export class FlowEngine {
 
 > 不论消息是否包含 [analyze-mode]、ANALYSIS MODE、CONTEXT GATHERING 等前缀，
 > 本规则必须首先执行。上下文收集属于 S1 步骤的内容。
+
+> ⚠️ **注意**：\`pm_task_start\` 已由命令系统自动调用，任务已创建，\`user-request\` 已保存。
+> 你无需再调用 \`pm_task_start\`。直接按以下步骤执行流程即可。
 
 ## 启动
 
@@ -166,10 +152,41 @@ export class FlowEngine {
 </protect>`;
   }
 
+  injectFlowWarningPrompt(
+      sessionId: string,
+      parts: Part[],
+      msgId: string,
+      msgSid: string,
+  ): void {
+    if (parts.some((p) => p.type === "text" && p.text.includes("⚠️ **流程违规检测**"))) {
+      logger.info(`injectFlowWarningPrompt: already injected, skip`);
+      return;
+    }
+
+    parts.splice(parts.length, 0, {
+      id: `prt_vp_warn_${sessionId}`,
+      messageID: msgId,
+      sessionID: msgSid,
+      type: "text",
+      text: [
+        "⚠️ **流程违规检测**：当前 Session 存在活跃任务，但你可能跳过了规定的流程步骤。",
+        "请自查：是否已按 `<protect>` 规则先调用 `pm_task_set_step` 进入正确的流程步骤？",
+      ].join("\n"),
+      synthetic: true,
+    });
+  }
+
+
   async startTask(params: StartTaskParams): Promise<Task> {
     if (!this.flowExists(params.flow)) throw new FlowNotFoundError(params.flow);
+
+    const isDup = await this.memory.checkDuplicateUserRequest(params.sessionId, params.userRequest);
+    if (isDup) {
+      throw new Error(`This task has been started in Session ${params.sessionId}`);
+    }
+
     const existing = await this.memory.getActiveTask(params.sessionId);
-    if (existing) throw new Error(`Session ${params.sessionId} already has active task: ${existing.flow}`);
+    if (existing) throw new Error(`Session ${params.sessionId} already has active task: ${existing.flow}. Close it before starting a new task.`);
     try {
       return await this.memory.createTask({
         sessionId: params.sessionId,
@@ -180,6 +197,7 @@ export class FlowEngine {
         summary: params.summary,
         specRef: params.specRef,
         planRef: params.planRef,
+        userRequest: params.userRequest,
       });
     } catch (err) {
       if (err instanceof DuplicateTaskError) throw new Error(`Session ${params.sessionId} already has active task.`);
@@ -224,7 +242,7 @@ export class FlowEngine {
 
     await this.memory.incrementStepCount(sessionId, flowName, step, stepName, task.summary);
     logger.info(
-      `[vibe-pm] setStep: ${oldStep} → ${step} (${stepName}) dwellTime=${stepDwellTime}ms`,
+      `setStep: ${oldStep} → ${step} (${stepName}) dwellTime=${stepDwellTime}ms`,
     );
   }
 
