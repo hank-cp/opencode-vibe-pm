@@ -312,6 +312,29 @@ await Bun.build({
 
 ---
 
+## 命令模板引导 LLM 调用工具
+
+命令模板不仅是匹配文本，更是**引导 LLM 行为的 prompt**。
+模板和 description 应**显式指示调用哪个工具、传递哪些关键参数**：
+
+```typescript
+// ❌ 模糊——LLM 不知道要调用工具
+commands[cmdName] = {
+  template: `Start a task under the "${flowName}" flow`,
+  description: `Start a new ${flowName} task`,
+};
+
+// ✅ 显式——告诉 LLM 工具名和关键参数
+commands[cmdName] = {
+  template: `Start a task under the "${flowName}" flow — call the pm_${toolKey} tool with summary and userRequest`,
+  description: `Start a new ${flowName} task by calling the pm_${toolKey} tool. Pass the user's original request as userRequest parameter.`,
+};
+```
+
+**原则**：LLM 看到命令模板后应能**仅凭模板文字**知道调用哪个工具、传什么参数。
+
+---
+
 ## 调试方法
 
 1. **TUI 日志**：`console.log` 和 `logger.info` 在 TUI 上下文中被抑制，调试打印必须用 `console.error`
