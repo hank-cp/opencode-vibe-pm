@@ -37,7 +37,6 @@ describe("formatElapsed", () => {
           currentStep: "S5",
           currentStepName: "执行环节",
           startAt: now,
-          specRef: "docs/spec/test.md",
         }),
         getLastClosedTask: async () => null,
       } as unknown as Parameters<typeof loadTaskStatus>[0],
@@ -47,7 +46,6 @@ describe("formatElapsed", () => {
     expect(result.flow).toBe("research");
     expect(result.currentStep).toBe("S5");
     expect(result.currentStepName).toBe("执行环节");
-    expect(result.specRef).toBe("docs/spec/test.md");
     expect(result.elapsed).toBeDefined();
   });
 

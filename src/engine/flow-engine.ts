@@ -10,8 +10,6 @@ export interface StartTaskParams {
   sessionId: string;
   flow: string;
   summary: string;
-  specRef?: string;
-  planRef?: string;
   userRequest: string;
 }
 
@@ -191,12 +189,10 @@ export class FlowEngine {
       return await this.memory.createTask({
         sessionId: params.sessionId,
         flow: params.flow,
-        currentStep: "S1",
-        currentStepName: "就绪",
+        currentStep: "",
+        currentStepName: "",
         startAt: new Date().toISOString(),
         summary: params.summary,
-        specRef: params.specRef,
-        planRef: params.planRef,
         userRequest: params.userRequest,
       });
     } catch (err) {

@@ -57,12 +57,6 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
                 <text fg={t.textMuted}>
                   开始: {startTime}  耗时: {elapsed}
                 </text>
-                {data.specRef && (
-                  <text fg={t.textMuted}>Spec: {data.specRef}</text>
-                )}
-                {data.planRef && (
-                  <text fg={t.textMuted}>Plan: {data.planRef}</text>
-                )}
               </box>
             );
           }
@@ -75,12 +69,6 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
                 <text fg={t.textMuted}>
                   开始: {startTime}  耗时: {elapsed}
                 </text>
-                {data.specRef && (
-                  <text fg={t.textMuted}>Spec: {data.specRef}</text>
-                )}
-                {data.planRef && (
-                  <text fg={t.textMuted}>Plan: {data.planRef}</text>
-                )}
               </box>
             );
           }

@@ -403,11 +403,9 @@ function createFlowStartTool(ctx: IPluginContext, engine: FlowEngine, flowName: 
     description: `Start a new task under the "${flowName}" flow`,
     args: {
       summary: tool.schema.string().optional().describe("任务摘要"),
-      specRef: tool.schema.string().optional().describe("关联 Spec 文档路径"),
-      planRef: tool.schema.string().optional().describe("关联 Plan 文档路径"),
     },
     async execute(
-        args: { summary?: string; specRef?: string; planRef?: string },
+        args: { summary?: string },
         toolCtx: ToolContext,
     ): Promise<string> {
       const { sessionID, messageID } = toolCtx;
@@ -440,8 +438,6 @@ function createFlowStartTool(ctx: IPluginContext, engine: FlowEngine, flowName: 
           sessionId: sessionID,
           flow: flowName,
           summary: args.summary ?? "",
-          specRef: args.specRef,
-          planRef: args.planRef,
           userRequest: userRequest
         });
         return JSON.stringify({

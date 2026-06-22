@@ -119,8 +119,6 @@ export class MemorySystem implements IMemorySystem {
         endAt TEXT,
         closed INTEGER NOT NULL DEFAULT 0,
         summary TEXT NOT NULL,
-        specRef TEXT,
-        planRef TEXT,
         userRequest TEXT,
         stepTransitions JSON
       );
@@ -191,8 +189,8 @@ export class MemorySystem implements IMemorySystem {
 
     // ─── Prepared Statements ───
     this.stmtInsertTask = this.db.prepare(`
-      INSERT INTO tasks (id, sessionId, flow, currentStep, currentStepName, startAt, endAt, closed, summary, specRef, planRef, stepTransitions)
-      VALUES ($id, $sessionId, $flow, $currentStep, $currentStepName, $startAt, $endAt, $closed, $summary, $specRef, $planRef, $stepTransitions)
+      INSERT INTO tasks (id, sessionId, flow, currentStep, currentStepName, startAt, endAt, closed, summary, stepTransitions)
+      VALUES ($id, $sessionId, $flow, $currentStep, $currentStepName, $startAt, $endAt, $closed, $summary, $stepTransitions)
     `);
     this.stmtGetTaskBySession = this.db.prepare("SELECT * FROM tasks WHERE sessionId = ? LIMIT 1");
     this.stmtGetActiveTaskBySession = this.db.prepare("SELECT * FROM tasks WHERE sessionId = ? AND closed = 0 LIMIT 1");
@@ -255,8 +253,6 @@ export class MemorySystem implements IMemorySystem {
     this.stmtInsertTask.run(prefixKeys({
       ...task,
       endAt: null,
-      specRef: task.specRef ?? null,
-      planRef: task.planRef ?? null,
       userRequest: task.userRequest ?? null,
       stepTransitions: null,
       closed: 0,
@@ -624,8 +620,6 @@ export class MemorySystem implements IMemorySystem {
       endAt: (row["endAt"] as string) ?? undefined,
       closed: !!row["closed"],
       summary: row["summary"] as string,
-      specRef: (row["specRef"] as string) ?? undefined,
-      planRef: (row["planRef"] as string) ?? undefined,
       userRequest: (row["userRequest"] as string) ?? undefined,
       stepTransitions: parseJSON<StepTransition[]>(row["stepTransitions"], []) as StepTransition[] | undefined,
     };

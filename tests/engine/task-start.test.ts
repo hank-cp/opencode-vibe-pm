@@ -58,8 +58,8 @@ describe("Task Start", () => {
 
     expect(task.sessionId).toBe("ses_new");
     expect(task.flow).toBe("test-flow");
-    expect(task.currentStep).toBe("S1");
-    expect(task.currentStepName).toBe("就绪");
+    expect(task.currentStep).toBe("");
+    expect(task.currentStepName).toBe("");
     expect(task.closed).toBe(false);
     expect(task.summary).toBe("测试任务创建");
   });
@@ -110,7 +110,7 @@ describe("Task Start", () => {
 
   // ─── setStep dwellTime ───────────────────────
 
-  it("setStep_writes_stepTransitions: 从 S1 到 S2 写入转换记录", async () => {
+  it("setStep_writes_stepTransitions: 从空步骤到 S2 写入转换记录", async () => {
     await engine.startTask({
       sessionId: "ses_tr_write",
       flow: "test-flow",
@@ -121,7 +121,7 @@ describe("Task Start", () => {
     const task = await memory.getActiveTask("ses_tr_write");
     expect(task!.stepTransitions).toBeDefined();
     expect(task!.stepTransitions).toHaveLength(1);
-    expect(task!.stepTransitions![0].fromStep).toBe("S1");
+    expect(task!.stepTransitions![0].fromStep).toBe("");
     expect(task!.stepTransitions![0].toStep).toBe("S2");
     expect(task!.stepTransitions![0].at).toBeDefined();
   });

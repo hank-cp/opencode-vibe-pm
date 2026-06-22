@@ -30,8 +30,6 @@ export async function loadTaskStatus(
       currentStepName: active.currentStepName,
       startAt: active.startAt,
       elapsed: formatElapsed(active.startAt),
-      specRef: active.specRef,
-      planRef: active.planRef,
     };
   }
 
@@ -46,8 +44,6 @@ export async function loadTaskStatus(
       startAt: last.startAt,
       endAt: last.endAt,
       elapsed: formatElapsed(last.startAt, last.endAt),
-      specRef: last.specRef,
-      planRef: last.planRef,
     };
   }
 

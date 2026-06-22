@@ -18,8 +18,6 @@ export interface TaskStatusData {
   endAt?: string;
   /** 格式化耗时 "22min" / "1h 15min" */
   elapsed?: string;
-  specRef?: string;
-  planRef?: string;
 }
 
 // ─── Token Data ───
