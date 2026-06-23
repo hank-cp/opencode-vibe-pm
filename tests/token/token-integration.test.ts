@@ -16,16 +16,20 @@ import type { MessagePack } from "../../src/token/types.js";
 import type { CreateTaskInput } from "../../src/memory/types.js";
 
 // Mock tiktoken
-mock.module("tiktoken", () => ({
-  get_encoding: mock((_encoding: string) => ({
+mock.module("tiktoken", () => {
+  const makeEncoder = () => ({
     encode: mock((text: string) => {
       const len = Math.max(1, Math.ceil(text.length / 4));
       return new Uint32Array(len);
     }),
     free: mock(() => {}),
-  })),
-  TiktokenEncoding: mock(() => {}),
-}));
+  });
+  return {
+    get_encoding: mock((_encoding: string) => makeEncoder()),
+    encoding_for_model: mock((_model: string) => makeEncoder()),
+  };
+});
+
 
 // ─── Helpers ───
 
@@ -66,7 +70,7 @@ describe("Token Integration", () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-pm-test-integ-"));
     memory = new MemorySystem();
     await memory.init(tmpDir);
-    tokenCounter = new TokenCounter("cl100k_base");
+    tokenCounter = new TokenCounter({ providerID: "openai", modelID: "gpt-4" });
   });
 
   afterAll(() => {

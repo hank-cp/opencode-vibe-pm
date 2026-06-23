@@ -1,43 +1,34 @@
 /**
- * TokenCounter — 基于 tiktoken 的 Token 计数 + 来源分类
+ * TokenCounter — 多模型 Token 计数 + 来源分类
  *
  * 按 message.info.role 区分 user/assistant，按 part.type 区分 flowControl/text/tool/reasoning。
+ * 根据 model 自动选择正确的 tokenizer backend。
  */
-
-import {get_encoding, type Tiktoken, type TiktokenEncoding} from "tiktoken";
 import type {Part, ToolPart} from "@opencode-ai/sdk";
-import type {MessagePack, TokenCount} from "./types.js";
+import type {MessagePack, TokenCount, ModelInfo, TokenizerBackend} from "./types.js";
+import {resolveBackend} from "./model-registry.js";
+import {logger} from "../core";
 
 const EMPTY_COUNT: TokenCount = {
   text: 0, user: 0, assistant: 0, flowControl: 0, tool: 0, reasoning: 0,
 };
 
 export class TokenCounter {
-  private encoder: Tiktoken;
+  private backend: TokenizerBackend;
 
-  /**
-   * @param modelEncoding tiktoken 编码名称，默认 "cl100k_base"（GPT-4 兼容）
-   */
-  constructor(modelEncoding: TiktokenEncoding = "cl100k_base") {
-    this.encoder = get_encoding(modelEncoding);
+  constructor(info: ModelInfo) {
+    this.backend = resolveBackend(info);
+    logger.info(`TokenCounter: provider=${info.providerID} model=${info.modelID}`);
   }
 
-  /**
-   * 编码文本并返回 token 数。
-   * 空字符串/仅空白字符串直接返回 0，跳过编码。
-   */
+  /** 编码文本并返回 token 数。空/空白直接返回 0。 */
   countTokens(text: string): number {
     if (!text || !text.trim()) return 0;
-    return this.encoder.encode(text).length;
+    return this.backend.countTokens(text);
   }
 
   /**
    * 根据 part.type 和内容分类 part token 来源。
-   *
-   * - flowControl: part.type === "text" && text 含 `<protect>`
-   * - text:        part.type === "text" && text 不含 `<protect>`
-   * - tool:        part.type === "tool"
-   * - reasoning:   part.type === "reasoning"
    */
   private classifyPartType(part: Part): "flowControl" | "text" | "tool" | "reasoning" | null {
     if (part.type === "text") {
@@ -63,9 +54,6 @@ export class TokenCounter {
 
   /**
    * 计数消息中的 token 并按来源分类。
-   *
-   * user/assistant 按 message.info.role 区分。
-   * flowControl/text/tool/reasoning 按 part.type 和内容区分。
    */
   countContextTokens(message: MessagePack): TokenCount {
     const result: TokenCount = { ...EMPTY_COUNT };
@@ -116,8 +104,8 @@ export class TokenCounter {
     return result;
   }
 
-  /** 释放 tiktoken encoder 资源 */
+  /** 释放 backend 资源 */
   dispose(): void {
-    this.encoder.free();
+    this.backend.dispose();
   }
 }

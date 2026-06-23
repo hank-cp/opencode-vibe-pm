@@ -10,15 +10,19 @@ import type { Part, Message } from "@opencode-ai/sdk";
 import type { MessagePack } from "../../src/token/types.js";
 
 // Mock tiktoken: encode 返回长度 = text.length / 4（最小 1）
-mock.module("tiktoken", () => ({
-  get_encoding: mock((_encoding: string) => ({
+mock.module("tiktoken", () => {
+  const makeEncoder = () => ({
     encode: mock((text: string) => {
       const len = Math.max(1, Math.ceil(text.length / 4));
       return new Uint32Array(len);
     }),
     free: mock(() => {}),
-  })),
-}));
+  });
+  return {
+    get_encoding: mock((_encoding: string) => makeEncoder()),
+    encoding_for_model: mock((_model: string) => makeEncoder()),
+  };
+});
 
 import { TokenCounter } from "../../src/token/token-counter.js";
 
@@ -71,7 +75,7 @@ describe("TokenCounter", () => {
   let counter: TokenCounter;
 
   beforeAll(() => {
-    counter = new TokenCounter("cl100k_base");
+    counter = new TokenCounter({ providerID: "openai", modelID: "gpt-4" });
   });
 
   afterAll(() => {

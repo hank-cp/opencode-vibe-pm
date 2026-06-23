@@ -4,7 +4,7 @@ import {registerCommands, registerFlowCommands, registerFlowTools, registerTools
 import {initLogger, logger} from "./logger.js";
 import {MemorySystem} from "../memory";
 import {FlowEngine} from "../engine";
-import type {ApiTelemetry, TokenCount} from "../token";
+import type {ApiTelemetry, ModelInfo, TokenCount} from "../token";
 import {TokenCounter} from "../token";
 import type {Config, Hooks, IPluginContext, Plugin, PluginInput} from "./types.js";
 import type {AssistantMessage} from "@opencode-ai/sdk";
@@ -23,13 +23,7 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
   const engine = new FlowEngine(memory, ctx.directory);
 
   let tokenCounter: TokenCounter | null = null;
-  try {
-    tokenCounter = new TokenCounter("cl100k_base");
-  } catch (err) {
-    logger.warn(
-      `TokenCounter initialization failed, token counting disabled: ${err}`,
-    );
-  }
+  let activeModelId = "";
 
   return {
     config: async (c: Config) => {
@@ -39,15 +33,33 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
     tool: (() => {
       const tools = Object.assign(registerTools(pluginCtx, engine, memory),
                            registerFlowTools(pluginCtx, engine));
-      logger.info(`registering tools: ${JSON.stringify(tools)}`);
+      logger.info(`registering tools: ${Object.keys(tools)}`);
       return tools;
     })(),
 
     "experimental.chat.messages.transform": async (_input, output) => {
       const msg0 = output.messages[0];
-      const info0 = msg0?.info as { sessionID?: string } | undefined;
+      const info0 = msg0?.info as { sessionID?: string; model?: { providerID?: string; modelID?: string } } | undefined;
       const sid = info0?.sessionID;
       if (!sid) return;
+
+      // Lazy-init TokenCounter with detected model
+      const model = info0?.model;
+      const modelId = model?.modelID ?? "";
+      if (modelId && modelId !== activeModelId) {
+        activeModelId = modelId;
+        const modelInfo: ModelInfo = {
+          providerID: model?.providerID ?? "",
+          modelID: modelId,
+        };
+        try {
+          tokenCounter?.dispose();
+          tokenCounter = new TokenCounter(modelInfo);
+        } catch (err) {
+          logger.warn(`TokenCounter init failed for ${modelId}: ${err}`);
+          tokenCounter = null;
+        }
+      }
 
       // TODO debug code, need continuous observation
       const flowSessions = new Set<string>();
