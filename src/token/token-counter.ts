@@ -5,7 +5,7 @@
  */
 
 import {get_encoding, type Tiktoken, type TiktokenEncoding} from "tiktoken";
-import type {Part} from "@opencode-ai/sdk";
+import type {Part, ToolPart} from "@opencode-ai/sdk";
 import type {MessagePack, TokenCount} from "./types.js";
 
 const EMPTY_COUNT: TokenCount = {
@@ -45,7 +45,18 @@ export class TokenCounter {
       if (pt.text?.includes("<protect>")) return "flowControl";
       return "text";
     }
-    if (part.type === "tool") return "tool";
+    if (part.type === "tool") {
+      // Read 工具读取项目规则文件（Constitution/Flow/Regulation）→ flowControl
+      const tp = part as ToolPart;
+      if (tp.tool === "read") {
+        const input = tp.state?.input as Record<string, unknown> | undefined;
+        const filePath = input?.filePath;
+        if (typeof filePath === "string" && /docs\/(regulation|flow)\//.test(filePath)) {
+          return "flowControl";
+        }
+      }
+      return "tool";
+    }
     if (part.type === "reasoning") return "reasoning";
     return null;
   }

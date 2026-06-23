@@ -25,7 +25,7 @@ import { TokenCounter } from "../../src/token/token-counter.js";
 // ─── Helpers ───
 
 interface TextPartStub { type: "text"; text: string }
-interface ToolPartStub { type: "tool"; text?: string; args?: unknown; state?: { input?: unknown; output?: string; error?: string } }
+interface ToolPartStub { type: "tool"; tool?: string; text?: string; args?: unknown; state?: { input?: unknown; output?: string; error?: string } }
 interface ReasoningPartStub { type: "reasoning"; text: string }
 
 type PartStub = TextPartStub | ToolPartStub | ReasoningPartStub;
@@ -153,6 +153,54 @@ describe("TokenCounter", () => {
       const result = counter.countContextTokens(msg);
 
       expect(result.reasoning).toBe(expectedTokens("Let me think about this..."));
+    });
+
+    it("classifies Read tool of regulation file as flowControl", () => {
+      const msg = makeAssistantMessage([
+        makeToolPart({
+          tool: "read",
+          state: {
+            input: { filePath: "docs/regulation/constitution.md" },
+            output: "## Core Principles\n\nType safety first.",
+          },
+        }),
+      ]);
+      const result = counter.countContextTokens(msg);
+
+      expect(result.flowControl).toBeGreaterThan(0);
+      expect(result.tool).toBe(0);
+    });
+
+    it("classifies Read tool of flow file as flowControl", () => {
+      const msg = makeAssistantMessage([
+        makeToolPart({
+          tool: "read",
+          state: {
+            input: { filePath: "docs/flow/flow-spec-driven-dev.md" },
+            output: "## Spec-Driven Dev\n\nS1: Understand requirements.",
+          },
+        }),
+      ]);
+      const result = counter.countContextTokens(msg);
+
+      expect(result.flowControl).toBeGreaterThan(0);
+      expect(result.tool).toBe(0);
+    });
+
+    it("classifies Read tool of non-rule file as tool (not flowControl)", () => {
+      const msg = makeAssistantMessage([
+        makeToolPart({
+          tool: "read",
+          state: {
+            input: { filePath: "src/token/token-counter.ts" },
+            output: "import { get_encoding } from tiktoken;",
+          },
+        }),
+      ]);
+      const result = counter.countContextTokens(msg);
+
+      expect(result.flowControl).toBe(0);
+      expect(result.tool).toBeGreaterThan(0);
     });
   });
 
