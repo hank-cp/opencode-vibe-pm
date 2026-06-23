@@ -27,6 +27,8 @@ export interface PluginConfig {
   language: "zh-CN" | "en-US";
   dataDir: string;
   autoAnalyze: boolean;
+  /** LLM 分析的项目编程语言列表，一次分析后缓存。安装流程时优先使用此配置。 */
+  programmingLanguages?: string[];
   contextInjection: {
     /** 每步骤最大注入 token 数，0 表示不限制 */
     maxStepTokens: number;

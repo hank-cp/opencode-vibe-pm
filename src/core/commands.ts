@@ -9,7 +9,7 @@
 import {tool} from "@opencode-ai/plugin";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import {Config, IPluginContext, ToolContext, ToolDefinition} from "./types.js";
+import {Config, IPluginContext, PluginConfig, ToolContext, ToolDefinition} from "./types.js";
 import {installTemplate, scanTemplates, uninstallFlow} from "../template";
 import {loadConfig, writeConfig} from "./config.js";
 import {writeDcpConfig} from "../integration";
@@ -305,6 +305,49 @@ function createConfigTool(ctx: IPluginContext): ToolDefinition {
 
 // ─── pm-install-flow 实现 ───
 
+/**
+ * 语言选择优先级：tool 参数 > 配置缓存 > General 兜底
+ */
+function resolveLanguages(
+  langParam?: string,
+  config?: PluginConfig,
+): string[] {
+  if (langParam) {
+    return langParam.split(",").map((s) => s.trim()).filter(Boolean).map(normalizeLanguage);
+  }
+  if (config?.programmingLanguages?.length) {
+    return config.programmingLanguages;
+  }
+  return ["General"];
+}
+
+/** LLM 可能传入非标准名称，映射到 _coding_style/ 目录中的标准语言名 */
+function normalizeLanguage(input: string): string {
+  const lower = input.toLowerCase();
+  const aliasMap: Record<string, string> = {
+    ts: "TypeScript",
+    typescript: "TypeScript",
+    js: "JavaScript",
+    javascript: "JavaScript",
+    py: "Python",
+    python: "Python",
+    go: "Go",
+    golang: "Go",
+    rs: "Rust",
+    rust: "Rust",
+    java: "Java",
+    kotlin: "Kotlin",
+    rb: "Ruby",
+    ruby: "Ruby",
+    ex: "Elixir",
+    elixir: "Elixir",
+    c: "C/C++",
+    "c++": "C/C++",
+    cpp: "C/C++",
+  };
+  return aliasMap[lower] ?? input;
+}
+
 function createInstallFlowTool(
   ctx: IPluginContext,
   engine: FlowEngine,
@@ -315,14 +358,27 @@ function createInstallFlowTool(
       templateId: tool.schema.string().optional().describe(
         "Template ID to install (e.g. 'spec-driven-dev', 'bug-fix', 'research', 'large-refactor'). If omitted, lists available templates.",
       ),
+      programmingLanguages: tool.schema.string().optional().describe(
+        "逗号分隔的编程语言列表，由 LLM 分析项目结构后提供。支持: TypeScript, Python, Go, Rust, Java, JavaScript, Kotlin, Ruby, Elixir, C/C++。如 'TypeScript,Go'。若省略，从配置缓存读取；无配置时使用 General。",
+      ),
     },
     async execute(
-      args: { templateId?: string },
+      args: { templateId?: string; programmingLanguages?: string },
       toolCtx: ToolContext,
     ): Promise<string> {
       if (args.templateId) {
         try {
-          installTemplate(ctx.projectDir, args.templateId);
+          const config = loadConfig(ctx.projectDir);
+          const languages = resolveLanguages(args.programmingLanguages, config);
+
+          installTemplate(ctx.projectDir, args.templateId, languages);
+
+          // 将 LLM 分析结果写回配置，后续安装复用
+          if (languages.length > 0 && languages[0] !== "General") {
+            config.programmingLanguages = languages;
+            writeConfig(ctx.projectDir, config);
+          }
+
           return `[vibe-pm] 流程 "${args.templateId}" 已成功安装。\n\n已安装到：\n- docs/flow/flow-${args.templateId}.md\n\n⚠️ 请重启 OpenCode 后使用 \`/pm-${args.templateId}\` 命令启动任务。`;
         } catch (err) {
           const msg =

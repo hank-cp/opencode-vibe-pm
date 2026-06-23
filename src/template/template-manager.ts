@@ -69,102 +69,15 @@ function parseTemplateMeta(raw: string, bundleDir: string): TemplateMeta | null 
   };
 }
 
-// ─── 语言检测 ───
-
-interface LanguageDetector {
-  files: string[];
-  packages?: string[];
-}
-
-const LANGUAGE_DETECTORS: Record<string, LanguageDetector> = {
-  TypeScript: {
-    files: ["tsconfig.json"],
-    packages: ["typescript"],
-  },
-  JavaScript: {
-    files: ["package.json"],
-    packages: [],
-  },
-  Python: {
-    files: ["pyproject.toml", "setup.py", "setup.cfg", "requirements.txt", "Pipfile"],
-  },
-  Rust: {
-    files: ["Cargo.toml"],
-  },
-  Go: {
-    files: ["go.mod"],
-  },
-  Java: {
-    files: ["pom.xml", "build.gradle", "build.gradle.kts"],
-  },
-  Kotlin: {
-    files: ["build.gradle.kts"],
-    packages: [],
-  },
-  Ruby: {
-    files: ["Gemfile"],
-  },
-  Elixir: {
-    files: ["mix.exs"],
-  },
-  "C/C++": {
-    files: ["CMakeLists.txt", "Makefile"],
-  },
-};
-
-/**
- * 检测项目使用的主要语言。
- * TypeScript 会覆盖 JavaScript（同时检测到时）。
- */
-function detectProjectLanguages(projectDir: string): string[] {
-  const detected: string[] = [];
-
-  for (const [lang, detector] of Object.entries(LANGUAGE_DETECTORS)) {
-    const hasFile = detector.files.some((f) =>
-      fs.existsSync(path.join(projectDir, f)),
-    );
-
-    if (!hasFile) continue;
-
-    if (detector.packages && detector.packages.length > 0) {
-      const packageJsonPath = path.join(projectDir, "package.json");
-      if (fs.existsSync(packageJsonPath)) {
-        try {
-          const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
-          const deps = {
-            ...(pkg.devDependencies ?? {}),
-            ...(pkg.dependencies ?? {}),
-          };
-          const hasPackage = detector.packages.some((p) => p in deps);
-          if (!hasPackage) continue;
-        } catch {
-          continue;
-        }
-      } else {
-        continue;
-      }
-    }
-
-    detected.push(lang);
-  }
-
-  // TypeScript 覆盖 JavaScript（同时检测到时）
-  if (detected.includes("TypeScript") && detected.includes("JavaScript")) {
-    return detected.filter((l) => l !== "JavaScript");
-  }
-
-  return detected;
-}
-
 // ─── 编码风格模板安装 ───
 
 const CODING_STYLE_TEMPLATE_SUBDIR = path.join(TEMPLATE_DIR, "_coding_style");
 const CODING_STYLE_REG_SUBDIR = "coding_style";
 
 function installCodingStyleFromTemplate(
-  projectDir: string,
   docsDir: string,
   regDir: string,
+  programmingLanguages?: string[],
 ): void {
   const templateStyleDir = path.join(docsDir, CODING_STYLE_TEMPLATE_SUBDIR);
   if (!fs.existsSync(templateStyleDir)) return;
@@ -172,10 +85,9 @@ function installCodingStyleFromTemplate(
   const regStyleDir = path.join(regDir, CODING_STYLE_REG_SUBDIR);
   fs.mkdirSync(regStyleDir, { recursive: true });
 
-  const languages = detectProjectLanguages(projectDir);
-  if (languages.length === 0) {
-    languages.push("General");
-  }
+  const languages = (programmingLanguages && programmingLanguages.length > 0)
+    ? [...programmingLanguages]
+    : ["General"];
 
   // 复制检测到的语言文件（已存在则跳过，不覆盖用户自定义内容）
   for (const lang of languages) {
@@ -260,6 +172,7 @@ export function scanTemplates(projectDir: string): TemplateMeta[] {
 export function installTemplate(
   projectDir: string,
   templateId: string,
+  programmingLanguages?: string[],
 ): void {
   const templates = scanTemplates(projectDir);
   const meta = templates.find((t) => t.id === templateId);
@@ -304,7 +217,7 @@ export function installTemplate(
   installDictionaryFromTemplate(docsDir, regDir);
 
   // 安装 Coding Style（如缺失）
-  installCodingStyleFromTemplate(projectDir, docsDir, regDir);
+  installCodingStyleFromTemplate(docsDir, regDir, programmingLanguages);
 
   // 写入 DCP 保护配置（如果 DCP 插件已安装）
   writeDcpConfig(projectDir);

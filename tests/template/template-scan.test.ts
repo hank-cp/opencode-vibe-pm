@@ -162,6 +162,40 @@ describe("Template Manager", () => {
     expect(fs.readFileSync(existingPath, "utf-8")).toBe("existing content");
   });
 
+  describe("Coding Style 语言选择", () => {
+    function createCodingStyleTemplates(projectDir: string) {
+      const styleDir = path.join(projectDir, "docs", "template", "_coding_style");
+      fs.mkdirSync(styleDir, { recursive: true });
+      fs.writeFileSync(path.join(styleDir, "typescript.md"), "# TypeScript");
+      fs.writeFileSync(path.join(styleDir, "python.md"), "# Python");
+      fs.writeFileSync(path.join(styleDir, "general.md"), "# General");
+    }
+
+    it("installTemplate 传递 programmingLanguages → 只复制指定语言", () => {
+      writeTemplateBundle(tmpDir, "lang-test", "Lang Test");
+      createCodingStyleTemplates(tmpDir);
+
+      const languages = ["TypeScript", "Python"];
+      installTemplate(tmpDir, "lang-test", languages);
+
+      const codingDir = path.join(tmpDir, "docs", "regulation", "coding_style");
+      expect(fs.existsSync(path.join(codingDir, "typescript.md"))).toBe(true);
+      expect(fs.existsSync(path.join(codingDir, "python.md"))).toBe(true);
+      expect(fs.existsSync(path.join(codingDir, "general.md"))).toBe(false);
+    });
+
+    it("installTemplate 不传 programmingLanguages → General 兜底", () => {
+      writeTemplateBundle(tmpDir, "lang-fallback", "Lang Fallback");
+      createCodingStyleTemplates(tmpDir);
+
+      installTemplate(tmpDir, "lang-fallback");
+
+      const codingDir = path.join(tmpDir, "docs", "regulation", "coding_style");
+      expect(fs.existsSync(path.join(codingDir, "general.md"))).toBe(true);
+      expect(fs.existsSync(path.join(codingDir, "typescript.md"))).toBe(false);
+    });
+  });
+
   describe("DCP 配置文件路径解析", () => {
     const dcpDir = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-pm-test-dcp-"));
 
