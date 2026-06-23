@@ -125,12 +125,13 @@ describe("recordSessionTokens", () => {
   });
 
   it("accumulates across multiple calls", async () => {
+    // plugin.ts passes full totals each call — INSERT OR REPLACE overwrites
     await memory.initSessionTokens("s1");
     await memory.recordSessionTokens("s1", baseColumns);
-    const secondCall: RecordSessionTokensInput = {
-      text: 5, user: 0, assistant: 0, flowControl: 0, tool: 0, reasoning: 0,
+    const fullCall: RecordSessionTokensInput = {
+      text: 15, user: 20, assistant: 30, flowControl: 5, tool: 8, reasoning: 7,
     };
-    await memory.recordSessionTokens("s1", secondCall);
+    await memory.recordSessionTokens("s1", fullCall);
     const result = await memory.getSessionTokens("s1");
 
     expect(result).not.toBeNull();

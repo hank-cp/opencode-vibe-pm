@@ -87,7 +87,7 @@ export class MemorySystem implements IMemorySystem {
 
   private stmtInitSessionTokens!: Statement;
   private stmtGetSessionTokens!: Statement;
-  private stmtUpdateSessionTokens!: Statement;
+  private stmtUpsertSessionTokens!: Statement;
 
   private stmtUpsertSubagentTokens!: Statement;
   private stmtGetSubagentTokens!: Statement;
@@ -250,8 +250,9 @@ export class MemorySystem implements IMemorySystem {
       VALUES ($sessionId, $text, $user, $assistant, $flowControl, $tool, $reasoning, $apiInput, $apiOutput, $apiReasoning, $apiCacheRead, $apiCacheWrite, $scaleFactor, $startedAt, $updatedAt)
     `);
     this.stmtGetSessionTokens = this.db.prepare("SELECT * FROM session_tokens WHERE sessionId = ?");
-    this.stmtUpdateSessionTokens = this.db.prepare(`
-       UPDATE session_tokens SET text = $text, "user" = $user, assistant = $assistant, flowControl = $flowControl, tool = $tool, reasoning = $reasoning, apiInput = $apiInput, apiOutput = $apiOutput, apiReasoning = $apiReasoning, apiCacheRead = $apiCacheRead, apiCacheWrite = $apiCacheWrite, scaleFactor = $scaleFactor, updatedAt = $updatedAt WHERE sessionId = $sessionId
+    this.stmtUpsertSessionTokens = this.db.prepare(`
+       INSERT OR REPLACE INTO session_tokens (sessionId, text, "user", assistant, flowControl, tool, reasoning, apiInput, apiOutput, apiReasoning, apiCacheRead, apiCacheWrite, scaleFactor, startedAt, updatedAt)
+       VALUES ($sessionId, $text, $user, $assistant, $flowControl, $tool, $reasoning, $apiInput, $apiOutput, $apiReasoning, $apiCacheRead, $apiCacheWrite, $scaleFactor, $startedAt, $updatedAt)
     `);
     this.stmtUpsertSubagentTokens = this.db.prepare(`
       INSERT OR REPLACE INTO subagent_tokens (sessionId, parentSessionId, "user", assistant, apiInput, apiOutput, apiReasoning, apiCacheRead, apiCacheWrite)
@@ -435,7 +436,7 @@ export class MemorySystem implements IMemorySystem {
         dwellTime: existing["dwellTime"] as number ?? 0,
         humanInterventionTime: existing["humanInterventionTime"] as number ?? 0,
         userInputTokens: (existing["userInputTokens"] as number ?? 0) + newUserTokens,
-        taskSummary: existing["taskSummary"] as string ?? "",
+        taskSummary: (existing["taskSummary"] as string) ?? "",
       }));
     } else {
       let taskSummary = "";
@@ -551,13 +552,6 @@ export class MemorySystem implements IMemorySystem {
   }
 
   async recordSessionTokens(sessionId: string, tokenCount: TokenCount, apiTelemetry?: ApiTelemetry): Promise<void> {
-    let existing = this.stmtGetSessionTokens.get(sessionId) as Record<string, unknown> | undefined;
-
-    if (!existing) {
-      await this.initSessionTokens(sessionId);
-      existing = this.stmtGetSessionTokens.get(sessionId) as Record<string, unknown>;
-    }
-
     const now = new Date().toISOString();
 
     let scaleFactor = 1.0;
@@ -566,20 +560,21 @@ export class MemorySystem implements IMemorySystem {
       scaleFactor = denominator === 0 ? 1.0 : (apiTelemetry.input + (apiTelemetry.cache?.read ?? 0) + (apiTelemetry.cache?.write ?? 0)) / denominator;
     }
 
-    this.stmtUpdateSessionTokens.run(prefixKeys({
+    this.stmtUpsertSessionTokens.run(prefixKeys({
       sessionId,
-      text: (existing["text"] as number ?? 0) + tokenCount.text,
-      user: (existing["user"] as number ?? 0) + tokenCount.user,
-      assistant: (existing["assistant"] as number ?? 0) + tokenCount.assistant,
-      flowControl: (existing["flowControl"] as number ?? 0) + tokenCount.flowControl,
-      tool: (existing["tool"] as number ?? 0) + tokenCount.tool,
-      reasoning: (existing["reasoning"] as number ?? 0) + tokenCount.reasoning,
-      apiInput: (existing["apiInput"] as number ?? 0) + (apiTelemetry?.input ?? 0),
-      apiOutput: (existing["apiOutput"] as number ?? 0) + (apiTelemetry?.output ?? 0),
-      apiReasoning: (existing["apiReasoning"] as number ?? 0) + (apiTelemetry?.reasoning ?? 0),
-      apiCacheRead: (existing["apiCacheRead"] as number ?? 0) + (apiTelemetry?.cache?.read ?? 0),
-      apiCacheWrite: (existing["apiCacheWrite"] as number ?? 0) + (apiTelemetry?.cache?.write ?? 0),
+      text: tokenCount.text,
+      user: tokenCount.user,
+      assistant: tokenCount.assistant,
+      flowControl: tokenCount.flowControl,
+      tool: tokenCount.tool,
+      reasoning: tokenCount.reasoning,
+      apiInput: apiTelemetry?.input ?? 0,
+      apiOutput: apiTelemetry?.output ?? 0,
+      apiReasoning: apiTelemetry?.reasoning ?? 0,
+      apiCacheRead: apiTelemetry?.cache?.read ?? 0,
+      apiCacheWrite: apiTelemetry?.cache?.write ?? 0,
       scaleFactor,
+      startedAt: now,
       updatedAt: now,
     }));
   }
