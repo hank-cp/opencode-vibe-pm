@@ -22,8 +22,6 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
 
   const engine = new FlowEngine(memory, ctx.directory);
 
-  let tokenCounter: TokenCounter | null = null;
-  let activeModelId = "";
 
   return {
     config: async (c: Config) => {
@@ -43,22 +41,16 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
       const sid = info0?.sessionID;
       if (!sid) return;
 
-      // Lazy-init TokenCounter with detected model
       const model = info0?.model;
-      const modelId = model?.modelID ?? "";
-      if (modelId && modelId !== activeModelId) {
-        activeModelId = modelId;
-        const modelInfo: ModelInfo = {
-          providerID: model?.providerID ?? "",
-          modelID: modelId,
-        };
-        try {
-          tokenCounter?.dispose();
-          tokenCounter = new TokenCounter(modelInfo);
-        } catch (err) {
-          logger.warn(`TokenCounter init failed for ${modelId}: ${err}`);
-          tokenCounter = null;
-        }
+      const modelInfo: ModelInfo = {
+        providerID: model?.providerID ?? "",
+        modelID: model?.modelID ?? "",
+      };
+      let tokenCounter: TokenCounter | null = null;
+      try {
+        tokenCounter = new TokenCounter(modelInfo);
+      } catch (err) {
+        logger.warn(`TokenCounter init failed: ${err}`);
       }
 
       // TODO debug code, need continuous observation
