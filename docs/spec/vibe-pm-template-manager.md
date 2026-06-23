@@ -62,6 +62,9 @@ sequenceDiagram
     Core->>User: 展示可用模板列表（question 工具选择）
     User->>Core: 选择模板
     Core->>FS: 复制到 /docs/flow/flow-{name}.md
+    Core->>FS: 复制配套 regulations/*.md → /docs/regulation/
+    Core->>FS: 检测项目语言，复制 _coding_style/{lang}.md → coding_style/
+    Core->>FS: 生成 /docs/regulation/coding_style.md 引用入口
     Core->>FS: 生成 .opencode/commands/{command}.md
     Core->>User: ✅ 流程已安装（含启动命令）
 ```
@@ -150,6 +153,20 @@ docs/template/{template-id}/
 └── regulations/           ← 配套 Regulation（可选）
     └── *.md
 ```
+
+### 编码风格模板结构
+
+```
+docs/template/_coding_style/   ← 语言编码风格模板目录（发布时自带）
+├── typescript.md
+├── python.md
+├── go.md
+├── rust.md
+├── java.md
+└── general.md
+```
+
+安装时：根据 `detectProjectLanguages()` 检测到的语言，将对应文件复制到 `/docs/regulation/coding_style/` 目录，并生成 `/docs/regulation/coding_style.md` 引用入口文件。
 
 安装时：`flow.md` → `/docs/flow/flow-{id}.md`，`regulations/*.md` → `/docs/regulation/`。
 
