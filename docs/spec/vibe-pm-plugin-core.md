@@ -62,11 +62,8 @@ config: async (opencodeConfig) => {
     description: "Start vibe-pm initialization wizard",
     agent: "build",
   };
-  openencodeConfig.command["pm-task-start"] = {
-    template: "Start a new task in the current flow",
-    description: "Begin a new task",
-    agent: "build",
-  };
+  // flow 命令（如 pm-bug-fix、pm-research）由模板安装时动态生成
+  // 不再使用通用 pm-task-start，改为每 Flow 独立命令
   // ... 其他命令
 };
 ```
@@ -82,13 +79,8 @@ tool: {
       return await commands.init(args, ctx);
     }
   }),
-  pm_task_start: tool({
-    description: "Start a new task under a flow",
-    args: { flow: z.string().optional() },
-    async execute(args, ctx) {
-      return await commands.taskStart(args, ctx);
-    }
-  }),
+  // flow 工具（如 pm_bug_fix、pm_research）由模板安装时动态生成
+  // 不再使用通用 pm_task_start，改为每 Flow 独立工具调用 flowEngine.startTask()
   // ... 其他工具
 }
 ```
@@ -100,7 +92,7 @@ tool: {
 | `/pm-install-flow` | config（声明式）+ Plugin Core 处理 | 从内置模板目录选择并安装流程 |
 | `/pm-uninstall-flow` | config（声明式）+ Plugin Core 处理 | 移除一个流程 |
 | `/pm-refine-flow` | config（声明式）+ Plugin Core 处理 | 迭代优化流程定义 |
-| `/pm-task-start` | config + tool | 启动新任务 |
+| `/pm-{flow}`（如 `/pm-research`） | config + tool → flowEngine.startTask() | 启动对应流程的新任务 |
 | `/pm-task-set-step` | config + tool | 手动跳转步骤 |
 | `/pm-task-refresh` | config + tool | 重新注入当前步骤上下文 |
 | `/pm-task-close` | config + tool | 关闭任务，触发分析 |

@@ -103,6 +103,7 @@ describe("loadTokenData", () => {
           { step: "S1", stepName: "理解需求", stepInCount: 2, tokensConsumed: 1200 },
           { step: "S2", stepName: "标记缺口", stepInCount: 1, tokensConsumed: 2800 },
         ],
+        getSubagentTokens: async () => [],
       } as unknown as Parameters<typeof loadTokenData>[0],
       "test-session",
     );
@@ -137,6 +138,7 @@ describe("loadTokenData", () => {
       {
         getSessionTokens: async () => null,
         getStepTokenBreakdown: async () => [],
+        getSubagentTokens: async () => [],
       } as unknown as Parameters<typeof loadTokenData>[0],
       "test-session",
     );
@@ -170,6 +172,7 @@ describe("loadTokenData", () => {
           updatedAt: new Date().toISOString(),
         }),
         getStepTokenBreakdown: async () => [],
+        getSubagentTokens: async () => [],
       } as unknown as Parameters<typeof loadTokenData>[0],
       "test-session",
     );

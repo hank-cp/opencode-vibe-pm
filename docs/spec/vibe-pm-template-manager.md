@@ -110,7 +110,7 @@ sequenceDiagram
 
 1. 与用户确认任务目标和摘要
 2. 收集输入要求中的必填项
-3. 调用 `/pm-task-start` 启动任务（flow: `{flow-id}`）
+3. 调用对应流程命令（如 `/pm-bug-fix`）启动任务（flow: `{flow-id}`）
 4. 按照 Flow 文档中定义的步骤逐步执行
 ```
 

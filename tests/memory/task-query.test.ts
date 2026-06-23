@@ -1,7 +1,7 @@
 /**
  * MemorySystem 新增查询方法测试
  *
- * 测试 getLastClosedTask / getSourceTokenBreakdown / getStepTokenBreakdown
+ * 测试 getLastClosedTask / getStepTokenBreakdown
  * 以及 closeTask 写入 endAt、recordStepEntry 累加 tokensBySource
  */
 
@@ -143,43 +143,6 @@ describe("Task Query Extensions", () => {
       });
       expect(metrics[0].tokensConsumed).toBe(450);
       expect(metrics[0].stepInCount).toBe(1);
-    });
-  });
-
-  // ─── getSourceTokenBreakdown ────────────────────
-
-  describe("getSourceTokenBreakdown", () => {
-    it("aggregates tokensBySource across steps", async () => {
-      const sid = "ses_srcbd";
-
-      await memory.createTask(baseTask(sid));
-
-      await memory.recordStepTokens(sid, "bug-fix", "S1", "理解需求", {
-        text: 100, user: 50, assistant: 0, flowControl: 0, tool: 0, reasoning: 0,
-      });
-      await memory.recordStepTokens(sid, "bug-fix", "S2", "设计方案", {
-        text: 0, user: 0, assistant: 200, flowControl: 0, tool: 80, reasoning: 0,
-      });
-      await memory.recordStepTokens(sid, "bug-fix", "S2", "设计方案", {
-        text: 0, user: 0, assistant: 100, flowControl: 0, tool: 0, reasoning: 50,
-      });
-
-      const breakdown = await memory.getSourceTokenBreakdown(sid);
-      expect(breakdown).toHaveLength(5);
-
-      const map = new Map(breakdown.map((b) => [b.source, b.tokens]));
-      expect(map.get("System")).toBe(100);
-      expect(map.get("User")).toBe(50);
-      expect(map.get("Assistant")).toBe(300); // 200 + 100
-      expect(map.get("Tool")).toBe(80);
-      expect(map.get("Reasoning")).toBe(50);
-    });
-
-    it("handles metrics with null tokensBySource (legacy data)", async () => {
-      // 不传入 tokensBySource（模拟旧数据行为——但 recordStepEntry 总是会设置 it）。
-      // 这里验证空 metrics 集合返回空数组。
-      const breakdown = await memory.getSourceTokenBreakdown("ses_nonexistent");
-      expect(breakdown).toEqual([]);
     });
   });
 

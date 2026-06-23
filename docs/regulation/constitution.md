@@ -17,7 +17,7 @@
 具体执行：
 
 - 所有非琐碎开发任务必须经过 Flow → Spec → Plan → Implement → Test 流程
-- 使用 `/pm-task-start` 启动任务，由插件管理步骤流转
+- 使用 `/pm-{flow}` 命令启动任务（如 `/pm-bug-fix`、`/pm-research` 等），由插件管理步骤流转
 - Feature Spec 需经需求澄清访谈（S4）完善，减少"需求不明确"导致的返工
 - 任务计划必须通过人工评审（S6）后才能进入实现阶段
 

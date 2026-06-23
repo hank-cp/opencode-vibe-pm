@@ -1,11 +1,10 @@
 /**
  * TUI 组件共享类型定义
  *
- * 定义 TaskStatusData、TokenData、ColorSegment 及颜色映射常量。
+ * 定义 TaskStatusData、TokenData 及颜色映射常量。
  */
 
 import { RGBA } from "@opentui/core";
-import type { TokenSource } from "../memory/types.js";
 
 // ─── Task Status ───
 
@@ -45,15 +44,6 @@ export interface StepTokenEntry {
   tokensConsumed: number;
 }
 
-// ─── Color Segment ───
-
-export interface ColorSegment {
-  source: TokenSource;
-  tokens: number;
-  percentage: number;
-  color: RGBA;
-}
-
 // ─── Color Mapping ───
 
 /**
@@ -67,6 +57,7 @@ export const SOURCE_COLORS: Record<string, RGBA> = {
   Text:        RGBA.fromInts(74, 144, 217),     // #4A90D9 冷蓝
   Tool:        RGBA.fromInts(176, 123, 237),     // #B07BED 暖紫
   Reasoning:   RGBA.fromInts(106, 104, 255),     // #9B9B9B 暖蓝
+  SubAgent:    RGBA.fromInts(255, 173, 51),      // #FFAD33 暖橙
 };
 
 // ─── Helpers ───

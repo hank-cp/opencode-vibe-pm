@@ -34,7 +34,7 @@ gantt
 
 | 模块 | 交付物 | 关键能力 |
 |------|--------|---------|
-| Plugin Core | 插件入口、8 个命令、配置加载 | 双路径命令注册（config + tool）、钩子编排、`/pm-task-start` 重复任务检测 |
+| Plugin Core | 插件入口、流程命令、配置加载 | 双路径命令注册（config + tool）、钩子编排、`/pm-{flow}` 重复任务检测 |
 | Memory System | AxioDB JSON 文件集成、3 个数据模型 CRUD | Task/Discussion/FlowMetrics 的完整 CRUD 接口、数据文件自动创建与容错 |
 | Flow Engine | Flow 解析、三明治上下文注入、消息裁剪算法、缓存策略 | Layer 1/2/3 分层注入（含前瞻窗口）、步骤归属 → 深度层级 → Token 约束三步裁剪管道、注入指纹去重、惰性裁剪、⚠️ Human-in-loop 高亮、LLM 自主流转判断 |
 
@@ -42,7 +42,7 @@ gantt
 
 1. 用户执行 `/pm-init` 初始化项目
 2. 用户执行 `/pm-install-flow` 安装 research 流程
-3. 用户执行 `/pm-task-start` 启动调研任务
+3. 用户执行 `/pm-research` 启动调研任务
 4. 每次对话自动注入三明治上下文（Layer 1 全局视野 + Layer 2 当前步骤 + Layer 3 前瞻窗口）
 5. Human-in-loop 步骤被 ⚠️ 高亮标记
 6. LLM 自主判断步骤流转，`/pm-task-close` 关闭任务
@@ -76,7 +76,7 @@ gantt
 2. 选择模板后正确复制到 `/docs/flow/`
 3. 同名 Flow 冲突时提示确认覆盖
 4. `/pm-uninstall-flow` 正确删除指定 Flow
-5. 已安装的 Flow 可通过 `/pm-task-start` 直接使用
+5. 已安装的 Flow 可通过对应命令（如 `/pm-research`）直接使用
 
 ---
 

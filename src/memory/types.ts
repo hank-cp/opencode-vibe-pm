@@ -75,15 +75,6 @@ export interface CreateDiscussionInput {
 
 // ─── FlowMetrics ───
 
-/** Token 来源分类 — 6 个固定分类 */
-export type TokenSource =
-  | "System"
-  | "FlowControl"
-  | "User"
-  | "Assistant"
-  | "Tool"
-  | "Reasoning";
-
 export interface FlowMetrics {
   id: string;
   sessionId: string;
@@ -93,18 +84,12 @@ export interface FlowMetrics {
   stepInCount: number;
   tokensConsumed: number;
   /** 按来源分类的 Token 分布，各项独立累加 */
-  tokensBySource: Record<TokenSource, number>;
+  tokensBySource: Record<string, number>;
   dwellTime: number;
   humanInterventionTime: number;
   /** @deprecated 可通过 tokensBySource.User 推导，保留以兼容旧数据 */
   userInputTokens: number;
   taskSummary: string;
-}
-
-/** 跨步骤聚合的来源级 Token 分布 */
-export interface SourceTokenBreakdown {
-  source: TokenSource;
-  tokens: number;
 }
 
 /** 按步骤的 Token 汇总 */
@@ -149,6 +134,21 @@ export interface RecordSessionTokensInput {
   flowControl: number;
   tool: number;
   reasoning: number;
+}
+
+// ─── Subagent Tokens ───
+
+/** 子代理 Token 存储 — 按 role 区分 + API 遥测 */
+export interface SubagentTokenMetrics {
+  sessionId: string;
+  parentSessionId: string;
+  user: number;
+  assistant: number;
+  apiInput: number;
+  apiOutput: number;
+  apiReasoning: number;
+  apiCacheRead: number;
+  apiCacheWrite: number;
 }
 
 // ─── IMemorySystem ───
@@ -198,13 +198,16 @@ export interface IMemorySystem {
 
   // 新增查询
   getLastClosedTask(sessionId: string): Promise<Task | null>;
-  getSourceTokenBreakdown(sessionId: string): Promise<SourceTokenBreakdown[]>;
   getStepTokenBreakdown(sessionId: string): Promise<StepTokenBreakdown[]>;
 
   // Session Tokens
   initSessionTokens(sessionId: string): Promise<void>;
   recordSessionTokens(sessionId: string, tokenCount: TokenCount, apiTelemetry?: ApiTelemetry): Promise<void>;
   getSessionTokens(sessionId: string): Promise<SessionTokenMetrics | null>;
+
+  // Subagent Tokens
+  recordSubagentTokens(sessionId: string, parentSessionId: string, tokenCount: TokenCount, apiTelemetry?: ApiTelemetry): Promise<void>;
+  getSubagentTokens(parentSessionId: string): Promise<SubagentTokenMetrics[]>;
 
   // 初始化
   init(dataDir: string): Promise<void>;

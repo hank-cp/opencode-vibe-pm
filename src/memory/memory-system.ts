@@ -15,11 +15,10 @@ import type {
   FlowMetrics,
   IMemorySystem,
   SessionTokenMetrics,
-  SourceTokenBreakdown,
   StepTokenBreakdown,
   StepTransition,
+  SubagentTokenMetrics,
   Task,
-  TokenSource
 } from "./types.js";
 import {DuplicateTaskError} from "./errors.js";
 import {ApiTelemetry, TokenCount} from "../token";
@@ -78,6 +77,7 @@ export class MemorySystem implements IMemorySystem {
 
   private stmtGetMetricsBySessionStep!: Statement;
   private stmtUpdateMetrics!: Statement;
+  private stmtUpsertMetrics!: Statement;
   private stmtInsertMetrics!: Statement;
   private stmtGetMetricsBySession!: Statement;
   private stmtGetMetricsByFlow!: Statement;
@@ -88,6 +88,9 @@ export class MemorySystem implements IMemorySystem {
   private stmtInitSessionTokens!: Statement;
   private stmtGetSessionTokens!: Statement;
   private stmtUpdateSessionTokens!: Statement;
+
+  private stmtUpsertSubagentTokens!: Statement;
+  private stmtGetSubagentTokens!: Statement;
 
   /**
    * 初始化数据库连接与表结构。
@@ -179,6 +182,20 @@ export class MemorySystem implements IMemorySystem {
       );
 
       CREATE INDEX IF NOT EXISTS idx_session_tokens_sessionId ON session_tokens(sessionId);
+
+      CREATE TABLE IF NOT EXISTS subagent_tokens (
+        sessionId       TEXT PRIMARY KEY,
+        parentSessionId TEXT NOT NULL,
+        "user"          INTEGER NOT NULL DEFAULT 0,
+        assistant       INTEGER NOT NULL DEFAULT 0,
+        apiInput        INTEGER NOT NULL DEFAULT 0,
+        apiOutput       INTEGER NOT NULL DEFAULT 0,
+        apiReasoning    INTEGER NOT NULL DEFAULT 0,
+        apiCacheRead    INTEGER NOT NULL DEFAULT 0,
+        apiCacheWrite   INTEGER NOT NULL DEFAULT 0
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_subagent_parent ON subagent_tokens(parentSessionId);
     `);
 
     // Migration: add userRequest column (idempotent, fails silently if column exists)
@@ -221,6 +238,10 @@ export class MemorySystem implements IMemorySystem {
       INSERT INTO flowMetrics (id, sessionId, flow, step, stepName, stepInCount, tokensConsumed, tokensBySource, dwellTime, humanInterventionTime, userInputTokens, taskSummary)
       VALUES ($id, $sessionId, $flow, $step, $stepName, $stepInCount, $tokensConsumed, $tokensBySource, $dwellTime, $humanInterventionTime, $userInputTokens, $taskSummary)
     `);
+    this.stmtUpsertMetrics = this.db.prepare(`
+      INSERT OR REPLACE INTO flowMetrics (id, sessionId, flow, step, stepName, stepInCount, tokensConsumed, tokensBySource, dwellTime, humanInterventionTime, userInputTokens, taskSummary)
+      VALUES ($id, $sessionId, $flow, $step, $stepName, $stepInCount, $tokensConsumed, $tokensBySource, $dwellTime, $humanInterventionTime, $userInputTokens, $taskSummary)
+    `);
     this.stmtGetMetricsBySession = this.db.prepare("SELECT * FROM flowMetrics WHERE sessionId = ?");
     this.stmtGetMetricsByFlow = this.db.prepare("SELECT * FROM flowMetrics WHERE flow = ?");
 
@@ -232,6 +253,11 @@ export class MemorySystem implements IMemorySystem {
     this.stmtUpdateSessionTokens = this.db.prepare(`
        UPDATE session_tokens SET text = $text, "user" = $user, assistant = $assistant, flowControl = $flowControl, tool = $tool, reasoning = $reasoning, apiInput = $apiInput, apiOutput = $apiOutput, apiReasoning = $apiReasoning, apiCacheRead = $apiCacheRead, apiCacheWrite = $apiCacheWrite, scaleFactor = $scaleFactor, updatedAt = $updatedAt WHERE sessionId = $sessionId
     `);
+    this.stmtUpsertSubagentTokens = this.db.prepare(`
+      INSERT OR REPLACE INTO subagent_tokens (sessionId, parentSessionId, "user", assistant, apiInput, apiOutput, apiReasoning, apiCacheRead, apiCacheWrite)
+      VALUES ($sessionId, $parentSessionId, $user, $assistant, $apiInput, $apiOutput, $apiReasoning, $apiCacheRead, $apiCacheWrite)
+    `);
+    this.stmtGetSubagentTokens = this.db.prepare("SELECT * FROM subagent_tokens WHERE parentSessionId = ?");
   }
 
   // ═══════════════════════════════════════════
@@ -377,7 +403,6 @@ export class MemorySystem implements IMemorySystem {
     stepName: string,
     tokenCount: TokenCount
   ): Promise<void> {
-    // Convert TokenCount to tokensBySource Record for storage (omit zero values)
     const rawBySource: Record<string, number> = {
       System: tokenCount.text,
       User: tokenCount.user,
@@ -393,7 +418,6 @@ export class MemorySystem implements IMemorySystem {
 
     const newTotal = tokenCount.text + tokenCount.user + tokenCount.assistant;
     const newUserTokens = tokenCount.user ?? 0;
-
     const existing = this.stmtGetMetricsBySessionStep.get(sessionId, step) as Record<string, unknown> | undefined;
 
     if (existing) {
@@ -402,27 +426,24 @@ export class MemorySystem implements IMemorySystem {
       for (const [source, tokens] of Object.entries(tokensBySource)) {
         merged[source] = (merged[source] ?? 0) + tokens;
       }
-
-      this.stmtUpdateMetrics.run(
-        (existing["tokensConsumed"] as number) + newTotal,
-        JSON.stringify(merged),
-        (existing["userInputTokens"] as number) + newUserTokens,
-        existing["stepInCount"],
-        existing["dwellTime"],
-        existing["humanInterventionTime"],
-        existing["id"],
-      );
+      this.stmtUpsertMetrics.run(prefixKeys({
+        id: existing["id"] as string,
+        sessionId, flow, step, stepName,
+        stepInCount: existing["stepInCount"] as number ?? 1,
+        tokensConsumed: (existing["tokensConsumed"] as number ?? 0) + newTotal,
+        tokensBySource: JSON.stringify(merged),
+        dwellTime: existing["dwellTime"] as number ?? 0,
+        humanInterventionTime: existing["humanInterventionTime"] as number ?? 0,
+        userInputTokens: (existing["userInputTokens"] as number ?? 0) + newUserTokens,
+        taskSummary: existing["taskSummary"] as string ?? "",
+      }));
     } else {
       let taskSummary = "";
       const task = await this.getTask(sessionId);
       if (task) taskSummary = task.summary;
-
-      this.stmtInsertMetrics.run(prefixKeys({
+      this.stmtUpsertMetrics.run(prefixKeys({
         id: generateId(),
-        sessionId,
-        flow,
-        step,
-        stepName,
+        sessionId, flow, step, stepName,
         stepInCount: 1,
         tokensConsumed: newTotal,
         tokensBySource: JSON.stringify(tokensBySource),
@@ -579,22 +600,6 @@ export class MemorySystem implements IMemorySystem {
     return tasks[0] ?? null;
   }
 
-  async getSourceTokenBreakdown(sessionId: string): Promise<SourceTokenBreakdown[]> {
-    const metrics = await this.getFlowMetrics(sessionId);
-    const aggregated: Record<string, number> = {};
-    for (const m of metrics) {
-      if (m.tokensBySource) {
-        for (const [source, tokens] of Object.entries(m.tokensBySource)) {
-          aggregated[source] = (aggregated[source] ?? 0) + tokens;
-        }
-      }
-    }
-    return Object.entries(aggregated).map(([source, tokens]) => ({
-      source: source as TokenSource,
-      tokens,
-    }));
-  }
-
   async getStepTokenBreakdown(sessionId: string): Promise<StepTokenBreakdown[]> {
     const metrics = await this.getFlowMetrics(sessionId);
     return metrics.map((m) => ({
@@ -603,6 +608,29 @@ export class MemorySystem implements IMemorySystem {
       stepInCount: m.stepInCount,
       tokensConsumed: m.tokensConsumed,
     }));
+  }
+
+  // ═══════════════════════════════════════════
+  // Subagent Tokens CRUD
+  // ═══════════════════════════════════════════
+
+  async recordSubagentTokens(sessionId: string, parentSessionId: string, tokenCount: TokenCount, apiTelemetry?: ApiTelemetry): Promise<void> {
+    this.stmtUpsertSubagentTokens.run(prefixKeys({
+      sessionId,
+      parentSessionId,
+      user: tokenCount.user,
+      assistant: tokenCount.assistant,
+      apiInput: apiTelemetry?.input ?? 0,
+      apiOutput: apiTelemetry?.output ?? 0,
+      apiReasoning: apiTelemetry?.reasoning ?? 0,
+      apiCacheRead: apiTelemetry?.cache?.read ?? 0,
+      apiCacheWrite: apiTelemetry?.cache?.write ?? 0,
+    }));
+  }
+
+  async getSubagentTokens(parentSessionId: string): Promise<SubagentTokenMetrics[]> {
+    const rows = this.stmtGetSubagentTokens.all(parentSessionId) as Record<string, unknown>[];
+    return rows.map((r) => this.rowToSubagentTokenMetrics(r));
   }
 
   // ═══════════════════════════════════════════
@@ -651,9 +679,9 @@ export class MemorySystem implements IMemorySystem {
       stepName: row["stepName"] as string,
       stepInCount: row["stepInCount"] as number,
       tokensConsumed: row["tokensConsumed"] as number,
-      tokensBySource: parseJSON<Record<TokenSource, number>>(
+      tokensBySource: parseJSON<Record<string, number>>(
         row["tokensBySource"],
-        {} as Record<TokenSource, number>,
+        {} as Record<string, number>,
       ),
       dwellTime: row["dwellTime"] as number,
       humanInterventionTime: row["humanInterventionTime"] as number,
@@ -679,6 +707,20 @@ export class MemorySystem implements IMemorySystem {
       scaleFactor: row["scaleFactor"] as number,
       startedAt: row["startedAt"] as string,
       updatedAt: row["updatedAt"] as string,
+    };
+  }
+
+  private rowToSubagentTokenMetrics(row: Record<string, unknown>): SubagentTokenMetrics {
+    return {
+      sessionId: row["sessionId"] as string,
+      parentSessionId: row["parentSessionId"] as string,
+      user: row["user"] as number,
+      assistant: row["assistant"] as number,
+      apiInput: row["apiInput"] as number,
+      apiOutput: row["apiOutput"] as number,
+      apiReasoning: row["apiReasoning"] as number,
+      apiCacheRead: row["apiCacheRead"] as number,
+      apiCacheWrite: row["apiCacheWrite"] as number,
     };
   }
 }

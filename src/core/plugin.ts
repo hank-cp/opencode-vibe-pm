@@ -37,8 +37,9 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
 
     "experimental.chat.messages.transform": async (_input, output) => {
       const msg0 = output.messages[0];
-      const info0 = msg0?.info as { sessionID?: string; model?: { providerID?: string; modelID?: string } } | undefined;
+      const info0 = msg0?.info as { sessionID?: string; parentID?: string; model?: { providerID?: string; modelID?: string } } | undefined;
       const sid = info0?.sessionID;
+      const parentSid = info0?.parentID;
       if (!sid) return;
 
       const model = info0?.model;
@@ -106,14 +107,20 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
           }
         }
 
-        memory.recordSessionTokens(sid, totalTokens, apiTelemetry).catch((e: unknown) => {
-          logger.error(`recordSessionTokens failed: ${e}`);
-        });
-
-        if (task) {
-          memory.recordStepTokens(sid, task.flow, task.currentStep, task.currentStepName, stepTokens).catch((e: unknown) => {
-            logger.error(`recordStepTokens failed: ${e}`);
+        if (parentSid) {
+          memory.recordSubagentTokens(sid, parentSid, totalTokens, apiTelemetry).catch((e: unknown) => {
+            logger.error(`recordSubagentTokens failed: ${e}`);
           });
+        } else {
+          memory.recordSessionTokens(sid, totalTokens, apiTelemetry).catch((e: unknown) => {
+            logger.error(`recordSessionTokens failed: ${e}`);
+          });
+
+          if (task) {
+            memory.recordStepTokens(sid, task.flow, task.currentStep, task.currentStepName, stepTokens).catch((e: unknown) => {
+              logger.error(`recordStepTokens failed: ${e}`);
+            });
+          }
         }
       }
 

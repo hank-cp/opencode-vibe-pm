@@ -57,8 +57,8 @@ describe("createTuiPlugin", () => {
     const mockMemory = {
       getActiveTask: async () => null,
       getLastClosedTask: async () => null,
-      getSourceTokenBreakdown: async () => [],
       getStepTokenBreakdown: async () => [],
+      getSubagentTokens: async () => [],
     };
 
     const plugin = createTuiPlugin(mockMemory as never);
@@ -74,6 +74,7 @@ describe("TUI types", () => {
     expect(keys).toContain("Text");
     expect(keys).toContain("Tool");
     expect(keys).toContain("Reasoning");
-    expect(keys.length).toBe(4);
+    expect(keys).toContain("SubAgent");
+    expect(keys.length).toBe(5);
   });
 });

@@ -127,14 +127,8 @@ describe("recordSessionTokens", () => {
   it("accumulates across multiple calls", async () => {
     await memory.initSessionTokens("s1");
     await memory.recordSessionTokens("s1", baseColumns);
-    // 第二次调用，system 追加 5
     const secondCall: RecordSessionTokensInput = {
-      text: 5,
-      user: 0,
-      assistant: 0,
-      flowControl: 0,
-      tool: 0,
-      reasoning: 0,
+      text: 5, user: 0, assistant: 0, flowControl: 0, tool: 0, reasoning: 0,
     };
     await memory.recordSessionTokens("s1", secondCall);
     const result = await memory.getSessionTokens("s1");

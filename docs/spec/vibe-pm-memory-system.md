@@ -123,7 +123,7 @@ interface FlowMetrics {
 ```mermaid
 stateDiagram-v2
     [*] --> Created: session.created
-    Created --> Running: /pm-task-start
+    Created --> Running: /pm-{flow} 命令
     Running --> Running: Step 推进(S1→S2→...)
     Running --> Completed: /pm-task-close
     Completed --> [*]

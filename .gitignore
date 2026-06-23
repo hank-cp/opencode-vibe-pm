@@ -35,6 +35,7 @@ coverage/
 # Agents
 .omo
 .opencode/*
+.codegraph
 !.opencode/opencode.jsonc
 !.opencode/tui.jsonc
 

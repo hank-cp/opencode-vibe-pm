@@ -37,7 +37,6 @@ OpenCode 插件。将 `AGENTS.md`/`rules/*.md` 全量加载替换为基于步骤
 | `/pm-install-flow` | 从模板库安装流程 → 自动生成 `/pm-*` 命令文件 |
 | `/pm-uninstall-flow` | 移除流程 → 同步清理命令文件 |
 | `/pm-refine-flow` | 迭代优化流程定义 |
-| `/pm-task-start` | 在流程下开始新任务 |
 | `/pm-task-set-step` | 手动跳转到指定步骤 |
 | `/pm-task-refresh` | 为当前步骤重新注入上下文 |
 | `/pm-task-close` | 关闭任务，触发分析 |

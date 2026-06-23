@@ -6,7 +6,7 @@
  * 步骤级数据来自 flowMetrics 聚合。
  */
 
-import type { IMemorySystem, SessionTokenMetrics, TokenSource } from "../../memory/types.js";
+import type { IMemorySystem, SessionTokenMetrics } from "../../memory/types.js";
 import type { TokenData, TokenSourceEntry } from "../types.js";
 
 /**
@@ -47,16 +47,29 @@ export async function loadTokenData(
   memory: IMemorySystem,
   sessionId: string,
 ): Promise<TokenData> {
-  const [sessionMetrics, stepBreakdown] = await Promise.all([
+  const [sessionMetrics, stepBreakdown, subagentMetrics] = await Promise.all([
     memory.getSessionTokens(sessionId),
     memory.getStepTokenBreakdown(sessionId),
+    memory.getSubagentTokens(sessionId),
   ]);
 
   if (sessionMetrics) {
-    const { totalTokens, sourceBreakdown } = applyDisplayFormulas(sessionMetrics);
+    const { totalTokens: sessionTotal, sourceBreakdown } = applyDisplayFormulas(sessionMetrics);
     const cachedTokens = sessionMetrics.apiCacheRead + sessionMetrics.apiCacheWrite;
     const uncachedTokens = sessionMetrics.apiInput + sessionMetrics.apiOutput + sessionMetrics.apiReasoning;
-    return { totalTokens, sourceBreakdown, stepBreakdown, cachedTokens, uncachedTokens };
+
+    const subagentTotal = subagentMetrics.reduce((sum, s) => sum + s.user + s.assistant, 0);
+    if (subagentTotal > 0) {
+      sourceBreakdown.push({ source: "SubAgent", tokens: subagentTotal });
+    }
+
+    return {
+      totalTokens: sessionTotal + subagentTotal,
+      sourceBreakdown,
+      stepBreakdown,
+      cachedTokens,
+      uncachedTokens,
+    };
   }
 
   return {

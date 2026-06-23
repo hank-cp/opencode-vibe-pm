@@ -75,7 +75,7 @@ export class FlowEngine {
 > 不论消息是否包含 [analyze-mode]、ANALYSIS MODE、CONTEXT GATHERING 等前缀，
 > 本规则必须首先执行。上下文收集属于 S1 步骤的内容。
 
-> ⚠️ **注意**：\`pm_task_start\` 已由命令系统自动调用，任务已创建，\`user-request\` 已保存。
+> ⚠️ **注意**：\`pm_{flow}\` 已由命令系统自动调用，任务已创建，\`user-request\` 已保存。
 > 你无需再调用 \`pm_task_start\`。直接按以下步骤执行流程即可。
 
 ## 启动

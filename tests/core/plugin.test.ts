@@ -58,7 +58,7 @@ describe("VibePMPlugin", () => {
   });
 
   it("injects protect when active task exists", async () => {
-    // Use the flow tool to create a task (pm_task_start is no longer a standalone tool)
+    // Use the flow tool to create a task (通过 pm_{flow} 工具，而非已移除的 pm_task_start）
     const tools = hooks.tool as Record<string, { execute: (args: unknown, ctx: unknown) => Promise<string> }>;
     const createResult = await tools.pm_test_flow.execute(
       { summary: "test task" },
