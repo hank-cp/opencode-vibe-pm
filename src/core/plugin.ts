@@ -7,7 +7,7 @@ import {FlowEngine} from "../engine";
 import type {ApiTelemetry, ModelInfo, TokenCount} from "../token";
 import {TokenCounter} from "../token";
 import type {Config, Hooks, IPluginContext, Plugin, PluginInput} from "./types.js";
-import type {AssistantMessage} from "@opencode-ai/sdk";
+import type {UserMessage, AssistantMessage} from "@opencode-ai/sdk";
 
 export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => {
   ensureDefaultConfig(ctx.directory);
@@ -37,15 +37,18 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
 
     "experimental.chat.messages.transform": async (_input, output) => {
       const msg0 = output.messages[0];
-      const info0 = msg0?.info as { sessionID?: string; parentID?: string; model?: { providerID?: string; modelID?: string } } | undefined;
+      const userMsgInfo0 = output.messages.map(m => m.info).find(info => 'model' in info) as UserMessage;
+      const info0 = msg0?.info;
       const sid = info0?.sessionID;
-      const parentSid = info0?.parentID;
-      if (!sid) return;
+      const sessionResult = await ctx.client.session.get({
+        path: { id: sid },
+      });
+      const session = sessionResult.data;
+      if (!session || !sid) return;
 
-      const model = info0?.model;
       const modelInfo: ModelInfo = {
-        providerID: model?.providerID ?? "",
-        modelID: model?.modelID ?? "",
+        providerID: userMsgInfo0?.model?.providerID ?? "",
+        modelID: userMsgInfo0?.model?.modelID ?? "",
       };
       let tokenCounter: TokenCounter | null = null;
       try {
@@ -59,6 +62,7 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
       for (const msg of output.messages) {
         flowSessions.add(msg.info.sessionID ?? "");
       }
+      logger.info(`messages.transform hook entered: sid=${sid}, parentSid=${session?.parentID}, modelId=${modelInfo.modelID}, providerId=${modelInfo.providerID}`);
       logger.info(`sessionIds in flow: ${flowSessions.size}`);
 
       const task = await memory.getActiveTask(sid);
@@ -107,8 +111,8 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
           }
         }
 
-        if (parentSid) {
-          memory.recordSubagentTokens(sid, parentSid, totalTokens, apiTelemetry).catch((e: unknown) => {
+        if (session.parentID) {
+          memory.recordSubagentTokens(sid, session.parentID, totalTokens, apiTelemetry).catch((e: unknown) => {
             logger.error(`recordSubagentTokens failed: ${e}`);
           });
         } else {
