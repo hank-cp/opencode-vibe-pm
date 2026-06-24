@@ -20,8 +20,4 @@
 | 语言 | 编码规范 |
 |------|---------|
 | TypeScript | [typescript.md](./coding_style/typescript.md) |
-| Python | [python.md](./coding_style/python.md) |
-| Go | [go.md](./coding_style/go.md) |
-| Rust | [rust.md](./coding_style/rust.md) |
-| Java | [java.md](./coding_style/java.md) |
 | 通用 | [general.md](./coding_style/general.md) |

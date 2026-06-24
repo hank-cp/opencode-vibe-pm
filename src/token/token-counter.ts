@@ -24,7 +24,7 @@ export class TokenCounter {
   /** 编码文本并返回 token 数。空/空白直接返回 0。 */
   countTokens(text: string): number {
     if (!text || !text.trim()) return 0;
-    return this.backend.countTokens(text);
+    return this.backend.countTokens(text.replace(/<\|endoftext\|>/g, ''));
   }
 
   /**
