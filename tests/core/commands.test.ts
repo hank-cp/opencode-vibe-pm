@@ -74,7 +74,7 @@ describe("registerCommands", () => {
     config = {} as Config;
   });
 
-  it("register_all_commands: 注册全部 7 个 /pm-* 命令", () => {
+  it("register_all_commands: 注册全部 7 个 /pm-* 命令，所有可执行命令必须包含 template", () => {
     registerCommands(config);
 
     const cmd = config.command as Record<string, { template: string; description?: string; agent?: string }> | undefined;
@@ -91,6 +91,7 @@ describe("registerCommands", () => {
 
     for (const name of names) {
       expect(cmd![name].description).toBeTruthy();
+      expect(cmd![name].template).toBeTruthy();
     }
   });
 
@@ -106,7 +107,8 @@ describe("registerCommands", () => {
     registerCommands(config);
 
     const cmd = config.command as Record<string, { template: string; description?: string; agent?: string }> | undefined;
-    expect(cmd!["pm-install-flow"].template).toBe("");
+    // registerCommands 会覆盖旧值，template 应为 COMMANDS 中定义的新值
+    expect(cmd!["pm-install-flow"].template).toBe("Install a flow from template library — call the pm_install_flow tool with templateId");
   });
 });
 

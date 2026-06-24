@@ -31,11 +31,13 @@ const COMMANDS: CommandMeta[] = [
   {
     name: "pm-install-flow",
     description: "从模板库安装流程",
+    template: "Install a flow from template library — call the pm_install_flow tool with templateId",
     executable: true,
   },
   {
     name: "pm-uninstall-flow",
     description: "移除一个流程",
+    template: "Remove an installed flow — call the pm_uninstall_flow tool with flowName",
     executable: true,
   },
   {
@@ -47,21 +49,25 @@ const COMMANDS: CommandMeta[] = [
   {
     name: "pm-task-set-step",
     description: "手动跳转到指定步骤",
+    template: "Manually jump to a specific step — call the pm_task_set_step tool with step",
     executable: true,
   },
   {
     name: "pm-task-close",
     description: "关闭任务，触发分析",
+    template: "Close the current task and trigger analysis — call the pm_task_close tool",
     executable: true,
   },
   {
     name: "pm-task-current-step",
     description: "获取当前活跃任务所在步骤",
+    template: "Get current step of active task — call the pm_task_current_step tool",
     executable: true,
   },
   {
     name: "pm-config",
     description: "查看或修改插件配置",
+    template: "View or modify vibe-pm configuration — call the pm_config tool",
     executable: true,
   },
 ];
