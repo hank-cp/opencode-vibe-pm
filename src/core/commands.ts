@@ -315,13 +315,25 @@ function buildInitInstructions(projectDir: string): string {
         id: "agents",
         title: "AGENTS.md",
         type: "question",
-        instruction: `生成 AGENTS.md。
-- 模板文件位于 vibe-pm 插件内置目录中（查找路径：先试项目 docs/template/agents-template.md，不存在则从插件目录 dist/docs/template/agents-template.md 或上级 ../docs/template/agents-template.md 读取）
-- 仅引导用户填充「概述」和「主要功能描述」
-- 技术栈和开发环境由 LLM 根据项目结构推断
-- 如果 AGENTS.md 已存在，询问是否重新生成
-- 若模板不存在但已有完整 AGENTS.md，基于现有内容做轻量更新（引用通用化）
-- Constitution 引用：告知后果后询问（无执行流程时也会约束 LLM 行为）`,
+        instruction: `生成 AGENTS.md。严格按以下优先级规则执行：
+
+1. 确认模板：查找 docs/template/agents-template.md → 插件内置 dist/docs/template/agents-template.md → ../docs/template/agents-template.md
+
+2. 场景 A — 模板存在：
+   a) AGENTS.md 不存在 → 按模板格式生成。占位符填充规则：
+      - 「概述」「主要功能描述」→ 引导用户填写
+      - 「技术栈」「开发环境说明」→ 你分析项目结构后自动推断
+   b) AGENTS.md 已存在 → 分析现有结构与模板的差异，使用 question 工具询问用户：
+      - 选项 1「完整重写」：按模板格式重写，保留现有 AGENTS.md 中的技术细节
+      - 选项 2「补充缺失章节」：仅添加模板中有而现有文件缺失的章节，不改变现有结构
+      - 选项 3「跳过」
+      ⚠️ 禁止在用户未选择的情况下自行决定"轻量更新"——必须先询问，收到明确选择后再执行
+
+3. 场景 B — 模板不存在：
+   a) AGENTS.md 已存在 → 仅追加 Constitution 引用说明（告知后果）
+   b) AGENTS.md 不存在 → 告知用户模板缺失，退出此步骤
+
+4. Constitution：无论最终采用哪种方式，完成后告知用户 Constitution 块的约束效果`,
         params: {
           header: "AGENTS.md",
           question: "是否生成 AGENTS.md？使用内置模板，你只需填写项目概述和主要功能描述。技术栈和开发环境由我自动推断。",
@@ -376,12 +388,21 @@ function buildInitInstructions(projectDir: string): string {
         type: "question",
         instruction: `配置 Vision Agent（多模态读图子 Agent）。
 1. 提供多模态 model 供用户选择：opencode-go/kimi-k2.7-code, opencode/qwen3.6-plus-free, opencode/mimo-v2.5-free
-2. 用户选择 model 后，将 agent 配置写入 ~/.config/opencode/config.json：
-   - agent name: "vision-helper"
-   - mode: "subagent"
-   - model: {用户选择的 model}
-   - tools: { read: true }
-   - prompt: "你是一个视觉理解专家。你的主要职责是分析主 Agent 传给你的图片或截图，并将其中的 UI 设计、结构、文字或逻辑转化为详细的、结构化的 Markdown 文本描述，以便主 Agent 进行编码。"
+2. 用户选择 model 后，将 agent 配置写入 .opencode/agents/vision-helper.md：
+
+---
+description: Resolve images and screenshots to detailed Markdown descriptions
+mode: subagent
+model: {selected model}
+temperature: 0.1
+tools:
+  write: false
+  edit: false
+  bash: false
+---
+
+你是一个视觉理解专家。你的主要职责是分析主 Agent 传给你的图片或截图，并将其中的 UI 设计、结构、文字或逻辑转化为详细的、结构化的 Markdown 文本描述，以便主 Agent 进行编码。
+
 3. 如果 config.json 不存在，先创建；如果已存在，深度合并（保留现有配置）`,
         checkInstalled: "vision-helper",
         params: {

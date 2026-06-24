@@ -246,6 +246,29 @@ describe("registerTools", () => {
     ]);
   });
 
+  it("pm_config_init_agents_instruction_has_scenario_separation: agents 步骤 instruction 区分「场景 A」「场景 B」且禁止默认轻量更新", async () => {
+    const engine = createMockEngine();
+    const memory = await createTempMemory();
+    const tools = registerTools(mockCtx, engine, memory);
+
+    const result = await tools.pm_config.execute({ subCommand: "init" }, mockToolCtx);
+    const parsed = JSON.parse(typeof result === 'string' ? result : result.output);
+
+    const agentsStep = parsed.steps.find((s: { id: string }) => s.id === "agents");
+    expect(agentsStep).toBeDefined();
+    const instruction: string = agentsStep.instruction;
+
+    // 回归断言：场景分离在修复中存在
+    expect(instruction).toContain("场景 A");
+    expect(instruction).toContain("场景 B");
+    // 回归断言：禁止 LLM 在未确认的情况下自行决定"轻量更新"
+    expect(instruction).toContain("禁止在用户未选择的情况下自行决定");
+    // 回归断言：完整重写选项存在
+    expect(instruction).toContain("完整重写");
+    // 边界断言：模板缺失时的回退逻辑存在
+    expect(instruction).toContain("告知用户模板缺失");
+  });
+
   it("pm_config_unknown_sub_returns_error: 未知子命令返回错误", async () => {
     const engine = createMockEngine();
     const memory = await createTempMemory();

@@ -93,7 +93,7 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
             color: SOURCE_COLORS[s.source as keyof typeof SOURCE_COLORS] ?? RGBA.fromInts(128,128,128)
           }));
           const totalText = compactTokens(total);
-          const barTotal = Math.max(1, SIDEBAR_WIDTH - totalText.length - 1);
+          const barTotal = Math.max(1, SIDEBAR_WIDTH - totalText.length - 2);
           const counts = segs.map(s => Math.max(1, Math.floor((s.tokens / total) * barTotal)));
           let sum = counts.reduce((a,b)=>a+b,0);
           const remainders = segs.map((s,i)=>({r:(s.tokens/total)*barTotal - counts[i], i})).sort((a,b)=>b.r-a.r);
@@ -101,7 +101,7 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
           return (
             <box width="100%" flexDirection="row" height={1}>
               {segs.map((s,i) => (<text fg={s.color}>{"█".repeat(counts[i])}</text>))}
-              <text>{compactTokens(total)}</text>
+              <text>{totalText}</text>
             </box>
           );
         })()}
