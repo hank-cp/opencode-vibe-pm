@@ -349,13 +349,13 @@ describe("TokenCounter", () => {
 
   describe("dispose", () => {
     it("calls encoder.free() on dispose", () => {
-      const c = new TokenCounter("cl100k_base");
+      const c = new TokenCounter({ providerID: "test", modelID: "test" });
       c.dispose();
       // No exception = success
     });
 
     it("dispose does not throw on subsequent calls", () => {
-      const c = new TokenCounter("cl100k_base");
+      const c = new TokenCounter({ providerID: "test", modelID: "test" });
       c.dispose();
       // Second dispose should not throw
       expect(() => c.dispose()).not.toThrow();

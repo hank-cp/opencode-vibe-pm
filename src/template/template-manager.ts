@@ -15,7 +15,6 @@ import { writeDcpConfig } from "../integration/index.js";
 const TEMPLATE_DIR = "template";
 const FLOW_DIR = "flow";
 const REGULATION_DIR = "regulation";
-const COMMANDS_DIR = ".opencode/commands";
 const CODING_STYLE_OUTPUT = "coding_style.md";
 const CONSTITUTION_TEMPLATE = "constitution-template.md";
 const CONSTITUTION_OUTPUT = "constitution.md";
@@ -37,14 +36,6 @@ export class TemplateConflictError extends Error {
 
 function getDocsDir(projectDir: string): string {
   return path.join(projectDir, "docs");
-}
-
-function getCommandsDir(projectDir: string): string {
-  return path.join(projectDir, COMMANDS_DIR);
-}
-
-function stripLeadingSlash(command: string): string {
-  return command.startsWith("/") ? command.slice(1) : command;
 }
 
 function parseTemplateMeta(raw: string, bundleDir: string): TemplateMeta | null {

@@ -111,7 +111,7 @@ export class MemorySystem implements IMemorySystem {
     this.db.run("PRAGMA journal_mode = WAL");
 
     // ─── DDL ───
-    this.db.exec(`
+    for (const stmt of `
       CREATE TABLE IF NOT EXISTS tasks (
         id TEXT PRIMARY KEY,
         sessionId TEXT NOT NULL,
@@ -196,7 +196,10 @@ export class MemorySystem implements IMemorySystem {
       );
 
       CREATE INDEX IF NOT EXISTS idx_subagent_parent ON subagent_tokens(parentSessionId);
-    `);
+    `.split(';')) {
+      const trimmed = stmt.trim();
+      if (trimmed) this.db.run(trimmed);
+    }
 
     // Migration: add userRequest column (idempotent, fails silently if column exists)
     try {

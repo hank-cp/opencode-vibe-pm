@@ -47,7 +47,7 @@ describe("createTuiPlugin", () => {
     } as unknown as Parameters<typeof plugin>[0];
 
     // Should not throw — silently catches errors
-    await expect(plugin(mockApi)).resolves.toBeUndefined();
+    await expect(plugin(mockApi, undefined as never, undefined as never)).resolves.toBeUndefined();
   });
 
   it("accepts external memory system", async () => {

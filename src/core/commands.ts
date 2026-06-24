@@ -129,7 +129,7 @@ export function registerTools(
     if (!cmd.executable) continue;
 
     if (cmd.name === "pm-install-flow") {
-      tools.pm_install_flow = createInstallFlowTool(ctx, engine);
+      tools.pm_install_flow = createInstallFlowTool(ctx);
     } else if (cmd.name === "pm-uninstall-flow") {
       tools.pm_uninstall_flow = createUninstallFlowTool(ctx);
     } else if (cmd.name === "pm-config") {
@@ -139,7 +139,7 @@ export function registerTools(
     } else if (cmd.name === "pm-task-close") {
       tools.pm_task_close = createTaskCloseTool(engine);
     } else if (cmd.name === "pm-task-current-step") {
-      tools.pm_task_current_step = createTaskCurrentStepTool(engine, memory);
+      tools.pm_task_current_step = createTaskCurrentStepTool(memory);
     }
   }
 
@@ -220,7 +220,7 @@ function createTaskCloseTool(engine: FlowEngine): ToolDefinition {
   });
 }
 
-function createTaskCurrentStepTool(engine: FlowEngine, memory: MemorySystem): ToolDefinition {
+function createTaskCurrentStepTool(memory: MemorySystem): ToolDefinition {
   return tool({
     description: "Get the current step of the active task. Returns JSON {ok:false} if no active task.",
     args: {},
@@ -356,7 +356,6 @@ function normalizeLanguage(input: string): string {
 
 function createInstallFlowTool(
   ctx: IPluginContext,
-  engine: FlowEngine,
 ): ToolDefinition {
   return tool({
     description: "Install a flow from template library",
@@ -370,7 +369,7 @@ function createInstallFlowTool(
     },
     async execute(
       args: { templateId?: string; programmingLanguages?: string },
-      toolCtx: ToolContext,
+      _toolCtx: ToolContext,
     ): Promise<string> {
       if (args.templateId) {
         try {
@@ -476,9 +475,9 @@ function createFlowStartTool(ctx: IPluginContext, engine: FlowEngine, flowName: 
     },
     async execute(
         args: { summary?: string; userRequest?: string; },
-        toolCtx: ToolContext,
+      _toolCtx: ToolContext,
     ): Promise<string> {
-      const { sessionID, messageID } = toolCtx;
+      const { sessionID, messageID } = _toolCtx;
       if (!sessionID) {
         logger.warn(`createFlowStartTool(${flowName}): no sessionID`);
         return JSON.stringify({ ok: false, error: "无法获取当前 Session ID。" });

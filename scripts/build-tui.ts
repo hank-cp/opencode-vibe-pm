@@ -18,7 +18,7 @@ const shared = {
     "solid-js",
     "@opencode-ai/plugin",
   ],
-} as const;
+};
 
 // ─── Server Plugin ───
 const serverResult = await Bun.build({

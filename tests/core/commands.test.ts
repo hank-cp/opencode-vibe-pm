@@ -161,7 +161,7 @@ describe("registerTools", () => {
       { step: "S3" },
       mockToolCtx,
     );
-    const parsed = JSON.parse(result);
+    const parsed = JSON.parse(typeof result === 'string' ? result : result.output);
     expect(parsed.ok).toBe(true);
     expect(parsed.step).toBeTruthy();
     expect(parsed.sessionId).toBe("test");
@@ -175,7 +175,7 @@ describe("registerTools", () => {
     const tools = registerTools(mockCtx, engine, memory);
 
     const result = await tools.pm_task_close.execute({}, mockToolCtx);
-    const parsed = JSON.parse(result);
+    const parsed = JSON.parse(typeof result === 'string' ? result : result.output);
     expect(parsed.ok).toBe(true);
     expect(parsed.flow).toBe("research");
     expect(parsed.step).toBe("S3");
@@ -190,7 +190,7 @@ describe("registerTools", () => {
     const tools = registerTools(mockCtx, engine, memory);
 
     const result = await tools.pm_task_close.execute({}, mockToolCtx);
-    const parsed = JSON.parse(result);
+    const parsed = JSON.parse(typeof result === 'string' ? result : result.output);
     expect(parsed.ok).toBe(false);
   });
 
@@ -201,7 +201,7 @@ describe("registerTools", () => {
     const tools = registerTools(mockCtx, engine, memory);
 
     const result = await tools.pm_task_current_step.execute({}, mockToolCtx);
-    const parsed = JSON.parse(result);
+    const parsed = JSON.parse(typeof result === 'string' ? result : result.output);
     expect(parsed.ok).toBe(true);
     expect(parsed.step).toBeTruthy();
     expect(parsed.stepName).toBeTruthy();
@@ -215,7 +215,7 @@ describe("registerTools", () => {
     const tools = registerTools(mockCtx, engine, memory);
 
     const result = await tools.pm_task_current_step.execute({}, mockToolCtx);
-    const parsed = JSON.parse(result);
+    const parsed = JSON.parse(typeof result === 'string' ? result : result.output);
     expect(parsed.ok).toBe(false);
   });
 
@@ -226,7 +226,7 @@ describe("registerTools", () => {
     const noSessionCtx: ToolContext = { ...mockToolCtx, sessionID: "" };
 
     const result = await tools.pm_task_current_step.execute({}, noSessionCtx);
-    const parsed = JSON.parse(result);
+    const parsed = JSON.parse(typeof result === 'string' ? result : result.output);
     expect(parsed.ok).toBe(false);
     expect(parsed.error).toContain("Session ID");
   });

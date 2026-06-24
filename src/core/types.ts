@@ -8,7 +8,7 @@
 // ─── SDK Re-exports ───
 
 /** 模块可以贡献的钩子子集，类型来自 SDK */
-import type {Hooks, ToolDefinition} from "@opencode-ai/plugin";
+import type {ToolDefinition} from "@opencode-ai/plugin";
 import type {OpencodeClient} from "@opencode-ai/sdk";
 
 export type {

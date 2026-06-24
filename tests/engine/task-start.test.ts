@@ -54,6 +54,7 @@ describe("Task Start", () => {
       sessionId: "ses_new",
       flow: "test-flow",
       summary: "测试任务创建",
+      userRequest: "test",
     });
 
     expect(task.sessionId).toBe("ses_new");
@@ -69,6 +70,7 @@ describe("Task Start", () => {
       sessionId: "ses_dup",
       flow: "test-flow",
       summary: "第一个任务",
+      userRequest: "dup test",
     });
 
     await expect(
@@ -76,6 +78,7 @@ describe("Task Start", () => {
         sessionId: "ses_dup",
         flow: "test-flow",
         summary: "第二个任务",
+        userRequest: "dup test 2",
       }),
     ).rejects.toThrow("already has active task");
   });
@@ -86,6 +89,7 @@ describe("Task Start", () => {
         sessionId: "ses_missing",
         flow: "nonexistent",
         summary: "test",
+        userRequest: "test",
       }),
     ).rejects.toThrow(FlowNotFoundError);
   });
@@ -115,6 +119,7 @@ describe("Task Start", () => {
       sessionId: "ses_tr_write",
       flow: "test-flow",
       summary: "transition 测试",
+      userRequest: "transition test",
     });
     await engine.setStep("ses_tr_write", "S2");
 
@@ -131,6 +136,7 @@ describe("Task Start", () => {
       sessionId: "ses_dwell",
       flow: "test-flow",
       summary: "dwell 测试",
+      userRequest: "dwell test",
     });
     await engine.setStep("ses_dwell", "S2");
 
@@ -159,6 +165,7 @@ describe("Task Start", () => {
       sessionId: "ses_res_close",
       flow: "test-flow",
       summary: "restart close 测试",
+      userRequest: "restart close test",
     });
     const closed = await engine2.closeTask("ses_res_close");
     expect(closed).not.toBeNull();
@@ -172,6 +179,7 @@ describe("Task Start", () => {
       sessionId: "ses_res_step",
       flow: "test-flow",
       summary: "restart step 测试",
+      userRequest: "restart step test",
     });
     await engine2.setStep("ses_res_step", "S2");
     const engine3 = new FlowEngine(memory, tmpDir);
