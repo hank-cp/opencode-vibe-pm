@@ -230,4 +230,28 @@ describe("registerTools", () => {
     expect(parsed.ok).toBe(false);
     expect(parsed.error).toContain("Session ID");
   });
+
+  it("pm_config_init_returns_json: init 子命令返回有效 JSON 指令", async () => {
+    const engine = createMockEngine();
+    const memory = await createTempMemory();
+    const tools = registerTools(mockCtx, engine, memory);
+
+    const result = await tools.pm_config.execute({ subCommand: "init" }, mockToolCtx);
+    const parsed = JSON.parse(typeof result === 'string' ? result : result.output);
+    expect(parsed.flow).toBe("pm-config-init");
+    expect(parsed.steps).toHaveLength(8);
+    expect(parsed.steps.map((s: { id: string }) => s.id)).toEqual([
+      "scope", "language", "gitignore", "agents", "dictionary",
+      "integrations-dcp", "integrations-vision", "done",
+    ]);
+  });
+
+  it("pm_config_unknown_sub_returns_error: 未知子命令返回错误", async () => {
+    const engine = createMockEngine();
+    const memory = await createTempMemory();
+    const tools = registerTools(mockCtx, engine, memory);
+
+    const result = await tools.pm_config.execute({ subCommand: "unknown" }, mockToolCtx);
+    expect(typeof result === 'string' ? result : result.output).toContain("未知");
+  });
 });

@@ -255,6 +255,155 @@ function createTaskCurrentStepTool(memory: MemorySystem): ToolDefinition {
 
 // ─── pm-config 实现 ───
 
+function buildInitInstructions(projectDir: string): string {
+  return JSON.stringify({
+    flow: "pm-config-init",
+    description: "vibe-pm 初始化向导 — 按步骤引导配置项目",
+    steps: [
+      {
+        id: "scope",
+        title: "配置范围",
+        type: "question",
+        instruction: "询问用户 vibe-pm 配置写入位置。opencode 和集成插件配置始终写入项目级。",
+        params: {
+          header: "配置范围",
+          question: "vibe-pm 配置写入哪里？（opencode 和集成插件配置始终项目级 `.opencode/`）",
+          options: [
+            { label: "项目级", description: "写入项目根目录 `.vibe-pm.json`" },
+            { label: "全局", description: "写入 `~/.config/vibe-pm/vibe-pm.json`" },
+          ],
+        },
+        onAnswer: {
+          "项目级": { configPath: ".vibe-pm.json", scope: "project" },
+          "全局": { configPath: "~/.config/vibe-pm/vibe-pm.json", scope: "global" },
+        },
+      },
+      {
+        id: "language",
+        title: "交互语言",
+        type: "question",
+        instruction: "写入 PluginConfig.language。",
+        params: {
+          header: "交互语言",
+          question: "选择 vibe-pm 引导流程的交互语言：",
+          options: [
+            { label: "中文", description: "简体中文" },
+            { label: "English", description: "英文" },
+            { label: "日本語", description: "日文" },
+            { label: "한국어", description: "韩文" },
+          ],
+        },
+      },
+      {
+        id: "gitignore",
+        title: ".gitignore",
+        type: "question",
+        instruction: "依次询问是否追加条目到 .gitignore。条目已存在则跳过。使用 bash 追加。",
+        params: {
+          header: ".gitignore 配置",
+          question: "哪些目录需要加入 .gitignore？",
+          multiple: true,
+          options: [
+            { label: ".opencode/", description: "OpenCode 配置目录" },
+            { label: ".vibe-pm/", description: "vibe-pm 配置数据目录" },
+            { label: ".omo/", description: "oh-my-openagent 计划/配置目录" },
+          ],
+        },
+        skipIfExists: true,
+      },
+      {
+        id: "agents",
+        title: "AGENTS.md",
+        type: "question",
+        instruction: `生成 AGENTS.md。
+- 模板文件位于 vibe-pm 插件内置目录中（查找路径：先试项目 docs/template/agents-template.md，不存在则从插件目录 dist/docs/template/agents-template.md 或上级 ../docs/template/agents-template.md 读取）
+- 仅引导用户填充「概述」和「主要功能描述」
+- 技术栈和开发环境由 LLM 根据项目结构推断
+- 如果 AGENTS.md 已存在，询问是否重新生成
+- 若模板不存在但已有完整 AGENTS.md，基于现有内容做轻量更新（引用通用化）
+- Constitution 引用：告知后果后询问（无执行流程时也会约束 LLM 行为）`,
+        params: {
+          header: "AGENTS.md",
+          question: "是否生成 AGENTS.md？使用内置模板，你只需填写项目概述和主要功能描述。技术栈和开发环境由我自动推断。",
+          options: [
+            { label: "是，生成", description: "使用模板生成" },
+            { label: "否，跳过", description: "不生成 AGENTS.md" },
+          ],
+        },
+        checkExists: true,
+      },
+      {
+        id: "dictionary",
+        title: "术语字典",
+        type: "question",
+        instruction: `创建项目术语字典 docs/regulation/dictionary.md（如不存在）。
+1. 如果文件已存在，跳过此步骤
+2. 如果不存在，先创建 docs/regulation/ 目录，再从 vibe-pm 插件内置模板（查找路径：先试项目 docs/template/dictionary-template.md，不存在则从插件 dist/docs/template/ 读取）复制模板
+3. 根据当前项目，分析生成 20 条左右的初始术语记录（中英对照）
+4. 在最后的结束总结中提示用户要积极维护字典文档`,
+        checkExists: true,
+        templateFile: "dictionary-template.md",
+        params: {
+          header: "术语字典",
+          question: "是否创建项目术语字典 (docs/regulation/dictionary.md)？将根据项目生成初始术语记录。",
+          options: [
+            { label: "是，创建", description: "创建字典并生成初始术语" },
+            { label: "否，跳过", description: "不创建字典" },
+          ],
+        },
+      },
+      {
+        id: "integrations-dcp",
+        title: "集成: DCP 插件",
+        type: "question",
+        instruction: `配置 DCP (Dynamic Context Pruning) 插件。
+1. 用 bash 检查全局和项目级 opencode 配置中是否已有 DCP 依赖：~/.config/opencode/opencode.json 和 ./.opencode/opencode.json（或 package.json）
+2. 若未安装，询问用户。安装方式：写入 .opencode/opencode.json 的 dependencies`,
+        checkInstalled: "opencode-dynamic-context-pruning",
+        checkPaths: ["~/.config/opencode/opencode.json", ".opencode/opencode.json"],
+        params: {
+          header: "DCP 插件",
+          question: "是否安装 DCP (Dynamic Context Pruning) 插件？将自动写入 .opencode/opencode.json dependencies。",
+          options: [
+            { label: "是", description: "安装 DCP 插件" },
+            { label: "否", description: "跳过" },
+          ],
+        },
+      },
+      {
+        id: "integrations-vision",
+        title: "集成: Vision Agent",
+        type: "question",
+        instruction: `配置 Vision Agent（多模态读图子 Agent）。
+1. 提供多模态 model 供用户选择：opencode-go/kimi-k2.7-code, opencode/qwen3.6-plus-free, opencode/mimo-v2.5-free
+2. 用户选择 model 后，将 agent 配置写入 ~/.config/opencode/config.json：
+   - agent name: "vision-helper"
+   - mode: "subagent"
+   - model: {用户选择的 model}
+   - tools: { read: true }
+   - prompt: "你是一个视觉理解专家。你的主要职责是分析主 Agent 传给你的图片或截图，并将其中的 UI 设计、结构、文字或逻辑转化为详细的、结构化的 Markdown 文本描述，以便主 Agent 进行编码。"
+3. 如果 config.json 不存在，先创建；如果已存在，深度合并（保留现有配置）`,
+        checkInstalled: "vision-helper",
+        params: {
+          header: "Vision Agent",
+          question: "是否配置 Vision Agent（多模态读图子 Agent）？将扫描已连接 model 供选择，并写入 agent 配置。",
+          options: [
+            { label: "是", description: "配置 Vision Agent" },
+            { label: "否", description: "跳过" },
+          ],
+        },
+      },
+      {
+        id: "done",
+        title: "完成",
+        type: "info",
+        instruction: "提示用户通过 /pm-install-flow 安装流程模板。",
+        message: "✅ 初始化完成！请使用 `/pm-install-flow` 安装需要的流程模板（如 spec-driven-dev、bug-fix 等）。",
+      },
+    ],
+  });
+}
+
 function createConfigTool(ctx: IPluginContext): ToolDefinition {
   return tool({
     description: "View or modify vibe-pm configuration",
@@ -262,7 +411,7 @@ function createConfigTool(ctx: IPluginContext): ToolDefinition {
       subCommand: tool.schema
         .string()
         .optional()
-        .describe("Sub-command: view, edit, or write-dcp / setup-dcp. Defaults to view."),
+        .describe("Sub-command: view, edit, write-dcp, setup-dcp, or init. Defaults to view."),
       key: tool.schema.string().optional().describe("Config key to edit (for edit sub-command)"),
       value: tool.schema.string().optional().describe("JSON value to set (for edit sub-command)"),
     },
@@ -272,8 +421,8 @@ function createConfigTool(ctx: IPluginContext): ToolDefinition {
     ): Promise<string> {
       const sub = args.subCommand ?? "view";
 
-      if (!["view", "edit", "write-dcp", "setup-dcp"].includes(sub)) {
-        return `[vibe-pm] ❌ 未知子命令: "${sub}"。支持: view, edit, write-dcp, setup-dcp`;
+      if (!["view", "edit", "write-dcp", "setup-dcp", "init"].includes(sub)) {
+        return `[vibe-pm] ❌ 未知子命令: "${sub}"。支持: view, edit, write-dcp, setup-dcp, init`;
       }
 
       try {
@@ -298,6 +447,10 @@ function createConfigTool(ctx: IPluginContext): ToolDefinition {
         if (sub === "write-dcp" || sub === "setup-dcp") {
           writeDcpConfig(ctx.projectDir);
           return "[vibe-pm] ✅ DCP 配置已写入";
+        }
+
+        if (sub === "init") {
+          return buildInitInstructions(ctx.projectDir);
         }
 
         return `[vibe-pm] ❌ 未知子命令: "${sub}"`;
