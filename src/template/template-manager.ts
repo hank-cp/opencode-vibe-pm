@@ -103,6 +103,10 @@ function installCodingStyleFromTemplate(
     ? [...programmingLanguages]
     : ["General"];
 
+  if (!languages.some((l) => l.toLowerCase() === "general")) {
+    languages.push("General");
+  }
+
   // 复制检测到的语言文件（已存在则跳过，不覆盖用户自定义内容）
   for (const lang of languages) {
     const srcPath = path.join(templateStyleDir, `${lang.toLowerCase()}.md`);
@@ -130,7 +134,12 @@ function generateCodingStyleIndex(languages: string[]): string {
     { name: "通用", file: "general.md" },
   ];
 
-  const tableRows = langEntries
+  const lowerLanguages = languages.map((l) => l.toLowerCase());
+  const filteredEntries = langEntries.filter((l) =>
+    lowerLanguages.includes(l.file.replace(".md", "")),
+  );
+
+  const tableRows = filteredEntries
     .map((l) => `| ${l.name} | [${l.file}](./coding_style/${l.file}) |`)
     .join("\n");
 

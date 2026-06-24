@@ -181,7 +181,7 @@ describe("Template Manager", () => {
       const codingDir = path.join(tmpDir, "docs", "regulation", "coding_style");
       expect(fs.existsSync(path.join(codingDir, "typescript.md"))).toBe(true);
       expect(fs.existsSync(path.join(codingDir, "python.md"))).toBe(true);
-      expect(fs.existsSync(path.join(codingDir, "general.md"))).toBe(false);
+      expect(fs.existsSync(path.join(codingDir, "general.md"))).toBe(true);
     });
 
     it("installTemplate 不传 programmingLanguages → General 兜底", () => {
