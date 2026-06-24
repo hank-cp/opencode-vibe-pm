@@ -258,4 +258,34 @@ describe("Template Manager", () => {
       expect(content.compress.protectTags).toBe(true);
     });
   });
+
+  describe("回退路径", () => {
+    it("scanTemplates_fallback_to_plugin: 项目无模板时回退到插件内置模板", () => {
+      const noTemplateDir = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-pm-test-nodocs-"));
+      try {
+        // 该项目没有任何 docs/ 目录
+        const templates = scanTemplates(noTemplateDir);
+        // 应该从插件内置模板中找到（开发仓库的 docs/template/ 存在）
+        expect(templates.length).toBeGreaterThan(0);
+        const ids = templates.map((t) => t.id);
+        expect(ids).toContain("bug-fix");
+        expect(ids).toContain("research");
+      } finally {
+        fs.rmSync(noTemplateDir, { recursive: true, force: true });
+      }
+    });
+
+    it("scanTemplates_prioritizes_project: 项目有模板时优先使用项目模板", () => {
+      const dir = createTestProject();
+      try {
+        writeTemplateBundle(dir, "custom-flow", "Custom Flow");
+        const templates = scanTemplates(dir);
+        const ids = templates.map((t) => t.id);
+        expect(ids).toContain("custom-flow");
+        // 项目模板被找到，说明优先级正确
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
+  });
 });

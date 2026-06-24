@@ -34,8 +34,26 @@ export class TemplateConflictError extends Error {
 
 // ─── 内部辅助 ───
 
+function getPluginTemplateDir(): string | null {
+  const candidates = [
+    path.join(import.meta.dirname, "docs", TEMPLATE_DIR),
+    path.join(import.meta.dirname, "..", "docs", TEMPLATE_DIR),
+    path.join(import.meta.dirname, "..", "..", "docs", TEMPLATE_DIR),
+  ];
+  for (const cand of candidates) {
+    if (fs.existsSync(cand)) return cand;
+  }
+  return null;
+}
+
 function getDocsDir(projectDir: string): string {
   return path.join(projectDir, "docs");
+}
+
+function getTemplateDir(projectDir: string): string | null {
+  const projectTemplate = path.join(getDocsDir(projectDir), TEMPLATE_DIR);
+  if (fs.existsSync(projectTemplate)) return projectTemplate;
+  return getPluginTemplateDir();
 }
 
 function parseTemplateMeta(raw: string, bundleDir: string): TemplateMeta | null {
@@ -139,8 +157,8 @@ ${tableRows}
 // ─── 公开 API ───
 
 export function scanTemplates(projectDir: string): TemplateMeta[] {
-  const templateDir = path.join(getDocsDir(projectDir), TEMPLATE_DIR);
-  if (!fs.existsSync(templateDir)) return [];
+  const templateDir = getTemplateDir(projectDir);
+  if (!templateDir) return [];
 
   const entries = fs.readdirSync(templateDir, { withFileTypes: true });
   const templates: TemplateMeta[] = [];
