@@ -88,8 +88,13 @@ function installCodingStyleFromTemplate(
   regDir: string,
   programmingLanguages?: string[],
 ): void {
-  const templateStyleDir = path.join(docsDir, CODING_STYLE_TEMPLATE_SUBDIR);
-  if (!fs.existsSync(templateStyleDir)) return;
+  let templateStyleDir = path.join(docsDir, CODING_STYLE_TEMPLATE_SUBDIR);
+  if (!fs.existsSync(templateStyleDir)) {
+    const pluginDir = getPluginTemplateDir();
+    if (!pluginDir) return;
+    templateStyleDir = path.join(pluginDir, "_coding_style");
+    if (!fs.existsSync(templateStyleDir)) return;
+  }
 
   const regStyleDir = path.join(regDir, CODING_STYLE_REG_SUBDIR);
   fs.mkdirSync(regStyleDir, { recursive: true });
@@ -243,8 +248,13 @@ function installRegulationFromTemplate(
   const dest = path.join(regDir, outputName);
   if (fs.existsSync(dest)) return;
 
-  const templatePath = path.join(docsDir, TEMPLATE_DIR, templateName);
-  if (!fs.existsSync(templatePath)) return;
+  let templatePath = path.join(docsDir, TEMPLATE_DIR, templateName);
+  if (!fs.existsSync(templatePath)) {
+    const pluginDir = getPluginTemplateDir();
+    if (!pluginDir) return;
+    templatePath = path.join(pluginDir, templateName);
+    if (!fs.existsSync(templatePath)) return;
+  }
 
   fs.copyFileSync(templatePath, dest);
 }

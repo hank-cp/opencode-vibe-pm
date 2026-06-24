@@ -287,5 +287,22 @@ describe("Template Manager", () => {
         fs.rmSync(dir, { recursive: true, force: true });
       }
     });
+
+    it("installTemplate_fallback_regulation: 项目无模板时从插件内置复制 regulation", () => {
+      // 项目没有 docs/template/，regulation 应通过回退从插件内置模板安装
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-pm-test-fbreg-"));
+      try {
+        const docsDir = path.join(dir, "docs");
+        fs.mkdirSync(path.join(docsDir, "flow"), { recursive: true });
+        fs.mkdirSync(path.join(docsDir, "regulation"), { recursive: true });
+
+        installTemplate(dir, "bug-fix");
+
+        expect(fs.existsSync(path.join(docsDir, "regulation", "constitution.md"))).toBe(true);
+        expect(fs.existsSync(path.join(docsDir, "regulation", "dictionary.md"))).toBe(true);
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
   });
 });
