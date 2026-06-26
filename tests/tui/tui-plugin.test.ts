@@ -49,21 +49,6 @@ describe("createTuiPlugin", () => {
     // Should not throw — silently catches errors
     await expect(plugin(mockApi, undefined as never, undefined as never)).resolves.toBeUndefined();
   });
-
-  it("accepts external memory system", async () => {
-    const { createTuiPlugin } = await import(
-      "../../src/tui/tui-plugin.jsx"
-    );
-    const mockMemory = {
-      getActiveTask: async () => null,
-      getLastClosedTask: async () => null,
-      getStepTokenBreakdown: async () => [],
-      getSubagentTokens: async () => [],
-    };
-
-    const plugin = createTuiPlugin(mockMemory as never);
-    expect(typeof plugin).toBe("function");
-  });
 });
 
 describe("TUI types", () => {

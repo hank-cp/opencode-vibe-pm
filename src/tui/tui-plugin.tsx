@@ -1,16 +1,13 @@
 /**
  * TuiPlugin 入口
  *
- * 参考 opencode-goal-mode Pattern B：
  * - createSignal + setInterval + onCleanup 全在 slot 回调内
  * - session_id 从 props 获取
- * - 数据通过 IMemorySystem 直连 bun:sqlite 获取（WAL 模式支持并发读）
- * - 若未外部注入 MemorySystem，则自行创建实例连接 .vibe-pm/vibe-pm.db
+ * - TUI 始终创建独立的 MemorySystem 实例（不跨进程共享）
  */
 
 import { createSignal, onCleanup } from "solid-js";
 import type { TuiPlugin, TuiPluginApi } from "@opencode-ai/plugin/tui";
-import type { IMemorySystem } from "../memory/types.js";
 import { MemorySystem } from "../memory/memory-system.js";
 import type { TaskStatusData, TokenData } from "./types.js";
 import { loadTaskStatus } from "./data/task-status.js";
@@ -19,21 +16,14 @@ import { SidebarContent } from "./slots/sidebar-content.jsx";
 
 const POLL_INTERVAL_MS = 1000;
 
-export function createTuiPlugin(memory?: IMemorySystem): TuiPlugin {
+export function createTuiPlugin(): TuiPlugin {
   return async (api: TuiPluginApi): Promise<void> => {
     try {
       const projectDir = api.state.path.directory ?? ".";
-
-      const sharedMemory: IMemorySystem =
-        memory ??
-        (globalThis as Record<string, unknown>).__vibePmMemory as IMemorySystem ??
-        await (async () => {
-          const ms = new MemorySystem();
-          const dd = `${projectDir}/.vibe-pm`;
-          await ms.init(dd);
-          console.error(`[vibe-pm] TUI created MemorySystem, dataDir=${dd}`);
-          return ms;
-        })();
+      const dd = `${projectDir}/.vibe-pm`;
+      const ms = new MemorySystem();
+      await ms.init(dd);
+      console.error(`[vibe-pm] TUI created MemorySystem, dataDir=${dd}`);
 
       console.error("[vibe-pm] TUI ready");
 
@@ -59,8 +49,8 @@ export function createTuiPlugin(memory?: IMemorySystem): TuiPlugin {
             async function refresh() {
               try {
                 const [status, tokens] = await Promise.all([
-                  loadTaskStatus(sharedMemory, sessionId!),
-                  loadTokenData(sharedMemory, sessionId!),
+                  loadTaskStatus(ms, sessionId!),
+                  loadTokenData(ms, sessionId!),
                 ]);
                 setTaskStatus(status);
                 setTokenData(tokens);
