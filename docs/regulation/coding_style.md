@@ -20,4 +20,5 @@
 | 语言 | 编码规范 |
 |------|---------|
 | TypeScript | [typescript.md](./coding_style/typescript.md) |
+| SQL | [sql.md](./coding_style/sql.md) |
 | 通用 | [general.md](./coding_style/general.md) |
