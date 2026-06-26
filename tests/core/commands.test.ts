@@ -239,10 +239,10 @@ describe("registerTools", () => {
     const result = await tools.pm_config.execute({ subCommand: "init" }, mockToolCtx);
     const parsed = JSON.parse(typeof result === 'string' ? result : result.output);
     expect(parsed.flow).toBe("pm-config-init");
-    expect(parsed.steps).toHaveLength(8);
+    expect(parsed.steps).toHaveLength(9);
     expect(parsed.steps.map((s: { id: string }) => s.id)).toEqual([
       "scope", "language", "gitignore", "agents", "dictionary",
-      "integrations-dcp", "integrations-vision", "done",
+      "integrations-dcp", "integrations-vision", "integrations-code-review", "done",
     ]);
   });
 

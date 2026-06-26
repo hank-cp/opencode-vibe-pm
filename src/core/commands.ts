@@ -415,6 +415,25 @@ tools:
         },
       },
       {
+        id: "integrations-code-review",
+        title: "集成: Code Review Skill",
+        type: "question",
+        instruction: `安装 Code Review Skill。
+1. 检查是否已安装：查找 ~/.agents/skills/code-review-skill/SKILL.md、~/.claude/skills/code-review-skill/SKILL.md
+2. 若未安装，询问用户是否安装。安装方式：
+   git clone https://github.com/awesome-skills/code-review-skill ~/.agents/skills/code-review-skill
+3. 安装后告知用户重启 OpenCode 后可使用 /code-review-skill 命令`,
+        checkInstalled: "code-review-skill",
+        params: {
+          header: "Code Review Skill",
+          question: "是否安装 Code Review Skill？提供全面的代码审查能力。(https://github.com/awesome-skills/code-review-skill)",
+          options: [
+            { label: "是，安装", description: "克隆到 ~/.agents/skills/code-review-skill" },
+            { label: "否，跳过", description: "不安装" },
+          ],
+        },
+      },
+      {
         id: "done",
         title: "完成",
         type: "info",
