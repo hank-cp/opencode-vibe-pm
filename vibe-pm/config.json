@@ -1,0 +1,12 @@
+{
+  "language": "zh-CN",
+  "dataDir": ".vibe-pm",
+  "autoAnalyze": true,
+  "contextInjection": {
+    "maxStepTokens": 0,
+    "pruneIrrelevant": true
+  },
+  "debug": {
+    "logFullRequest": false
+  }
+}
