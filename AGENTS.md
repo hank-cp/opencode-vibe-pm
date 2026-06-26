@@ -97,7 +97,7 @@ bun run typecheck   # tsc --noEmit 仅类型检查
 | III. 验证强制性 | LSP 诊断、构建、测试三层验证必须通过 |
 | IV. Mermaid 图表优先 | 禁止 ASCII art 图表 |
 | V. 模块独立性 | 跨模块通过明确接口通信 |
-| VI. 最小变更 | Bug 修复 ≠ 重构，优先编辑现有文件 |
+| VI. 代码品质优先 | 优雅、直达核心、可阅读、可维护 |
 | VII. SDK 优先开发 | 与 OpenCode 交互必须通过 `@opencode-ai/plugin` SDK |
 | VIII. 中文优先沟通 | Thinking/Reply 用中文，代码/日志用英文 |
 | IX. 尊重人工修改 | 禁止未经同意覆盖用户重构代码 |

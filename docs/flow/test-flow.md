@@ -98,7 +98,7 @@ stateDiagram-v2
 **引用 Regulation**：coding_style.md、constitution.md
 
 1. 按方案实现代码
-2. 遵循最小变更原则
+2. 遵循代码品质优先原则
 3. 完成编译检查和测试
 
 **完成后**：任务结束
