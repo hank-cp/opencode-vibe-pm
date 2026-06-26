@@ -113,155 +113,160 @@ export class MemorySystem implements IMemorySystem {
     // ─── DDL ───
     for (const stmt of `
       CREATE TABLE IF NOT EXISTS tasks (
-        id TEXT PRIMARY KEY,
-        sessionId TEXT NOT NULL,
-        flow TEXT NOT NULL,
-        currentStep TEXT NOT NULL,
-        currentStepName TEXT NOT NULL,
-        startAt TEXT NOT NULL,
-        endAt TEXT,
-        closed INTEGER NOT NULL DEFAULT 0,
-        summary TEXT NOT NULL,
-        userRequest TEXT,
-        stepTransitions JSON
+        id              TEXT NOT NULL,
+        session_id      TEXT NOT NULL,
+        flow            TEXT NOT NULL,
+        current_step    TEXT NOT NULL,
+        current_step_name TEXT NOT NULL,
+        started_at      TEXT NOT NULL,
+        ended_at        TEXT,
+        closed          INTEGER NOT NULL DEFAULT 0,
+        summary         TEXT NOT NULL,
+        user_request    TEXT,
+        step_transitions TEXT,
+        CONSTRAINT tasks_id_pkey PRIMARY KEY (id)
       );
 
       CREATE TABLE IF NOT EXISTS discussions (
-        id TEXT PRIMARY KEY,
-        fromSessionId TEXT NOT NULL,
-        priority TEXT NOT NULL,
-        importance INTEGER NOT NULL,
-        severity INTEGER NOT NULL,
-        issue TEXT NOT NULL,
-        reason TEXT NOT NULL,
-        solution TEXT NOT NULL,
-        decision TEXT,
-        taskSummary TEXT NOT NULL,
-        createdAt TEXT NOT NULL,
-        resolvedAt TEXT
+        id              TEXT NOT NULL,
+        from_session_id TEXT NOT NULL,
+        priority        TEXT NOT NULL,
+        importance      INTEGER NOT NULL,
+        severity        INTEGER NOT NULL,
+        issue           TEXT NOT NULL,
+        reason          TEXT NOT NULL,
+        solution        TEXT NOT NULL,
+        decision        TEXT,
+        task_summary    TEXT NOT NULL,
+        created_at      TEXT NOT NULL,
+        resolved_at     TEXT,
+        CONSTRAINT discussions_id_pkey PRIMARY KEY (id)
       );
 
-      CREATE TABLE IF NOT EXISTS flowMetrics (
-        id TEXT PRIMARY KEY,
-        sessionId TEXT NOT NULL,
-        flow TEXT NOT NULL,
-        step TEXT NOT NULL,
-        stepName TEXT NOT NULL,
-        stepInCount INTEGER NOT NULL DEFAULT 1,
-        tokensConsumed INTEGER NOT NULL DEFAULT 0,
-        tokensBySource JSON,
-        dwellTime INTEGER NOT NULL DEFAULT 0,
-        humanInterventionTime INTEGER NOT NULL DEFAULT 0,
-        userInputTokens INTEGER NOT NULL DEFAULT 0,
-        taskSummary TEXT NOT NULL
+      CREATE TABLE IF NOT EXISTS flow_metrics (
+        id                    TEXT NOT NULL,
+        session_id            TEXT NOT NULL,
+        flow                  TEXT NOT NULL,
+        step                  TEXT NOT NULL,
+        step_name             TEXT NOT NULL,
+        step_in_count         INTEGER NOT NULL DEFAULT 1,
+        tokens_consumed       INTEGER NOT NULL DEFAULT 0,
+        tokens_by_source      TEXT,
+        dwell_time            INTEGER NOT NULL DEFAULT 0,
+        human_intervention_time INTEGER NOT NULL DEFAULT 0,
+        user_input_tokens     INTEGER NOT NULL DEFAULT 0,
+        task_summary          TEXT NOT NULL,
+        CONSTRAINT flow_metrics_id_pkey PRIMARY KEY (id)
       );
 
-      CREATE INDEX IF NOT EXISTS idx_tasks_sessionId ON tasks(sessionId);
-      CREATE INDEX IF NOT EXISTS idx_tasks_sessionId_closed ON tasks(sessionId, closed);
-      CREATE INDEX IF NOT EXISTS idx_discussions_fromSessionId ON discussions(fromSessionId);
-      CREATE INDEX IF NOT EXISTS idx_flowMetrics_sessionId ON flowMetrics(sessionId);
-      CREATE INDEX IF NOT EXISTS idx_flowMetrics_sessionId_step ON flowMetrics(sessionId, step);
-      CREATE INDEX IF NOT EXISTS idx_flowMetrics_flow ON flowMetrics(flow);
+      CREATE INDEX IF NOT EXISTS idx_tasks_session_id ON tasks(session_id);
+      CREATE INDEX IF NOT EXISTS idx_tasks_session_id_closed ON tasks(session_id, closed);
+      CREATE INDEX IF NOT EXISTS idx_discussions_from_session_id ON discussions(from_session_id);
+      CREATE INDEX IF NOT EXISTS idx_flow_metrics_session_id ON flow_metrics(session_id);
+      CREATE INDEX IF NOT EXISTS idx_flow_metrics_session_id_step ON flow_metrics(session_id, step);
+      CREATE INDEX IF NOT EXISTS idx_flow_metrics_flow ON flow_metrics(flow);
 
       CREATE TABLE IF NOT EXISTS session_tokens (
-        sessionId       TEXT PRIMARY KEY,
+        session_id      TEXT NOT NULL,
         text            INTEGER NOT NULL DEFAULT 0,
         "user"          INTEGER NOT NULL DEFAULT 0,
         assistant       INTEGER NOT NULL DEFAULT 0,
-        flowControl     INTEGER NOT NULL DEFAULT 0,
+        flow_control    INTEGER NOT NULL DEFAULT 0,
         tool            INTEGER NOT NULL DEFAULT 0,
         reasoning       INTEGER NOT NULL DEFAULT 0,
-        apiInput        INTEGER NOT NULL DEFAULT 0,
-        apiOutput       INTEGER NOT NULL DEFAULT 0,
-        apiReasoning    INTEGER NOT NULL DEFAULT 0,
-        apiCacheRead    INTEGER NOT NULL DEFAULT 0,
-        apiCacheWrite   INTEGER NOT NULL DEFAULT 0,
-        scaleFactor     REAL NOT NULL DEFAULT 1.0,
-        startedAt       TEXT NOT NULL,
-        updatedAt       TEXT NOT NULL
+        api_input       INTEGER NOT NULL DEFAULT 0,
+        api_output      INTEGER NOT NULL DEFAULT 0,
+        api_reasoning   INTEGER NOT NULL DEFAULT 0,
+        api_cache_read  INTEGER NOT NULL DEFAULT 0,
+        api_cache_write INTEGER NOT NULL DEFAULT 0,
+        scale_factor    REAL NOT NULL DEFAULT 1.0,
+        started_at      TEXT NOT NULL,
+        updated_at      TEXT NOT NULL,
+        CONSTRAINT session_tokens_session_id_pkey PRIMARY KEY (session_id)
       );
 
-      CREATE INDEX IF NOT EXISTS idx_session_tokens_sessionId ON session_tokens(sessionId);
+      CREATE INDEX IF NOT EXISTS idx_session_tokens_session_id ON session_tokens(session_id);
 
       CREATE TABLE IF NOT EXISTS subagent_tokens (
-        sessionId       TEXT PRIMARY KEY,
-        parentSessionId TEXT NOT NULL,
-        "user"          INTEGER NOT NULL DEFAULT 0,
-        assistant       INTEGER NOT NULL DEFAULT 0,
-        apiInput        INTEGER NOT NULL DEFAULT 0,
-        apiOutput       INTEGER NOT NULL DEFAULT 0,
-        apiReasoning    INTEGER NOT NULL DEFAULT 0,
-        apiCacheRead    INTEGER NOT NULL DEFAULT 0,
-        apiCacheWrite   INTEGER NOT NULL DEFAULT 0
+        session_id       TEXT NOT NULL,
+        parent_session_id TEXT NOT NULL,
+        "user"           INTEGER NOT NULL DEFAULT 0,
+        assistant        INTEGER NOT NULL DEFAULT 0,
+        api_input        INTEGER NOT NULL DEFAULT 0,
+        api_output       INTEGER NOT NULL DEFAULT 0,
+        api_reasoning    INTEGER NOT NULL DEFAULT 0,
+        api_cache_read   INTEGER NOT NULL DEFAULT 0,
+        api_cache_write  INTEGER NOT NULL DEFAULT 0,
+        CONSTRAINT subagent_tokens_session_id_pkey PRIMARY KEY (session_id)
       );
 
-      CREATE INDEX IF NOT EXISTS idx_subagent_parent ON subagent_tokens(parentSessionId);
+      CREATE INDEX IF NOT EXISTS idx_subagent_tokens_parent_session_id ON subagent_tokens(parent_session_id);
     `.split(';')) {
       const trimmed = stmt.trim();
       if (trimmed) this.db.run(trimmed);
     }
 
-    // Migration: add userRequest column (idempotent, fails silently if column exists)
+    // Migration: add user_request column (idempotent, fails silently if column exists)
     try {
-      this.db.run("ALTER TABLE tasks ADD COLUMN userRequest TEXT");
-      this.db.run("CREATE INDEX IF NOT EXISTS idx_tasks_userRequest ON tasks(sessionId, userRequest)");
+      this.db.run("ALTER TABLE tasks ADD COLUMN user_request TEXT");
+      this.db.run("CREATE INDEX IF NOT EXISTS idx_tasks_session_id_user_request ON tasks(session_id, user_request)");
     } catch { /* column/index already exists */ }
 
     // ─── Prepared Statements ───
     this.stmtInsertTask = this.db.prepare(`
-      INSERT INTO tasks (id, sessionId, flow, currentStep, currentStepName, startAt, endAt, closed, summary, userRequest, stepTransitions)
+      INSERT INTO tasks (id, session_id, flow, current_step, current_step_name, started_at, ended_at, closed, summary, user_request, step_transitions)
       VALUES ($id, $sessionId, $flow, $currentStep, $currentStepName, $startAt, $endAt, $closed, $summary, $userRequest, $stepTransitions)
     `);
-    this.stmtGetTaskBySession = this.db.prepare("SELECT * FROM tasks WHERE sessionId = ? LIMIT 1");
-    this.stmtGetActiveTaskBySession = this.db.prepare("SELECT * FROM tasks WHERE sessionId = ? AND closed = 0 LIMIT 1");
-    this.stmtUpdateTaskStep = this.db.prepare("UPDATE tasks SET currentStep = ?, currentStepName = ? WHERE id = ?");
-    this.stmtCloseTask = this.db.prepare("UPDATE tasks SET closed = 1, endAt = ? WHERE id = ?");
+    this.stmtGetTaskBySession = this.db.prepare("SELECT * FROM tasks WHERE session_id = ? LIMIT 1");
+    this.stmtGetActiveTaskBySession = this.db.prepare("SELECT * FROM tasks WHERE session_id = ? AND closed = 0 LIMIT 1");
+    this.stmtUpdateTaskStep = this.db.prepare("UPDATE tasks SET current_step = ?, current_step_name = ? WHERE id = ?");
+    this.stmtCloseTask = this.db.prepare("UPDATE tasks SET closed = 1, ended_at = ? WHERE id = ?");
     this.stmtListActiveTasks = this.db.prepare("SELECT * FROM tasks WHERE closed = 0");
     this.stmtGetTaskById = this.db.prepare("SELECT * FROM tasks WHERE id = ? LIMIT 1");
-    this.stmtUpdateTaskTransitions = this.db.prepare("UPDATE tasks SET stepTransitions = ? WHERE id = ?");
-    this.stmtGetClosedTasksBySession = this.db.prepare("SELECT * FROM tasks WHERE sessionId = ? AND closed = 1");
+    this.stmtUpdateTaskTransitions = this.db.prepare("UPDATE tasks SET step_transitions = ? WHERE id = ?");
+    this.stmtGetClosedTasksBySession = this.db.prepare("SELECT * FROM tasks WHERE session_id = ? AND closed = 1");
     this.stmtCheckDupUserRequest = this.db.prepare(
-      "SELECT COUNT(*) AS cnt FROM tasks WHERE sessionId = ? AND userRequest = ? AND userRequest IS NOT NULL AND closed = 0"
+      "SELECT COUNT(*) AS cnt FROM tasks WHERE session_id = ? AND user_request = ? AND user_request IS NOT NULL AND closed = 0"
     );
 
     this.stmtInsertDiscussion = this.db.prepare(`
-      INSERT INTO discussions (id, fromSessionId, priority, importance, severity, issue, reason, solution, decision, taskSummary, createdAt, resolvedAt)
+      INSERT INTO discussions (id, from_session_id, priority, importance, severity, issue, reason, solution, decision, task_summary, created_at, resolved_at)
       VALUES ($id, $fromSessionId, $priority, $importance, $severity, $issue, $reason, $solution, $decision, $taskSummary, $createdAt, $resolvedAt)
     `);
-    this.stmtGetDiscussionsBySession = this.db.prepare("SELECT * FROM discussions WHERE fromSessionId = ?");
+    this.stmtGetDiscussionsBySession = this.db.prepare("SELECT * FROM discussions WHERE from_session_id = ?");
     this.stmtGetAllDiscussions = this.db.prepare("SELECT * FROM discussions");
-    this.stmtResolveDiscussion = this.db.prepare("UPDATE discussions SET decision = ?, resolvedAt = ? WHERE id = ?");
+    this.stmtResolveDiscussion = this.db.prepare("UPDATE discussions SET decision = ?, resolved_at = ? WHERE id = ?");
 
-    this.stmtGetMetricsBySessionStep = this.db.prepare("SELECT * FROM flowMetrics WHERE sessionId = ? AND step = ? LIMIT 1");
+    this.stmtGetMetricsBySessionStep = this.db.prepare("SELECT * FROM flow_metrics WHERE session_id = ? AND step = ? LIMIT 1");
     this.stmtUpdateMetrics = this.db.prepare(`
-      UPDATE flowMetrics SET tokensConsumed = ?, tokensBySource = ?, userInputTokens = ?, stepInCount = ?, dwellTime = ?, humanInterventionTime = ?
+      UPDATE flow_metrics SET tokens_consumed = ?, tokens_by_source = ?, user_input_tokens = ?, step_in_count = ?, dwell_time = ?, human_intervention_time = ?
       WHERE id = ?
     `);
     this.stmtInsertMetrics = this.db.prepare(`
-      INSERT INTO flowMetrics (id, sessionId, flow, step, stepName, stepInCount, tokensConsumed, tokensBySource, dwellTime, humanInterventionTime, userInputTokens, taskSummary)
+      INSERT INTO flow_metrics (id, session_id, flow, step, step_name, step_in_count, tokens_consumed, tokens_by_source, dwell_time, human_intervention_time, user_input_tokens, task_summary)
       VALUES ($id, $sessionId, $flow, $step, $stepName, $stepInCount, $tokensConsumed, $tokensBySource, $dwellTime, $humanInterventionTime, $userInputTokens, $taskSummary)
     `);
     this.stmtUpsertMetrics = this.db.prepare(`
-      INSERT OR REPLACE INTO flowMetrics (id, sessionId, flow, step, stepName, stepInCount, tokensConsumed, tokensBySource, dwellTime, humanInterventionTime, userInputTokens, taskSummary)
+      INSERT OR REPLACE INTO flow_metrics (id, session_id, flow, step, step_name, step_in_count, tokens_consumed, tokens_by_source, dwell_time, human_intervention_time, user_input_tokens, task_summary)
       VALUES ($id, $sessionId, $flow, $step, $stepName, $stepInCount, $tokensConsumed, $tokensBySource, $dwellTime, $humanInterventionTime, $userInputTokens, $taskSummary)
     `);
-    this.stmtGetMetricsBySession = this.db.prepare("SELECT * FROM flowMetrics WHERE sessionId = ?");
-    this.stmtGetMetricsByFlow = this.db.prepare("SELECT * FROM flowMetrics WHERE flow = ?");
+    this.stmtGetMetricsBySession = this.db.prepare("SELECT * FROM flow_metrics WHERE session_id = ?");
+    this.stmtGetMetricsByFlow = this.db.prepare("SELECT * FROM flow_metrics WHERE flow = ?");
 
     this.stmtInitSessionTokens = this.db.prepare(`
-       INSERT OR IGNORE INTO session_tokens (sessionId, text, "user", assistant, flowControl, tool, reasoning, apiInput, apiOutput, apiReasoning, apiCacheRead, apiCacheWrite, scaleFactor, startedAt, updatedAt)
+       INSERT OR IGNORE INTO session_tokens (session_id, text, "user", assistant, flow_control, tool, reasoning, api_input, api_output, api_reasoning, api_cache_read, api_cache_write, scale_factor, started_at, updated_at)
       VALUES ($sessionId, $text, $user, $assistant, $flowControl, $tool, $reasoning, $apiInput, $apiOutput, $apiReasoning, $apiCacheRead, $apiCacheWrite, $scaleFactor, $startedAt, $updatedAt)
     `);
-    this.stmtGetSessionTokens = this.db.prepare("SELECT * FROM session_tokens WHERE sessionId = ?");
+    this.stmtGetSessionTokens = this.db.prepare("SELECT * FROM session_tokens WHERE session_id = ?");
     this.stmtUpsertSessionTokens = this.db.prepare(`
-       INSERT OR REPLACE INTO session_tokens (sessionId, text, "user", assistant, flowControl, tool, reasoning, apiInput, apiOutput, apiReasoning, apiCacheRead, apiCacheWrite, scaleFactor, startedAt, updatedAt)
+       INSERT OR REPLACE INTO session_tokens (session_id, text, "user", assistant, flow_control, tool, reasoning, api_input, api_output, api_reasoning, api_cache_read, api_cache_write, scale_factor, started_at, updated_at)
        VALUES ($sessionId, $text, $user, $assistant, $flowControl, $tool, $reasoning, $apiInput, $apiOutput, $apiReasoning, $apiCacheRead, $apiCacheWrite, $scaleFactor, $startedAt, $updatedAt)
     `);
     this.stmtUpsertSubagentTokens = this.db.prepare(`
-      INSERT OR REPLACE INTO subagent_tokens (sessionId, parentSessionId, "user", assistant, apiInput, apiOutput, apiReasoning, apiCacheRead, apiCacheWrite)
+      INSERT OR REPLACE INTO subagent_tokens (session_id, parent_session_id, "user", assistant, api_input, api_output, api_reasoning, api_cache_read, api_cache_write)
       VALUES ($sessionId, $parentSessionId, $user, $assistant, $apiInput, $apiOutput, $apiReasoning, $apiCacheRead, $apiCacheWrite)
     `);
-    this.stmtGetSubagentTokens = this.db.prepare("SELECT * FROM subagent_tokens WHERE parentSessionId = ?");
+    this.stmtGetSubagentTokens = this.db.prepare("SELECT * FROM subagent_tokens WHERE parent_session_id = ?");
   }
 
   // ═══════════════════════════════════════════
@@ -328,7 +333,7 @@ export class MemorySystem implements IMemorySystem {
     const row = this.stmtGetTaskById.get(id) as Record<string, unknown> | undefined;
     if (!row) throw new Error(`Task not found: ${id}`);
 
-    const existingTransitions = parseJSON<StepTransition[]>(row["stepTransitions"], []);
+    const existingTransitions = parseJSON<StepTransition[]>(row["step_transitions"], []);
     const transitions = [...existingTransitions, transition];
     this.stmtUpdateTaskTransitions.run(JSON.stringify(transitions), id);
   }
@@ -425,7 +430,7 @@ export class MemorySystem implements IMemorySystem {
     const existing = this.stmtGetMetricsBySessionStep.get(sessionId, step) as Record<string, unknown> | undefined;
 
     if (existing) {
-      const existingTokens = parseJSON<Record<string, number>>(existing["tokensBySource"], {});
+      const existingTokens = parseJSON<Record<string, number>>(existing["tokens_by_source"], {});
       const merged: Record<string, number> = { ...existingTokens };
       for (const [source, tokens] of Object.entries(tokensBySource)) {
         merged[source] = (merged[source] ?? 0) + tokens;
@@ -433,13 +438,13 @@ export class MemorySystem implements IMemorySystem {
       this.stmtUpsertMetrics.run(prefixKeys({
         id: existing["id"] as string,
         sessionId, flow, step, stepName,
-        stepInCount: existing["stepInCount"] as number ?? 1,
-        tokensConsumed: (existing["tokensConsumed"] as number ?? 0) + newTotal,
+        stepInCount: existing["step_in_count"] as number ?? 1,
+        tokensConsumed: (existing["tokens_consumed"] as number ?? 0) + newTotal,
         tokensBySource: JSON.stringify(merged),
-        dwellTime: existing["dwellTime"] as number ?? 0,
-        humanInterventionTime: existing["humanInterventionTime"] as number ?? 0,
-        userInputTokens: (existing["userInputTokens"] as number ?? 0) + newUserTokens,
-        taskSummary: (existing["taskSummary"] as string) ?? "",
+        dwellTime: existing["dwell_time"] as number ?? 0,
+        humanInterventionTime: existing["human_intervention_time"] as number ?? 0,
+        userInputTokens: (existing["user_input_tokens"] as number ?? 0) + newUserTokens,
+        taskSummary: (existing["task_summary"] as string) ?? "",
       }));
     } else {
       let taskSummary = "";
@@ -470,15 +475,15 @@ export class MemorySystem implements IMemorySystem {
 
     if (existing) {
       this.stmtUpdateMetrics.run(
-        existing["tokensConsumed"],
-        existing["tokensBySource"],
-        existing["userInputTokens"],
-        (existing["stepInCount"] as number) + 1,
-        existing["dwellTime"],
-        existing["humanInterventionTime"],
+        existing["tokens_consumed"],
+        existing["tokens_by_source"],
+        existing["user_input_tokens"],
+        (existing["step_in_count"] as number) + 1,
+        existing["dwell_time"],
+        existing["human_intervention_time"],
         existing["id"],
       );
-      logger.info(`incrementStepCount: step=${step} count=${(existing["stepInCount"] as number) + 1}`);
+      logger.info(`incrementStepCount: step=${step} count=${(existing["step_in_count"] as number) + 1}`);
     } else {
       this.stmtInsertMetrics.run(prefixKeys({
         id: generateId(),
@@ -507,15 +512,15 @@ export class MemorySystem implements IMemorySystem {
 
     if (existing) {
       this.stmtUpdateMetrics.run(
-        existing["tokensConsumed"],
-        existing["tokensBySource"],
-        existing["userInputTokens"],
-        existing["stepInCount"],
-        (existing["dwellTime"] as number) + dwellTime,
-        (existing["humanInterventionTime"] as number) + humanInterventionTime,
+        existing["tokens_consumed"],
+        existing["tokens_by_source"],
+        existing["user_input_tokens"],
+        existing["step_in_count"],
+        (existing["dwell_time"] as number) + dwellTime,
+        (existing["human_intervention_time"] as number) + humanInterventionTime,
         existing["id"],
       );
-      logger.info(`recordStepExit: step=${step} dwellTime=${dwellTime}ms total=${(existing["dwellTime"] as number) + dwellTime}ms`);
+      logger.info(`recordStepExit: step=${step} dwellTime=${dwellTime}ms total=${(existing["dwell_time"] as number) + dwellTime}ms`);
     }
   }
 
@@ -638,23 +643,23 @@ export class MemorySystem implements IMemorySystem {
   private rowToTask(row: Record<string, unknown>): Task {
     return {
       id: row["id"] as string,
-      sessionId: row["sessionId"] as string,
+      sessionId: row["session_id"] as string,
       flow: row["flow"] as string,
-      currentStep: row["currentStep"] as string,
-      currentStepName: row["currentStepName"] as string,
-      startAt: row["startAt"] as string,
-      endAt: (row["endAt"] as string) ?? undefined,
+      currentStep: row["current_step"] as string,
+      currentStepName: row["current_step_name"] as string,
+      startAt: row["started_at"] as string,
+      endAt: (row["ended_at"] as string) ?? undefined,
       closed: !!row["closed"],
       summary: row["summary"] as string,
-      userRequest: (row["userRequest"] as string) ?? undefined,
-      stepTransitions: parseJSON<StepTransition[]>(row["stepTransitions"], []) as StepTransition[] | undefined,
+      userRequest: (row["user_request"] as string) ?? undefined,
+      stepTransitions: parseJSON<StepTransition[]>(row["step_transitions"], []) as StepTransition[] | undefined,
     };
   }
 
   private rowToDiscussion(row: Record<string, unknown>): Discussion {
     return {
       id: row["id"] as string,
-      fromSessionId: row["fromSessionId"] as string,
+      fromSessionId: row["from_session_id"] as string,
       priority: row["priority"] as Discussion["priority"],
       importance: row["importance"] as Discussion["importance"],
       severity: row["severity"] as Discussion["severity"],
@@ -662,63 +667,63 @@ export class MemorySystem implements IMemorySystem {
       reason: row["reason"] as string,
       solution: row["solution"] as string,
       decision: (row["decision"] as string) ?? undefined,
-      taskSummary: row["taskSummary"] as string,
-      createdAt: row["createdAt"] as string,
-      resolvedAt: (row["resolvedAt"] as string) ?? undefined,
+      taskSummary: row["task_summary"] as string,
+      createdAt: row["created_at"] as string,
+      resolvedAt: (row["resolved_at"] as string) ?? undefined,
     };
   }
 
   private rowToFlowMetrics(row: Record<string, unknown>): FlowMetrics {
     return {
       id: row["id"] as string,
-      sessionId: row["sessionId"] as string,
+      sessionId: row["session_id"] as string,
       flow: row["flow"] as string,
       step: row["step"] as string,
-      stepName: row["stepName"] as string,
-      stepInCount: row["stepInCount"] as number,
-      tokensConsumed: row["tokensConsumed"] as number,
+      stepName: row["step_name"] as string,
+      stepInCount: row["step_in_count"] as number,
+      tokensConsumed: row["tokens_consumed"] as number,
       tokensBySource: parseJSON<Record<string, number>>(
-        row["tokensBySource"],
+        row["tokens_by_source"],
         {} as Record<string, number>,
       ),
-      dwellTime: row["dwellTime"] as number,
-      humanInterventionTime: row["humanInterventionTime"] as number,
-      userInputTokens: row["userInputTokens"] as number,
-      taskSummary: row["taskSummary"] as string,
+      dwellTime: row["dwell_time"] as number,
+      humanInterventionTime: row["human_intervention_time"] as number,
+      userInputTokens: row["user_input_tokens"] as number,
+      taskSummary: row["task_summary"] as string,
     };
   }
 
   private rowToSessionTokenMetrics(row: Record<string, unknown>): SessionTokenMetrics {
     return {
-      sessionId: row["sessionId"] as string,
+      sessionId: row["session_id"] as string,
       user: row["user"] as number,
       assistant: row["assistant"] as number,
-      flowControl: row["flowControl"] as number,
+      flowControl: row["flow_control"] as number,
       text: row["text"] as number,
       tool: row["tool"] as number,
       reasoning: row["reasoning"] as number,
-      apiInput: row["apiInput"] as number,
-      apiOutput: row["apiOutput"] as number,
-      apiReasoning: row["apiReasoning"] as number,
-      apiCacheRead: row["apiCacheRead"] as number,
-      apiCacheWrite: row["apiCacheWrite"] as number,
-      scaleFactor: row["scaleFactor"] as number,
-      startedAt: row["startedAt"] as string,
-      updatedAt: row["updatedAt"] as string,
+      apiInput: row["api_input"] as number,
+      apiOutput: row["api_output"] as number,
+      apiReasoning: row["api_reasoning"] as number,
+      apiCacheRead: row["api_cache_read"] as number,
+      apiCacheWrite: row["api_cache_write"] as number,
+      scaleFactor: row["scale_factor"] as number,
+      startedAt: row["started_at"] as string,
+      updatedAt: row["updated_at"] as string,
     };
   }
 
   private rowToSubagentTokenMetrics(row: Record<string, unknown>): SubagentTokenMetrics {
     return {
-      sessionId: row["sessionId"] as string,
-      parentSessionId: row["parentSessionId"] as string,
+      sessionId: row["session_id"] as string,
+      parentSessionId: row["parent_session_id"] as string,
       user: row["user"] as number,
       assistant: row["assistant"] as number,
-      apiInput: row["apiInput"] as number,
-      apiOutput: row["apiOutput"] as number,
-      apiReasoning: row["apiReasoning"] as number,
-      apiCacheRead: row["apiCacheRead"] as number,
-      apiCacheWrite: row["apiCacheWrite"] as number,
+      apiInput: row["api_input"] as number,
+      apiOutput: row["api_output"] as number,
+      apiReasoning: row["api_reasoning"] as number,
+      apiCacheRead: row["api_cache_read"] as number,
+      apiCacheWrite: row["api_cache_write"] as number,
     };
   }
 }
