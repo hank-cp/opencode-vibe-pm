@@ -8,7 +8,6 @@ build/
 
 # Runtime data (local AxioDB)
 .vibe-pm/
-.vibe-pm.json
 
 # IDE
 .idea/

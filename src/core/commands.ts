@@ -269,13 +269,13 @@ function buildInitInstructions(projectDir: string): string {
           header: "配置范围",
           question: "vibe-pm 配置写入哪里？（opencode 和集成插件配置始终项目级 `.opencode/`）",
           options: [
-            { label: "项目级", description: "写入项目根目录 `.vibe-pm.json`" },
-            { label: "全局", description: "写入 `~/.config/vibe-pm/vibe-pm.json`" },
+            { label: "项目级", description: "写入项目目录 `./vibe-pm/config.json`" },
+            { label: "全局", description: "写入 `~/.config/vibe-pm/config.json`" },
           ],
         },
         onAnswer: {
-          "项目级": { configPath: ".vibe-pm.json", scope: "project" },
-          "全局": { configPath: "~/.config/vibe-pm/vibe-pm.json", scope: "global" },
+          "项目级": { configPath: "./vibe-pm/config.json", scope: "project" },
+          "全局": { configPath: "~/.config/vibe-pm/config.json", scope: "global" },
         },
       },
       {

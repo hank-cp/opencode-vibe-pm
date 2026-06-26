@@ -1,7 +1,7 @@
 /**
  * 配置管理
  *
- * 从项目目录加载 .vibe-pm.json，支持默认值、合并覆盖、容错处理。
+ * 从项目目录加载 vibe-pm/config.json，支持默认值、合并覆盖、容错处理。
  * 启动时自动创建默认配置文件。
  */
 
@@ -27,11 +27,13 @@ export const DEFAULT_CONFIG: PluginConfig = {
 
 // ─── 公开 API ───
 
+const PROJECT_CONFIG_REL = path.join("vibe-pm", "config.json");
+
 export function loadConfig(projectDir: string): PluginConfig {
-  const configPath = path.join(projectDir, ".vibe-pm.json");
+  const configPath = path.join(projectDir, PROJECT_CONFIG_REL);
 
   if (!fs.existsSync(configPath)) {
-    logger.info(`.vibe-pm.json not found, using defaults.`);
+    logger.info(`vibe-pm/config.json not found, using defaults.`);
     return { ...DEFAULT_CONFIG };
   }
 
@@ -50,7 +52,7 @@ export function loadConfig(projectDir: string): PluginConfig {
     return merged;
   } catch (err) {
     logger.warn(
-      `Failed to parse .vibe-pm.json, using defaults:`,
+      `Failed to parse vibe-pm/config.json, using defaults:`,
       err instanceof Error ? err.message : err,
     );
     return { ...DEFAULT_CONFIG };
@@ -61,20 +63,21 @@ export function writeConfig(
   projectDir: string,
   config: PluginConfig,
 ): void {
-  const configPath = path.join(projectDir, ".vibe-pm.json");
+  const configPath = path.join(projectDir, PROJECT_CONFIG_REL);
+  fs.mkdirSync(path.dirname(configPath), { recursive: true });
   fs.writeFileSync(
     configPath,
     JSON.stringify(config, null, 2),
     "utf-8",
   );
-  logger.info(".vibe-pm.json written");
+  logger.info("vibe-pm/config.json written");
 }
 
 export function ensureDefaultConfig(projectDir: string): boolean {
-  const configPath = path.join(projectDir, ".vibe-pm.json");
+  const configPath = path.join(projectDir, PROJECT_CONFIG_REL);
   if (fs.existsSync(configPath)) return false;
 
   writeConfig(projectDir, DEFAULT_CONFIG);
-  logger.info(".vibe-pm.json created with default values");
+  logger.info("vibe-pm/config.json created with default values");
   return true;
 }

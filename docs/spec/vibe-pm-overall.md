@@ -119,7 +119,7 @@ sequenceDiagram
 ```
 项目根目录/
 ├── .vibe-pm/                    # 插件运行时数据
-├── .vibe-pm.json                # 插件配置
+│   ├── vibe-pm/config.json       # 插件配置
 ├── .opencode/
 │   ├── commands/                # 生成的 Command 文件
 │   └── dcp.jsonc                # DCP 保护配置
