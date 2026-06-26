@@ -196,6 +196,7 @@ export function installTemplate(
   projectDir: string,
   templateId: string,
   programmingLanguages?: string[],
+  overwrite?: boolean,
 ): void {
   const templates = scanTemplates(projectDir);
   const meta = templates.find((t) => t.id === templateId);
@@ -211,10 +212,12 @@ export function installTemplate(
   fs.mkdirSync(flowDir, { recursive: true });
   fs.mkdirSync(regDir, { recursive: true });
 
-  // 安装 Flow 文档
-    const destFlow = path.join(flowDir, `flow-${meta.id}.md`);
-  if (fs.existsSync(destFlow)) {
-      throw new TemplateConflictError(`flow-${meta.id}`);
+  // 安装 Flow 文档（若已存在且未传 overwrite，提示用户确认后覆盖）
+  const destFlow = path.join(flowDir, `flow-${meta.id}.md`);
+  if (fs.existsSync(destFlow) && !overwrite) {
+    throw new TemplateConflictError(
+      `"${templateId}" 已存在。如需覆盖安装，请使用 overwrite 参数。`,
+    );
   }
   fs.copyFileSync(meta.flowPath, destFlow);
 

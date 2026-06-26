@@ -116,13 +116,26 @@ describe("Template Manager", () => {
     expect(fs.readFileSync(regPath, "utf-8")).toContain("Test regulation");
   });
 
-  it("install_overwrite_error: 已存在时抛错", () => {
+  it("install_overwrite_error: 已存在且未传 overwrite 时抛错", () => {
     writeTemplateBundle(tmpDir, "dup", "Duplicate");
     installTemplate(tmpDir, "dup");
 
     expect(() => installTemplate(tmpDir, "dup")).toThrow(
       TemplateConflictError,
     );
+  });
+
+  it("install_overwrite_force: 传 overwrite=true 时覆盖成功", () => {
+    writeTemplateBundle(tmpDir, "dup2", "Original");
+    installTemplate(tmpDir, "dup2");
+
+    // 修改模板内容，验证覆盖
+    const flowPath = path.join(tmpDir, "docs", "template", "dup2", "flow.md");
+    fs.writeFileSync(flowPath, "# Updated Flow\n\n**Template ID**: `dup2`\n\nUpdated content.", "utf-8");
+
+    expect(() => installTemplate(tmpDir, "dup2", undefined, true)).not.toThrow();
+    const installed = path.join(tmpDir, "docs", "flow", "flow-dup2.md");
+    expect(fs.readFileSync(installed, "utf-8")).toContain("Updated content.");
   });
 
   it("uninstall_removes_file: 卸载删除目标文件", () => {

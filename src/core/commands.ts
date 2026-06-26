@@ -540,9 +540,12 @@ function createInstallFlowTool(
       programmingLanguages: tool.schema.string().optional().describe(
         "逗号分隔的编程语言列表，由 LLM 分析项目结构后提供。支持: TypeScript, Python, Go, Rust, Java, JavaScript, Kotlin, Ruby, Elixir, C/C++。如 'TypeScript,Go'。若省略，从配置缓存读取；无配置时使用 General。",
       ),
+      overwrite: tool.schema.boolean().optional().describe(
+        "是否覆盖已存在的 flow 文档（默认 false，已存在时返回提示让用户确认）。",
+      ),
     },
     async execute(
-      args: { templateId?: string; programmingLanguages?: string },
+      args: { templateId?: string; programmingLanguages?: string; overwrite?: boolean },
       _toolCtx: ToolContext,
     ): Promise<string> {
       if (args.templateId) {
@@ -550,7 +553,7 @@ function createInstallFlowTool(
           const config = loadConfig(ctx.projectDir);
           const languages = resolveLanguages(args.programmingLanguages, config);
 
-          installTemplate(ctx.projectDir, args.templateId, languages);
+          installTemplate(ctx.projectDir, args.templateId, languages, args.overwrite);
 
           // 将 LLM 分析结果写回配置，后续安装复用
           if (languages.length > 0 && languages[0] !== "General") {
