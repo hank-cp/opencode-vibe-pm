@@ -114,7 +114,7 @@ describe("Token Integration", () => {
         result,
       );
 
-      const metrics = await memory.getFlowMetrics(sessionId);
+      const metrics = await memory.getStepTokenMetrics(sessionId);
       expect(metrics).toHaveLength(1);
       // tokensBySource uses old-style keys: User, FlowControl (mapped from TokenCount in recordStepEntry)
       expect(metrics[0].tokensBySource["User"]).toBeGreaterThan(0);
@@ -168,7 +168,7 @@ describe("Token Integration", () => {
         result,
       );
 
-      const metrics = await memory.getFlowMetrics(sessionId);
+      const metrics = await memory.getStepTokenMetrics(sessionId);
       expect(metrics).toHaveLength(1);
       expect(metrics[0].tokensBySource["Assistant"]).toBeGreaterThan(0);
       expect(metrics[0].tokensBySource["Tool"]).toBeGreaterThan(0);
@@ -186,7 +186,7 @@ describe("Token Integration", () => {
       expect(task).toBeNull();
 
       // 验证没有 metrics 被意外写入
-      const metrics = await memory.getFlowMetrics(sessionId);
+      const metrics = await memory.getStepTokenMetrics(sessionId);
       expect(metrics).toHaveLength(0);
     });
   });

@@ -94,11 +94,10 @@ describe("Task CRUD", () => {
       text: 200, user: 100, assistant: 0, flowControl: 0, tool: 0, reasoning: 0,
     });
 
-    const metrics = await memory.getFlowMetrics(sid);
+    const metrics = await memory.getStepTokenMetrics(sid);
     expect(metrics).toHaveLength(1);
     expect(metrics[0].tokensBySource).toEqual({ System: 200, User: 100 });
     expect(metrics[0].tokensConsumed).toBe(300);
-    expect(metrics[0].userInputTokens).toBe(100);
     expect(metrics[0].stepInCount).toBe(1);
   });
 
@@ -113,7 +112,7 @@ describe("Task CRUD", () => {
       text: 30, user: 0, assistant: 120, flowControl: 0, tool: 0, reasoning: 0,
     });
 
-    const metrics = await memory.getFlowMetrics(sid);
+    const metrics = await memory.getStepTokenMetrics(sid);
     expect(metrics).toHaveLength(1);
     expect(metrics[0].tokensBySource).toEqual({
       System: 80,

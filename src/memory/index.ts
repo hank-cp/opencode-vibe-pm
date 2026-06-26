@@ -5,7 +5,7 @@ export type {
   CreateTaskInput,
   Discussion,
   CreateDiscussionInput,
-  FlowMetrics,
+  StepTokenMetrics,
   IMemorySystem,
   StepTokenBreakdown,
   SubagentTokenMetrics,

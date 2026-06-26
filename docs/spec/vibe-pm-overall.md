@@ -40,7 +40,7 @@ vibe-pm 解决 vibe-coding 中上下文管理混乱的问题：
 | 类型 | 存储 | 特点 |
 |------|------|------|
 | MD 文档记忆 | `docs/flow/`、`docs/regulation/`、`docs/spec/`、`docs/plan/` | 稳定沉淀，一般不轻易修改 |
-| 结构化记忆 | SQLite（`.vibe-pm/`） | 频繁读写：任务状态、Discussion、FlowMetrics |
+| 结构化记忆 | SQLite（`.vibe-pm/`） | 频繁读写：任务状态、Discussion、StepTokenMetrics |
 
 ### 数据驱动优化
 

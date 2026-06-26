@@ -9,7 +9,7 @@
 
 ## 需求背景
 
-Memory System 是 vibe-pm 的数据层，负责结构化记忆的持久化存储。使用 SQLite (bun:sqlite) 作为嵌入式数据库，存储载体为单文件。管理三类核心数据：Task（任务状态）、Discussion（讨论项）、FlowMetrics（流程指标）。
+Memory System 是 vibe-pm 的数据层，负责结构化记忆的持久化存储。使用 SQLite (bun:sqlite) 作为嵌入式数据库，存储载体为单文件。管理三类核心数据：Task（任务状态）、Discussion（讨论项）、StepTokenMetrics（流程指标）。
 
 ---
 
@@ -42,7 +42,7 @@ erDiagram
         string taskSummary "关联任务摘要"
     }
 
-    FlowMetrics {
+    StepTokenMetrics {
         string id PK
         string sessionId FK "来源会话"
         string flow "流程名称"
@@ -50,14 +50,11 @@ erDiagram
         string stepName "步骤名称"
         string stepInCount "进入次数"
         string tokensConsumed "Token 消耗"
-        string dwellTime "停留时间(ms)"
-        string humanInterventionTime "人工介入时间(ms)"
-        string userInputTokens "用户输入 Token 数"
         string taskSummary "关联任务摘要"
     }
 
     Task ||--o{ Discussion : "生成"
-    Task ||--o{ FlowMetrics : "采集"
+    Task ||--o{ StepTokenMetrics : "采集"
 ```
 
 ### 数据模型详情
@@ -98,10 +95,10 @@ interface Discussion {
 }
 ```
 
-#### FlowMetrics
+#### StepTokenMetrics
 
 ```typescript
-interface FlowMetrics {
+interface StepTokenMetrics {
   id: string;                 // 自动生成 UUID
   sessionId: string;          // 来源 session ID
   flow: string;               // 流程名称
@@ -109,9 +106,6 @@ interface FlowMetrics {
   stepName: string;           // 步骤名称，如 "需求澄清访谈"
   stepInCount: number;        // 进入该步骤的次数
   tokensConsumed: number;     // 该步骤消耗的 Token 数
-  dwellTime: number;          // 停留时间（毫秒）
-  humanInterventionTime: number; // 人工介入时间（毫秒）
-  userInputTokens: number;    // 用户输入 Token 数
   taskSummary: string;        // 关联任务的摘要（从 Task.summary 复制）
 }
 ```
@@ -131,7 +125,7 @@ stateDiagram-v2
     note right of Running
         每次 Step 变更时:
         - 更新 currentStep
-        - 记录 FlowMetrics
+        - 记录 StepTokenMetrics
     end note
     
     note right of Completed
@@ -146,7 +140,7 @@ stateDiagram-v2
 
 ```
 .vibe-pm/
-├── vibe-pm.db             # SQLite 数据库文件：包含三张表（tasks, discussions, flowMetrics）
+├── vibe-pm.db             # SQLite 数据库文件：包含三张表（tasks, discussions, step_token_metrics）
 └── data/                  # 【已废弃】旧 AxioDB 数据目录（可手动删除）
 ```
 
@@ -169,7 +163,7 @@ interface IMemorySystem {
   resolveDiscussion(id: string, decision: string): Promise<void>;
   listDiscussions(filter?: { priority?: string; unresolved?: boolean }): Promise<Discussion[]>;
 
-  // --- FlowMetrics CRUD ---
+  // --- StepTokenMetrics CRUD ---
   recordStepEntry(
     sessionId: string,
     flow: string,
@@ -181,11 +175,9 @@ interface IMemorySystem {
   recordStepExit(
     sessionId: string,
     step: string,
-    dwellTime: number,
-    humanInterventionTime: number,
   ): Promise<void>;
-  getFlowMetrics(sessionId: string): Promise<FlowMetrics[]>;
-  getFlowMetricsByFlow(flow: string): Promise<FlowMetrics[]>; // 按流程聚合
+  getStepTokenMetrics(sessionId: string): Promise<StepTokenMetrics[]>;
+  getStepTokenMetricsByFlow(flow: string): Promise<StepTokenMetrics[]>; // 按流程聚合
 
   // --- 初始化 ---
   init(dataDir: string): Promise<void>;  // 确保数据文件和目录存在
@@ -271,9 +263,9 @@ class MemorySystem implements IMemorySystem {
 
 | 动作指令 | 测试方法 | Given | When | Then | Notes |
 |----------|----------|-------|------|------|-------|
-| 新增 | `record_step_entry_and_exit` | active Task 在 S1 | recordStepEntry + recordStepExit | FlowMetrics 包含 stepName、taskSummary、stepInCount=1 | 完整指标记录 |
+| 新增 | `record_step_entry_and_exit` | active Task 在 S1 | recordStepEntry + recordStepExit | StepTokenMetrics 包含 stepName、taskSummary、stepInCount=1 | 完整指标记录 |
 | 新增 | `step_in_count_increments` | S4 已有 1 次记录 | 再次 recordStepEntry("S4") | stepInCount 变为 2 | 重复进入计数 |
-| 新增 | `get_metrics_by_flow_aggregates` | 2 个 session 的 FlowMetrics | getFlowMetricsByFlow("project-build") | 返回所有该 flow 的 Metrics | 按流程聚合 |
+| 新增 | `get_metrics_by_flow_aggregates` | 2 个 session 的 StepTokenMetrics | getStepTokenMetricsByFlow("project-build") | 返回所有该 flow 的 Metrics | 按流程聚合 |
 
 ### data-file.test.ts
 
@@ -296,7 +288,7 @@ class MemorySystem implements IMemorySystem {
 | JSON 文件损坏 | 备份损坏文件为 `data.json.bak`，创建新文件 |
 | 同一 session 创建重复 Task | `createTask` 检查是否已存在 active task，存在时抛出 `DuplicateTaskError` |
 | 并发写入（同一 session 多个 Step） | AxioDB 应提供原子写入（待确认）；若不支持，用内存锁串行化 |
-| FlowMetrics 数据量过大 | 每个 session 结束后归档汇总数据到 FlowMetrics，删除原始步骤级数据（可配置） |
+| StepTokenMetrics 数据量过大 | 每个 session 结束后归档汇总数据到 StepTokenMetrics，删除原始步骤级数据（可配置） |
 | 查询不存在的 Task | 返回 `null`，不抛异常 |
 
 ---
@@ -334,7 +326,7 @@ class MemorySystem implements IMemorySystem {
 - SQLite 嵌入式数据库集成 (bun:sqlite)
 - Task CRUD（创建、查询、更新步骤、关闭、列表）
 - Discussion CRUD（创建、决议、按条件过滤）
-- FlowMetrics CRUD（步骤进入/退出指标记录、聚合查询）
+- StepTokenMetrics CRUD（步骤进入/退出指标记录、聚合查询）
 - 容错处理（数据文件自动创建、重复任务检查）
 - 4 个测试文件，14 个测试用例全部通过
 

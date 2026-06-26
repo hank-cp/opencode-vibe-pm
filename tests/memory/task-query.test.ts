@@ -107,11 +107,10 @@ describe("Task Query Extensions", () => {
         { text: 500, user: 300, assistant: 0, flowControl: 0, tool: 0, reasoning: 0 },
       );
 
-      const metrics = await memory.getFlowMetrics("ses_rse_new");
+      const metrics = await memory.getStepTokenMetrics("ses_rse_new");
       expect(metrics).toHaveLength(1);
       expect(metrics[0].tokensBySource).toEqual({ System: 500, User: 300 });
       expect(metrics[0].tokensConsumed).toBe(800);
-      expect(metrics[0].userInputTokens).toBe(300);
       expect(metrics[0].stepInCount).toBe(1);
     });
 
@@ -134,7 +133,7 @@ describe("Task Query Extensions", () => {
         { text: 50, user: 0, assistant: 100, flowControl: 0, tool: 0, reasoning: 0 },
       );
 
-      const metrics = await memory.getFlowMetrics("ses_rse_acc");
+      const metrics = await memory.getStepTokenMetrics("ses_rse_acc");
       expect(metrics).toHaveLength(1);
       expect(metrics[0].tokensBySource).toEqual({
         System: 150,

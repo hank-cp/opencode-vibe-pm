@@ -33,7 +33,7 @@
 | MD 文档记忆 | MD Document Memory | 以 Markdown 文件存储的长期记忆 |
 | 结构化记忆 | Structured Memory | 以 AxioDB 存储的事务性/索引型记忆 |
 | 讨论项 | Discussion | 任务完成后自动生成的流程改进建议 |
-| 流程指标 | FlowMetrics | 按步骤采集的运行数据（次数/Token/耗时等） |
+| 流程指标 | StepTokenMetrics | 按步骤采集的运行数据（次数/Token/耗时等） |
 
 ## 流程相关
 

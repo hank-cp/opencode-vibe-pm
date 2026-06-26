@@ -1,7 +1,7 @@
 /**
  * MemorySystem — vibe-pm 数据层
  *
- * 基于 SQLite (bun:sqlite) 管理 Task / Discussion / FlowMetrics 三类结构化记忆。
+ * 基于 SQLite (bun:sqlite) 管理 Task / Discussion / StepTokenMetrics 三类结构化记忆。
  */
 import {Database, Statement} from "bun:sqlite";
 import * as crypto from "node:crypto";
@@ -12,7 +12,7 @@ import type {
   CreateDiscussionInput,
   CreateTaskInput,
   Discussion,
-  FlowMetrics,
+  StepTokenMetrics,
   IMemorySystem,
   SessionTokenMetrics,
   StepTokenBreakdown,
@@ -55,7 +55,7 @@ function prefixKeys(params: Record<string, unknown>): Record<string, unknown> {
  * 基于 SQLite (better-sqlite3) 管理三类数据：
  * - tasks：FSM 驱动的任务状态
  * - discussions：非紧急讨论项（碎片时间友好，异步审阅）
- * - flowMetrics：按步骤采集的 Token 消耗、停留时间等指标
+ * - stepTokenMetrics：按步骤采集的 Token 消耗、停留时间等指标
  */
 export class MemorySystem implements IMemorySystem {
   private db!: Database;
@@ -143,7 +143,7 @@ export class MemorySystem implements IMemorySystem {
         CONSTRAINT discussions_id_pkey PRIMARY KEY (id)
       );
 
-      CREATE TABLE IF NOT EXISTS flow_metrics (
+      CREATE TABLE IF NOT EXISTS step_token_metrics (
         id                    TEXT NOT NULL,
         session_id            TEXT NOT NULL,
         flow                  TEXT NOT NULL,
@@ -152,19 +152,16 @@ export class MemorySystem implements IMemorySystem {
         step_in_count         INTEGER NOT NULL DEFAULT 1,
         tokens_consumed       INTEGER NOT NULL DEFAULT 0,
         tokens_by_source      TEXT,
-        dwell_time            INTEGER NOT NULL DEFAULT 0,
-        human_intervention_time INTEGER NOT NULL DEFAULT 0,
-        user_input_tokens     INTEGER NOT NULL DEFAULT 0,
         task_summary          TEXT NOT NULL,
-        CONSTRAINT flow_metrics_id_pkey PRIMARY KEY (id)
+        CONSTRAINT step_token_metrics_id_pkey PRIMARY KEY (id)
       );
 
       CREATE INDEX IF NOT EXISTS idx_tasks_session_id ON tasks(session_id);
       CREATE INDEX IF NOT EXISTS idx_tasks_session_id_closed ON tasks(session_id, closed);
       CREATE INDEX IF NOT EXISTS idx_discussions_from_session_id ON discussions(from_session_id);
-      CREATE INDEX IF NOT EXISTS idx_flow_metrics_session_id ON flow_metrics(session_id);
-      CREATE INDEX IF NOT EXISTS idx_flow_metrics_session_id_step ON flow_metrics(session_id, step);
-      CREATE INDEX IF NOT EXISTS idx_flow_metrics_flow ON flow_metrics(flow);
+      CREATE INDEX IF NOT EXISTS idx_step_token_metrics_session_id ON step_token_metrics(session_id);
+      CREATE INDEX IF NOT EXISTS idx_step_token_metrics_session_id_step ON step_token_metrics(session_id, step);
+      CREATE INDEX IF NOT EXISTS idx_step_token_metrics_flow ON step_token_metrics(flow);
 
       CREATE TABLE IF NOT EXISTS session_tokens (
         session_id      TEXT NOT NULL,
@@ -237,21 +234,21 @@ export class MemorySystem implements IMemorySystem {
     this.stmtGetAllDiscussions = this.db.prepare("SELECT * FROM discussions");
     this.stmtResolveDiscussion = this.db.prepare("UPDATE discussions SET decision = ?, resolved_at = ? WHERE id = ?");
 
-    this.stmtGetMetricsBySessionStep = this.db.prepare("SELECT * FROM flow_metrics WHERE session_id = ? AND step = ? LIMIT 1");
+    this.stmtGetMetricsBySessionStep = this.db.prepare("SELECT * FROM step_token_metrics WHERE session_id = ? AND step = ? LIMIT 1");
     this.stmtUpdateMetrics = this.db.prepare(`
-      UPDATE flow_metrics SET tokens_consumed = ?, tokens_by_source = ?, user_input_tokens = ?, step_in_count = ?, dwell_time = ?, human_intervention_time = ?
+      UPDATE step_token_metrics SET tokens_consumed = ?, tokens_by_source = ?, step_in_count = ?
       WHERE id = ?
     `);
     this.stmtInsertMetrics = this.db.prepare(`
-      INSERT INTO flow_metrics (id, session_id, flow, step, step_name, step_in_count, tokens_consumed, tokens_by_source, dwell_time, human_intervention_time, user_input_tokens, task_summary)
-      VALUES ($id, $sessionId, $flow, $step, $stepName, $stepInCount, $tokensConsumed, $tokensBySource, $dwellTime, $humanInterventionTime, $userInputTokens, $taskSummary)
+      INSERT INTO step_token_metrics (id, session_id, flow, step, step_name, step_in_count, tokens_consumed, tokens_by_source, task_summary)
+      VALUES ($id, $sessionId, $flow, $step, $stepName, $stepInCount, $tokensConsumed, $tokensBySource, $taskSummary)
     `);
     this.stmtUpsertMetrics = this.db.prepare(`
-      INSERT OR REPLACE INTO flow_metrics (id, session_id, flow, step, step_name, step_in_count, tokens_consumed, tokens_by_source, dwell_time, human_intervention_time, user_input_tokens, task_summary)
-      VALUES ($id, $sessionId, $flow, $step, $stepName, $stepInCount, $tokensConsumed, $tokensBySource, $dwellTime, $humanInterventionTime, $userInputTokens, $taskSummary)
+      INSERT OR REPLACE INTO step_token_metrics (id, session_id, flow, step, step_name, step_in_count, tokens_consumed, tokens_by_source, task_summary)
+      VALUES ($id, $sessionId, $flow, $step, $stepName, $stepInCount, $tokensConsumed, $tokensBySource, $taskSummary)
     `);
-    this.stmtGetMetricsBySession = this.db.prepare("SELECT * FROM flow_metrics WHERE session_id = ?");
-    this.stmtGetMetricsByFlow = this.db.prepare("SELECT * FROM flow_metrics WHERE flow = ?");
+    this.stmtGetMetricsBySession = this.db.prepare("SELECT * FROM step_token_metrics WHERE session_id = ?");
+    this.stmtGetMetricsByFlow = this.db.prepare("SELECT * FROM step_token_metrics WHERE flow = ?");
 
     this.stmtInitSessionTokens = this.db.prepare(`
        INSERT OR IGNORE INTO session_tokens (session_id, text, "user", assistant, flow_control, tool, reasoning, api_input, api_output, api_reasoning, api_cache_read, api_cache_write, scale_factor, started_at, updated_at)
@@ -402,7 +399,7 @@ export class MemorySystem implements IMemorySystem {
   }
 
   // ═══════════════════════════════════════════
-  // FlowMetrics CRUD
+  // StepTokenMetrics CRUD
   // ═══════════════════════════════════════════
 
   async recordStepTokens(
@@ -426,7 +423,6 @@ export class MemorySystem implements IMemorySystem {
     }
 
     const newTotal = tokenCount.text + tokenCount.user + tokenCount.assistant;
-    const newUserTokens = tokenCount.user ?? 0;
     const existing = this.stmtGetMetricsBySessionStep.get(sessionId, step) as Record<string, unknown> | undefined;
 
     if (existing) {
@@ -441,9 +437,6 @@ export class MemorySystem implements IMemorySystem {
         stepInCount: existing["step_in_count"] as number ?? 1,
         tokensConsumed: (existing["tokens_consumed"] as number ?? 0) + newTotal,
         tokensBySource: JSON.stringify(merged),
-        dwellTime: existing["dwell_time"] as number ?? 0,
-        humanInterventionTime: existing["human_intervention_time"] as number ?? 0,
-        userInputTokens: (existing["user_input_tokens"] as number ?? 0) + newUserTokens,
         taskSummary: (existing["task_summary"] as string) ?? "",
       }));
     } else {
@@ -456,9 +449,6 @@ export class MemorySystem implements IMemorySystem {
         stepInCount: 1,
         tokensConsumed: newTotal,
         tokensBySource: JSON.stringify(tokensBySource),
-        dwellTime: 0,
-        humanInterventionTime: 0,
-        userInputTokens: newUserTokens,
         taskSummary,
       }));
     }
@@ -477,10 +467,7 @@ export class MemorySystem implements IMemorySystem {
       this.stmtUpdateMetrics.run(
         existing["tokens_consumed"],
         existing["tokens_by_source"],
-        existing["user_input_tokens"],
         (existing["step_in_count"] as number) + 1,
-        existing["dwell_time"],
-        existing["human_intervention_time"],
         existing["id"],
       );
       logger.info(`incrementStepCount: step=${step} count=${(existing["step_in_count"] as number) + 1}`);
@@ -494,9 +481,6 @@ export class MemorySystem implements IMemorySystem {
         stepInCount: 1,
         tokensConsumed: 0,
         tokensBySource: JSON.stringify({ System: 0, FlowControl: 0, User: 0, Assistant: 0, Tool: 0, Reasoning: 0 }),
-        dwellTime: 0,
-        humanInterventionTime: 0,
-        userInputTokens: 0,
         taskSummary,
       }));
     }
@@ -505,8 +489,6 @@ export class MemorySystem implements IMemorySystem {
   async recordStepExit(
     sessionId: string,
     step: string,
-    dwellTime: number,
-    humanInterventionTime: number,
   ): Promise<void> {
     const existing = this.stmtGetMetricsBySessionStep.get(sessionId, step) as Record<string, unknown> | undefined;
 
@@ -514,24 +496,20 @@ export class MemorySystem implements IMemorySystem {
       this.stmtUpdateMetrics.run(
         existing["tokens_consumed"],
         existing["tokens_by_source"],
-        existing["user_input_tokens"],
         existing["step_in_count"],
-        (existing["dwell_time"] as number) + dwellTime,
-        (existing["human_intervention_time"] as number) + humanInterventionTime,
         existing["id"],
       );
-      logger.info(`recordStepExit: step=${step} dwellTime=${dwellTime}ms total=${(existing["dwell_time"] as number) + dwellTime}ms`);
     }
   }
 
-  async getFlowMetrics(sessionId: string): Promise<FlowMetrics[]> {
+  async getStepTokenMetrics(sessionId: string): Promise<StepTokenMetrics[]> {
     const rows = this.stmtGetMetricsBySession.all(sessionId) as Record<string, unknown>[];
-    return rows.map((r) => this.rowToFlowMetrics(r));
+    return rows.map((r) => this.rowToStepTokenMetrics(r));
   }
 
-  async getFlowMetricsByFlow(flow: string): Promise<FlowMetrics[]> {
+  async getStepTokenMetricsByFlow(flow: string): Promise<StepTokenMetrics[]> {
     const rows = this.stmtGetMetricsByFlow.all(flow) as Record<string, unknown>[];
-    return rows.map((r) => this.rowToFlowMetrics(r));
+    return rows.map((r) => this.rowToStepTokenMetrics(r));
   }
 
   // ═══════════════════════════════════════════
@@ -604,7 +582,7 @@ export class MemorySystem implements IMemorySystem {
   }
 
   async getStepTokenBreakdown(sessionId: string): Promise<StepTokenBreakdown[]> {
-    const metrics = await this.getFlowMetrics(sessionId);
+    const metrics = await this.getStepTokenMetrics(sessionId);
     return metrics.map((m) => ({
       step: m.step,
       stepName: m.stepName,
@@ -673,7 +651,7 @@ export class MemorySystem implements IMemorySystem {
     };
   }
 
-  private rowToFlowMetrics(row: Record<string, unknown>): FlowMetrics {
+  private rowToStepTokenMetrics(row: Record<string, unknown>): StepTokenMetrics {
     return {
       id: row["id"] as string,
       sessionId: row["session_id"] as string,
@@ -686,9 +664,6 @@ export class MemorySystem implements IMemorySystem {
         row["tokens_by_source"],
         {} as Record<string, number>,
       ),
-      dwellTime: row["dwell_time"] as number,
-      humanInterventionTime: row["human_intervention_time"] as number,
-      userInputTokens: row["user_input_tokens"] as number,
       taskSummary: row["task_summary"] as string,
     };
   }

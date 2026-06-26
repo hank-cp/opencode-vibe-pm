@@ -13,7 +13,7 @@ vibe-pm 当前通过纯文本 tool 返回值向用户展示任务状态（`[vibe
 
 参考 magic-context 插件的 TUI 侧边栏设计，本 Spec 定义 vibe-pm 的 OpenCode TUI 扩展：在侧边栏面板中实时展示任务状态、流程进展、Token 分布。
 
-> **依赖**: 本 Spec 依赖 [vibe-pm-metrics-collection.md](./vibe-pm-metrics-collection.md) 提供的数据接口（`IMemorySystem` 扩展方法、`FlowMetrics.tokensBySource`、`Task.endAt`）。
+> **依赖**: 本 Spec 依赖 [vibe-pm-metrics-collection.md](./vibe-pm-metrics-collection.md) 提供的数据接口（`IMemorySystem` 扩展方法、`StepTokenMetrics.tokensBySource`、`Task.endAt`）。
 
 ---
 
@@ -86,7 +86,7 @@ vibe-pm 当前通过纯文本 tool 返回值向用户展示任务状态（`[vibe
 | **TaskStatusCard** | `flow`, `currentStep`, `startAt`, `endAt?`, `elapsed` | 关联 1 个 Task 实体 |
 | **TokenBar** | `segments: ColorSegment[]`, `totalTokens` | 聚合自 SourceTokenBreakdown[] |
 | **ColorSegment** | `source: TokenSource`, `tokens: number`, `percentage: number`, `color: RGBA` | 每种来源固定颜色 |
-| **TokenDetail** | `bySource: SourceBreakdown[]`, `byStep: StepBreakdown[]` | 聚合自 FlowMetrics，默认折叠 |
+| **TokenDetail** | `bySource: SourceBreakdown[]`, `byStep: StepBreakdown[]` | 聚合自 StepTokenMetrics，默认折叠 |
 | **Collapsible** | `expanded: boolean`, `toggle()` | 可展开/折叠容器组件 |
 
 #### 颜色映射（固定，参考 magic-context 冷暖色调设计）
@@ -120,7 +120,7 @@ graph TB
     end
 
     subgraph Storage["持久化"]
-        SQLite["SQLite (.vibe-pm/vibe-pm.db)<br/>tasks / discussions / flowMetrics<br/>WAL 模式，支持并发读"]
+        SQLite["SQLite (.vibe-pm/vibe-pm.db)<br/>tasks / discussions / step_token_metrics<br/>WAL 模式，支持并发读"]
     end
 
     Hooks -->|"messages.transform"| FE
@@ -368,7 +368,7 @@ function compactTokens(tokens: number): string;
 | 场景 | 预期行为 |
 |------|---------|
 | MemorySystem（闭包注入）为 null | TUI 显示 "数据层不可用" 错误状态，不影响 OpenCode 正常运行 |
-| Session 中有活跃任务但无 FlowMetrics | 任务状态卡片正常显示；TokenBar 显示全空占比条 + 总量 0 |
+| Session 中有活跃任务但无 StepTokenMetrics | 任务状态卡片正常显示；TokenBar 显示全空占比条 + 总量 0 |
 | IMemorySystem 查询返回空数组 | TokenBar 显示空占比条，TokenDetail 显示 "暂无数据" |
 | 定时轮询时 MemorySystem 查询异常 | 保持上次成功数据不变，日志记录错误，下次轮询重试 |
 | Session 从未有过任何任务 | 显示空状态 "暂无 vibe-pm 任务" |

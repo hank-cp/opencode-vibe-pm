@@ -1,7 +1,7 @@
 /**
  * Memory System 实体与接口定义
  *
- * 管理三类结构化记忆：Task（任务状态）、Discussion（讨论项）、FlowMetrics（流程指标）。
+ * 管理三类结构化记忆：Task（任务状态）、Discussion（讨论项）、StepTokenMetrics（流程指标）。
  */
 
 // ─── Task ───
@@ -73,9 +73,9 @@ export interface CreateDiscussionInput {
   taskSummary?: string;
 }
 
-// ─── FlowMetrics ───
+// ─── StepTokenMetrics ───
 
-export interface FlowMetrics {
+export interface StepTokenMetrics {
   id: string;
   sessionId: string;
   flow: string;
@@ -85,10 +85,6 @@ export interface FlowMetrics {
   tokensConsumed: number;
   /** 按来源分类的 Token 分布，各项独立累加 */
   tokensBySource: Record<string, number>;
-  dwellTime: number;
-  humanInterventionTime: number;
-  /** @deprecated 可通过 tokensBySource.User 推导，保留以兼容旧数据 */
-  userInputTokens: number;
   taskSummary: string;
 }
 
@@ -172,7 +168,7 @@ export interface IMemorySystem {
     unresolved?: boolean;
   }): Promise<Discussion[]>;
 
-  // FlowMetrics
+  // StepTokenMetrics
   recordStepTokens(
     sessionId: string,
     flow: string,
@@ -190,11 +186,9 @@ export interface IMemorySystem {
   recordStepExit(
     sessionId: string,
     step: string,
-    dwellTime: number,
-    humanInterventionTime: number,
   ): Promise<void>;
-  getFlowMetrics(sessionId: string): Promise<FlowMetrics[]>;
-  getFlowMetricsByFlow(flow: string): Promise<FlowMetrics[]>;
+  getStepTokenMetrics(sessionId: string): Promise<StepTokenMetrics[]>;
+  getStepTokenMetricsByFlow(flow: string): Promise<StepTokenMetrics[]>;
 
   // 新增查询
   getLastClosedTask(sessionId: string): Promise<Task | null>;

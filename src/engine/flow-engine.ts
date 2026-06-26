@@ -227,19 +227,8 @@ export class FlowEngine {
 
     await this.memory.updateStep(task.id, step, stepName);
 
-    // 从 stepTransitions 中找最后一次进入 oldStep 的记录，计算停留时间
-    let stepDwellTime = 0;
     if (oldStep) {
-      const transitions = task.stepTransitions ?? [];
-      for (let i = transitions.length - 1; i >= 0; i--) {
-        if (transitions[i].toStep === oldStep) {
-          stepDwellTime = now - new Date(transitions[i].at).getTime();
-          break;
-        }
-      }
-      if (stepDwellTime > 0) {
-        await this.memory.recordStepExit(sessionId, oldStep, stepDwellTime, 0);
-      }
+      await this.memory.recordStepExit(sessionId, oldStep);
     }
 
     // 持久化步骤转换记录
@@ -251,7 +240,7 @@ export class FlowEngine {
 
     await this.memory.incrementStepCount(sessionId, flowName, step, stepName, task.summary);
     logger.info(
-      `setStep: ${oldStep} → ${step} (${stepName}) dwellTime=${stepDwellTime}ms`,
+      `setStep: ${oldStep} → ${step} (${stepName})`,
     );
   }
 
@@ -259,15 +248,8 @@ export class FlowEngine {
     const task = await this.memory.getActiveTask(sessionId);
     if (!task) return null;
 
-    // 计算最后一步的停留时间（从最后一条 transition 的 at 到 now）
-    const now = Date.now();
-    const transitions = task.stepTransitions ?? [];
-    const stepDwellTime =
-      transitions.length > 0
-        ? now - new Date(transitions[transitions.length - 1].at).getTime()
-        : now - new Date(task.startAt).getTime();
-    if (stepDwellTime > 0) {
-      await this.memory.recordStepExit(sessionId, task.currentStep, stepDwellTime, 0);
+    if (task.currentStep) {
+      await this.memory.recordStepExit(sessionId, task.currentStep);
     }
 
     await this.memory.closeTask(task.id);
