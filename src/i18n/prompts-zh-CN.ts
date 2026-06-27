@@ -104,6 +104,14 @@ const zhCN: ControlPromptTemplate = {
       "请自查：是否已按 `<protect>` 规则先调用 `pm_task_set_step` 进入正确的流程步骤？",
     ].join("\n");
   },
+
+  isControlPromptPart(text: string): boolean {
+    return text.includes("<protect>");
+  },
+
+  isWarningPromptPart(text: string): boolean {
+    return text.includes("流程违规检测");
+  },
 };
 
 export default zhCN;

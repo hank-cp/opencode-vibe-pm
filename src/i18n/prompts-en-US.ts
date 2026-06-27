@@ -104,6 +104,14 @@ Any of the following = FLOW EXECUTION FAILURE:
       "Self-check: Did you call `pm_task_set_step` to enter the correct flow step per `<protect>` rules?",
     ].join("\n");
   },
+
+  isControlPromptPart(text: string): boolean {
+    return text.includes("<protect>");
+  },
+
+  isWarningPromptPart(text: string): boolean {
+    return text.includes("Flow Violation Detected");
+  },
 };
 
 export default enUS;

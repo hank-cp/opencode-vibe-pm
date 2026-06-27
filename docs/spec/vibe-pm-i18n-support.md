@@ -409,12 +409,13 @@ graph TB
 - [x] en-US 基底提示词模板（`prompts-en-US.ts`） + zh-CN 模板（`prompts-zh-CN.ts`）
   - 已知问题/风险: 提示词文件为静态模块，新增语言需手动创建 prompts-{locale}.ts 文件
 
-### [ ] 里程碑 2 — Phase 2: Flow-Engine Bilingual Prompt
+### [x] 里程碑 2 — Phase 2: Flow-Engine Bilingual Prompt
 
-- [ ] `flow-engine.ts` 接入 I18N，`buildControlPrompt()` 按 locale 获取翻译
-- [ ] `DEFAULT_CONFIG.language` 改为 `"en-US"`
-- [ ] `pm-config init` 语言步骤动态化
-  - 已知问题/风险: 依赖 Phase 1 完成
+- [x] `flow-engine.ts` 接入 I18N — `initLocale(locale)` 预加载模板，`buildControlPrompt`/`buildFlowWarningPrompt` 从模板获取
+- [x] `plugin.ts` 启动时校验 `config.language` 有效性 → 回退 en-US → 传递 locale
+- [x] `pm-config init` 语言步骤动态化 — `discoverLanguagePacks()` 驱动选项 + onAnswer 映射
+- [x] `ControlPromptTemplate` 增加 `isControlPromptPart` / `isWarningPromptPart` — 检测逻辑也归入模板
+  - 已知问题/风险: 提示词文本 + 注入/检测/移除逻辑全部在 `prompts-{locale}.ts` 中，`flow-engine.ts` 零硬编码
 
 ### [ ] 里程碑 3 — Phase 3: Template Translation
 

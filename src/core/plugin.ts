@@ -8,6 +8,7 @@ import type {ApiTelemetry, ModelInfo, TokenCount} from "../token";
 import {TokenCounter} from "../token";
 import type {Config, Hooks, IPluginContext, Plugin, PluginInput} from "./types.js";
 import type {UserMessage, AssistantMessage} from "@opencode-ai/sdk";
+import {discoverLanguagePacks} from "../i18n";
 
 export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => {
   ensureDefaultConfig(ctx.directory);
@@ -21,6 +22,14 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
   await memory.init(dataDir);
 
   const engine = new FlowEngine(memory, ctx.directory);
+
+  const packs = discoverLanguagePacks();
+  const validLocales = new Set(packs.map((p) => p.locale));
+  const locale = validLocales.has(config.language) ? config.language : "en-US";
+  if (!validLocales.has(config.language)) {
+    logger.warn(`config.language "${config.language}" not found in available packs, fallback to "en-US"`);
+  }
+  await engine.initLocale(locale);
 
 
   return {

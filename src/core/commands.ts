@@ -16,6 +16,7 @@ import {writeDcpConfig} from "../integration";
 import type {FlowEngine} from "../engine";
 import type {MemorySystem} from "../memory";
 import {logger} from "./logger";
+import {discoverLanguagePacks} from "../i18n";
 
 // ─── 命令清单 ───
 
@@ -256,6 +257,13 @@ function createTaskCurrentStepTool(memory: MemorySystem): ToolDefinition {
 // ─── pm-config 实现 ───
 
 function buildInitInstructions(projectDir: string): string {
+  const packs = discoverLanguagePacks();
+  const languageOptions = packs.map((p) => ({ label: p.label, description: p.locale }));
+  const languageOnAnswer: Record<string, { language: string }> = {};
+  for (const p of packs) {
+    languageOnAnswer[p.label] = { language: p.locale };
+  }
+
   return JSON.stringify({
     flow: "pm-config-init",
     description: "vibe-pm 初始化向导 — 按步骤引导配置项目",
@@ -286,13 +294,9 @@ function buildInitInstructions(projectDir: string): string {
         params: {
           header: "交互语言",
           question: "选择 vibe-pm 引导流程的交互语言：",
-          options: [
-            { label: "中文", description: "简体中文" },
-            { label: "English", description: "英文" },
-            { label: "日本語", description: "日文" },
-            { label: "한국어", description: "韩文" },
-          ],
+          options: languageOptions,
         },
+        onAnswer: languageOnAnswer,
       },
       {
         id: "gitignore",
