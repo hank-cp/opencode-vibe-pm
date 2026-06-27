@@ -24,7 +24,7 @@ export { tool } from "@opencode-ai/plugin";
 // ─── PluginConfig ───
 
 export interface PluginConfig {
-  language: "zh-CN" | "en-US";
+  language: string;
   dataDir: string;
   autoAnalyze: boolean;
   /** LLM 分析的项目编程语言列表，一次分析后缓存。安装流程时优先使用此配置。 */

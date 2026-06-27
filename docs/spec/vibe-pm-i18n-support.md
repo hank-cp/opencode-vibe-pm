@@ -401,14 +401,13 @@ graph TB
 
 > 本部分在开发过程中持续更新。以里程碑为粒度拆解，每个里程碑关联功能点和风险。
 
-### [ ] 里程碑 1 — Phase 1: I18N Core Module
+### [x] 里程碑 1 — Phase 1: I18N Core Module
 
-- [ ] `src/i18n/` 模块建立：类型定义、语言包加载器、`t()` 翻译函数
-  - 已知问题/风险: 语言包 key 命名不一致 → dictionary.md 作为 key 来源参考
-- [ ] `PluginConfig.language` 类型变更为 `string`
-- [ ] en-US 基底语言包 + zh-CN 语言包
-- [ ] en-US 基底提示词模板（`buildControlPrompt` 英文版）
-  - 已知问题/风险: 语言包文件语法错误 → 回退 en-US
+- [x] `src/i18n/` 模块建立：types（Locale/LanguagePack/ControlPromptTemplate）、loader（discoverLanguagePacks/getControlPromptTemplate）
+  - 已知问题/风险: 无 `t()` 翻译函数、无字典文件——TUI 全英文 + ControlPrompt 用模板覆盖所有文本需求
+- [x] `PluginConfig.language` 类型变更为 `string`
+- [x] en-US 基底提示词模板（`prompts-en-US.ts`） + zh-CN 模板（`prompts-zh-CN.ts`）
+  - 已知问题/风险: 提示词文件为静态模块，新增语言需手动创建 prompts-{locale}.ts 文件
 
 ### [ ] 里程碑 2 — Phase 2: Flow-Engine Bilingual Prompt
 

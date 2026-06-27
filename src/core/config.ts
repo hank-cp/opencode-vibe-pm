@@ -13,7 +13,7 @@ import { logger } from "./logger.js";
 // ─── DEFAULT_CONFIG ───
 
 export const DEFAULT_CONFIG: PluginConfig = {
-  language: "zh-CN",
+  language: "en-US",
   dataDir: ".vibe-pm",
   autoAnalyze: true,
   contextInjection: {
