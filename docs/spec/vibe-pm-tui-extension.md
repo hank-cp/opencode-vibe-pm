@@ -460,41 +460,23 @@ function compactTokens(tokens: number): string;
 
 ---
 
-## 开发进度
+## 实施规划
 
-> 本部分在开发过程中持续更新。
+> 本部分在开发过程中持续更新。以里程碑为粒度拆解，每个里程碑关联功能点和风险。
 
-### 已实现功能
+### [x] 里程碑 1 — TUI 核心面板
 
-- [x] P1: TaskStatusCard — 任务状态卡片（active / last / empty 三态，含格式化的开始时间/耗时/SpecRef/PlanRef）
-- [x] P2: TokenBar — 内联单行色块占比条（块字符 `█` 渲染，含总量显示，空数据时显示灰色占位条）
-- [x] P2: TokenDetail — 内联可折叠来源百分比详情（Collapsible 包裹，来源名缩写为 2 字符：Sy/Fc/Us/As/Tl/Rs）
-- [x] P3: StepTokens — 内联可折叠步骤 Token 柱状图（Collapsible 包裹，含步骤名、柱状条、进入次数）
-- [x] Collapsible 通用组件（▶/▼ 切换，SolidJS createSignal 控制状态）
-- [x] EmptyState 组件（居中显示 "暂无 vibe-pm 任务"，接受 message prop 覆盖默认文案）
-- [x] `loadTaskStatus` / `loadTokenData` 异步数据加载函数（`data/` 目录，替代原 use* hooks 设计）
-- [x] `createTuiPlugin` 工厂函数（接受可选 `memory` 参数，未注入时独立创建 MemorySystem）
-- [x] `SidebarContent` 主渲染组件（`slots/sidebar-content.tsx`）
-- [x] `createSidebarSlot` → TuiSlotPlugin（order=150 注册 sidebar_content slot）
-- [x] 事件驱动刷新（message.updated / session.updated + 150ms 防抖）
-- [x] 定时轮询兜底（5s 间隔）
-- [x] SOURCE_COLORS 颜色映射（`RGBA.fromInts`，6 种固定颜色）
-- [x] `formatElapsed` / `compactTokens` 工具函数（types.ts）
-- [x] 非 TUI 环境静默降级（try/catch 包裹 + console.error 日志）
-- [x] 构建流程：`tsc` 编译 + `scripts/jsx-shim.mjs` 生成 `.js` 重导出 shim
-- [x] `visualWidth()` 工具函数（CJK 字符计 2 列，用于手动字符串填充）
-- [x] `SIDEBAR_WIDTH=38` 共享常量（TokenBar + StepTokens 统一宽度）
-- [x] 代码审查合规：Collapsible `onMouseDown`→`onMouseUp`、空 TokenBar flexGrow 消除、StepTokens `justifyContent`→手动填充
-
-### 未实现功能
-
-- （全部完成）
-
-### 已知问题/风险
-
-- 来自"约束与限制"章节
-- `SourceTokenBreakdown` 接口与 `TokenSourceEntry` 类型重复（分别在 `src/memory/types.ts` 和 `src/tui/types.ts` 中定义，结构相同但名称不同）
-- Collapsible 仅支持 `onMouseUp` 切换，无键盘快捷键绑定（`@opentui/keymap` 已安装但未在该组件中使用）
-- TokenBar 在 totalTokens > 0 但某些来源为 0 时仅显示非零色块，与 Spec 中"占比条显示 6 个色块"的验收场景不完全一致
-- 构建需要 post-build 脚本 `jsx-shim.mjs`，增加构建复杂度（`jsx: "preserve"` 导致 `.tsx` 编译为 `.jsx`，需 shim 桥接 `.js` 导入）
-- `createTuiPlugin()` 当前无参数调用（`index.ts`），内部自行创建 `MemorySystem` 实例；若需注入外部实例，通过可选 `memory` 参数传入
+- [x] P1: TaskStatusCard — 任务状态卡片（active / last / empty 三态，含开始时间/耗时/SpecRef/PlanRef）
+- [x] P1: EmptyState 组件 — 无任务回退显示
+- [x] P2: TokenBar — 内联单行色块占比条（块字符渲染，含总量）
+  - 已知问题/风险: TokenBar 在某些来源为 0 时仅显示非零色块，与 Spec 不完全一致
+- [x] P2: TokenDetail — 内联可折叠来源百分比详情（Collapsible 包裹）
+  - 已知问题/风险: `SourceTokenBreakdown` 接口与 `TokenSourceEntry` 类型重复（结构相同名不同）
+- [x] P3: StepTokens — 内联可折叠步骤 Token 柱状图
+- [x] Collapsible 通用组件、`loadTaskStatus`/`loadTokenData` 异步数据加载
+  - 已知问题/风险: Collapsible 仅支持鼠标切换，无键盘快捷键
+- [x] `createTuiPlugin` 工厂 + `SidebarContent` 主渲染 + `createSidebarSlot` 注册
+  - 已知问题/风险: sidebar_content slot 宽度有限，超长内容可能截断
+- [x] 事件驱动刷新（150ms 防抖）+ 5s 定时轮询兜底
+- [x] 非 TUI 环境静默降级 + 构建流程（tsc + jsx-shim）
+  - 已知问题/风险: 构建需 post-build 脚本 `jsx-shim.mjs`，增加复杂度

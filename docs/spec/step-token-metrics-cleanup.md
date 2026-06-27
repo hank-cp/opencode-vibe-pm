@@ -264,23 +264,18 @@ recordStepExit(
 
 ---
 
-## 开发进度
+## 实施规划
 
-> 本部分在开发过程中持续更新。
+> 本部分在开发过程中持续更新。以里程碑为粒度拆解，每个里程碑关联功能点和风险。
 
-### 已实现功能
+### [x] 里程碑 1 — 字段清理
 
 - [x] `src/memory/types.ts` — 删除 StepTokenMetrics 中 3 个字段 + recordStepExit 参数
 - [x] `src/memory/memory-system.ts` — DDL + prepared statements + 方法体清理
+  - 已知问题/风险: Prepared statement 参数对齐 — 已通过 `bun test` 验证，无运行时报错
 - [x] `src/engine/flow-engine.ts` — recordStepExit 调用简化 + 日志清理
 - [x] `tests/engine/task-start.test.ts` — 删除 dwellTime 相关测试
 - [x] `tests/memory/task-crud.test.ts` — 删除 userInputTokens 断言
 - [x] `tests/memory/task-query.test.ts` — 删除 userInputTokens 断言
-- [x] `docs/spec/vibe-pm-metrics-collection.md` — 更新引用
-- [x] `docs/spec/vibe-pm-memory-system.md` — 更新引用
-- [x] `bun test` 全量通过验证（137 pass, 4 fail 均为预存）
-- [x] `bun run typecheck` 类型检查通过
-
-### 已知问题/风险
-
-- Prepared statement 参数对齐 — 已通过 `bun test` 验证，无运行时报错
+- [x] `docs/spec/` 更新引用（metrics-collection + memory-system）
+- [x] `bun test` 全量通过（137 pass）+ `bun run typecheck` 类型检查通过

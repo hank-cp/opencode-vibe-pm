@@ -638,29 +638,21 @@ async getStepTokenBreakdown(sessionId: string): Promise<StepTokenBreakdown[]> {
 
 ---
 
-## 开发进度
+## 实施规划
 
-> 本部分在开发过程中持续更新。
+> 本部分在开发过程中持续更新。以里程碑为粒度拆解，每个里程碑关联功能点和风险。
 
-### 已实现功能
+### [x] 里程碑 1 — Metrics Collection 完整实现
 
-- [x] Task.endAt 扩展 + closeTask 写入 → `src/memory/types.ts`, `src/memory/memory-system.ts`
-- [x] StepTokenMetrics.tokensBySource 扩展 + recordStepTokens → `src/memory/types.ts`, `src/memory/memory-system.ts`
-- [x] TokenCounter 类：tiktoken 编码 + 来源分类 → `src/token/token-counter.ts`
-- [x] countContextTokens 统一接口 → `src/token/token-counter.ts`
-- [x] FlowControl 按 `<protect>` 标记分类 → `src/token/token-counter.ts`
-- [x] getLastClosedTask / getSourceTokenBreakdown / getStepTokenBreakdown → `src/memory/memory-system.ts`
-- [x] messages.transform 集成全部 Token 计数 → `src/core/plugin.ts`
-- [x] Session 级 Token 聚合（session_tokens 表）→ `src/memory/memory-system.ts`
-- [x] ApiTelemetry 采集 + scaleFactor 校准 → `src/memory/memory-system.ts`
-- [x] initSessionTokens / recordSessionTokens / getSessionTokens → `src/memory/memory-system.ts`
-- [x] session.created event → initSessionTokens 自动初始化 → `src/core/plugin.ts`
-
-### 未实现功能
-
-- （全部完成）
-
-### 已知问题/风险
-
-- `recordStepTokens` 合并路径对升级前旧数据后向不兼容（🟡 已记录）
-- Reasoning 检测依赖 part.type，可能随 model/SDK 变更有误分类风险（🟢 已记录）
+- [x] Task.endAt 扩展 + closeTask 写入 (`src/memory/`)
+- [x] StepTokenMetrics.tokensBySource 扩展 + recordStepTokens (`src/memory/`)
+  - 已知问题/风险: `recordStepTokens` 合并路径对升级前旧数据后向不兼容
+- [x] TokenCounter 类：tiktoken 编码 + `countContextTokens` 来源分类 (`src/token/`)
+  - 已知问题/风险: tiktoken 编码耗时在大型消息中可能阻塞（无超时保护）
+- [x] FlowControl 按 `<protect>` 标记分类
+  - 已知问题/风险: Reasoning 检测依赖 part.type，可能随 model/SDK 变更有误分类风险
+- [x] getLastClosedTask / getSourceTokenBreakdown / getStepTokenBreakdown 查询
+- [x] messages.transform 集成全部 Token 计数 (`src/core/plugin.ts`)
+- [x] Session 级 Token 聚合（session_tokens 表 + ApiTelemetry + scaleFactor）
+- [x] session.created event → initSessionTokens 自动初始化
+- [x] 3 个测试文件（token-counter / task-query / session-tokens），22+ 测试用例

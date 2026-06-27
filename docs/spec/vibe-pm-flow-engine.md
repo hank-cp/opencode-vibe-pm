@@ -127,3 +127,22 @@ sequenceDiagram
 ## FSM 流转
 
 无代码层面 FSM。步骤流转由 LLM 通过调用 `pm_task_set_step` 工具驱动。`setStep()` 内部通过 `sessionTasks` 内存缓存获取 docId（未命中时回退到 AxioDB 查询），调用 `MemorySystem.updateStep()` 持久化。步骤名通过 `tryParseStepName()` 从 flow 文件中 best-effort 解析。
+
+---
+
+## 实施规划
+
+> 本部分在开发过程中持续更新。以里程碑为粒度拆解，每个里程碑关联功能点和风险。
+
+### [x] 里程碑 1 — Flow Engine MVP
+
+- [x] `detectFlowCmd()` — 命令检测 + Command→Flow 映射（含缓存）
+- [x] `ensureTaskAndInject()` — 自动任务创建 + `<pm-control-rules>` 注入
+  - 已知问题/风险: `experimental.chat.messages.transform` API 可能在后续 OpenCode 版本变更
+- [x] `removeControlPrompt()` — 控制提示清理，防止重复累积
+- [x] `buildControlPrompt()` — 注入强力流程执行约束
+  - 已知问题/风险: LLM 自主判断流转存在误判可能（Flow 文档 `完成后` 描述需保持清晰）
+- [x] Fingerprint 去重（sessionId+flow 的 MD5）
+- [x] 任务生命周期：`startTask()` / `closeTask()` / `setStep()` / `getCurrentStep()`
+  - 已知问题/风险: 步骤名依赖 flow 文件解析（best-effort，flow 格式变更可能导致解析失败）
+- [x] 精简注入为单一 `<pm-control-rules>` 标签

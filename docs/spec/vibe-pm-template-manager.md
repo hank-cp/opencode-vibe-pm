@@ -233,3 +233,19 @@ S13 [Human-in-loop] 用户验收 → S14 合流
 | 新增 | `install_without_command_skips_file` | 模板不含 Command | installTemplate | .opencode/commands/ 目录不存在 | 无命令则跳过 |
 | 新增 | `uninstall_removes_command_file` | 已安装含 Command 的 Flow | uninstallFlow | Flow 文件和 Command 文件均被删除 | 清理一致性 |
 | 新增 | `generated_command_content_structure` | 模板含 Command + 输入要求表格 | installTemplate | 命令文件包含标题/适用场景/输入要求/执行步骤完整结构 | 内容结构验证 |
+
+---
+
+## 实施规划
+
+> 本部分在开发过程中持续更新。以里程碑为粒度拆解，每个里程碑关联功能点和风险。
+
+### [x] 里程碑 1 — Template Manager MVP
+
+- [x] 模板扫描与安装：`/pm-install-flow` → 约定路径 `docs/template/` → 复制到 `docs/flow/`
+- [x] 模板卸载：`/pm-uninstall-flow` → 删除 flow 文件 + 对应 command 文件
+  - 已知问题/风险: 卸载流程不处理 regulations 文件清理（仅清理 flow + command）
+- [x] Command 文件自动生成（`.opencode/commands/{cmd}.md`）
+- [x] 编码风格模板安装（语言检测 + `_coding_style/` 复制 + 引用入口生成）
+- [x] 4 个内置模板全部完成：research、new-feature、bug-fix、large-refactor
+  - 已知问题/风险: 跨模板模板 ID 冲突处理依赖用户确认覆盖

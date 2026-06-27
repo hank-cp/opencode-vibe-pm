@@ -153,3 +153,45 @@ sequenceDiagram
 | AxioDB | 任务状态存储 |
 | Zod | 运行时校验 |
 | tiktoken | Token 计数 |
+
+---
+
+## 实施规划
+
+> 本部分在开发过程中持续更新，与 [vibe-pm-roadmap.md](./vibe-pm-roadmap.md) 路线图保持同步。以里程碑为粒度拆解，每个里程碑关联功能点和风险。
+
+### [x] 里程碑 M1 — Phase 1: MVP 核心
+
+- [x] Plugin Core：插件入口、双路径命令注册（config + tool）、钩子编排
+  - 已知问题/风险: `experimental.*` API 变更风险（Plugin Core 抽象层隔离）
+- [x] Memory System：SQLite 任务状态存储、Task/Discussion/StepTokenMetrics CRUD
+- [x] Flow Engine：Flow 命令检测、`<pm-control-rules>` 注入、Fingerprint 去重、LLM 自主流转
+  - 已知问题/风险: LLM 误判步骤流转（Flow 文档 + Layer 3 前瞻窗口缓解）
+- [x] MVP 闭环保留：启动任务 → 按步注入 → 记录状态 → `/pm-task-close`
+- [x] 消息裁剪：分层注入 + fingerprint 去重
+
+### [x] 里程碑 M2 — Phase 2: 模板
+
+- [x] 4 个内置模板（research / new-feature / bug-fix / large-refactor）
+- [x] `/pm-install-flow` / `/pm-uninstall-flow` 完整安装卸载
+- [x] Command 文件自动生成 + 编码风格模板安装
+- [x] 合并 `pm-project-build` → `new-feature`（模板精简）
+  - 已知问题/风险: 模板源语言不统一（混有中英文），待 I18N 项目统一为英文基底
+
+### [x] 里程碑 M3 — Phase 3: 增强
+
+- [x] Metrics & Analysis：TokenCounter（tiktoken 来源分类）、StepTokenMetrics 扩展（tokensBySource）
+- [x] Session 级 Token 聚合（session_tokens 表 + ApiTelemetry + scaleFactor）
+- [x] TUI Display：侧边栏任务状态面板（TaskStatusCard + TokenBar + TokenDetail + StepTokens）
+  - 已知问题/风险: TokenBar 在宽字符环境下显示精度；`jsx-shim.mjs` 增加构建复杂度
+- [x] 事件驱动刷新 + 定时轮询兜底
+
+### [ ] 里程碑 M4 — Phase 4: 收尾 & I18N
+
+- [x] StepTokenMetrics 无用字段清理（dwellTime、humanInterventionTime、userInputTokens）
+- [x] Spec 文档对齐新模板
+- [ ] I18N 国际化支持（Phase 1-5，待实现）：src/i18n/ 模块、Flow-Engine 双语提示词、模板翻译管道、TUI 标签英文化
+  - 已知问题/风险: LLM 翻译质量不稳定 → 回退英文源不阻塞安装；I18N 模板源迁移需分阶段完成
+- [ ] AGENTS.md / README 更新
+- [ ] 端到端集成测试补充
+  - 已知问题/风险: `experimental.chat.messages.transform` 可能在未来 OpenCode 版本被移除

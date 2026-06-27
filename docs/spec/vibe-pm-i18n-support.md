@@ -397,22 +397,41 @@ graph TB
 
 ---
 
-## 开发进度
+## 实施规划
 
-### 已实现功能
+> 本部分在开发过程中持续更新。以里程碑为粒度拆解，每个里程碑关联功能点和风险。
 
-- （新建时为空）
+### [ ] 里程碑 1 — Phase 1: I18N Core Module
 
-### 未实现功能
+- [ ] `src/i18n/` 模块建立：类型定义、语言包加载器、`t()` 翻译函数
+  - 已知问题/风险: 语言包 key 命名不一致 → dictionary.md 作为 key 来源参考
+- [ ] `PluginConfig.language` 类型变更为 `string`
+- [ ] en-US 基底语言包 + zh-CN 语言包
+- [ ] en-US 基底提示词模板（`buildControlPrompt` 英文版）
+  - 已知问题/风险: 语言包文件语法错误 → 回退 en-US
 
-- Phase 1: I18N Core Module
-- Phase 2: Flow-Engine Bilingual Prompt Injection
-- Phase 3: Template Translation Pipeline (LLM)
-- Phase 4: TUI Label Migration
-- Phase 5: Template Source Migration
+### [ ] 里程碑 2 — Phase 2: Flow-Engine Bilingual Prompt
 
-### 已知问题/风险
+- [ ] `flow-engine.ts` 接入 I18N，`buildControlPrompt()` 按 locale 获取翻译
+- [ ] `DEFAULT_CONFIG.language` 改为 `"en-US"`
+- [ ] `pm-config init` 语言步骤动态化
+  - 已知问题/风险: 依赖 Phase 1 完成
 
-- LLM 翻译质量不稳定
-- LLM 翻译增加安装延迟
-- 语言包 key 命名一致性需持续维护
+### [ ] 里程碑 3 — Phase 3: Template Translation
+
+- [ ] `template-manager.ts` 增加 LLM 翻译管道
+- [ ] `installRegulationFromTemplate()` 调用 `translateContent()`
+  - 已知问题/风险: LLM 翻译质量不稳定；翻译增加安装延迟
+- [ ] 翻译失败回退英文源
+
+### [ ] 里程碑 4 — Phase 4: TUI Label Migration
+
+- [ ] `sidebar-content.tsx` 中 10 个中文字符串 → 英文
+- [ ] `empty-state.tsx` 中 1 个中文字符串 → 英文
+  - 已知问题/风险: 可独立于 Phase 2/3 并行实施
+
+### [ ] 里程碑 5 — Phase 5: Template Source Migration
+
+- [ ] 全部 6 个流程模板 → 英文源
+- [ ] constitution-template、dictionary-template、spec-template、agents-template → 英文
+  - 已知问题/风险: 依赖 Phase 3 完成后辅助翻译；混合中英文源风险

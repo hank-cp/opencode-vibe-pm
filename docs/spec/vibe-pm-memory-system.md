@@ -319,26 +319,18 @@ class MemorySystem implements IMemorySystem {
 
 ---
 
-## 开发进度
+## 实施规划
 
-### 已实现功能
+> 本部分在开发过程中持续更新。以里程碑为粒度拆解，每个里程碑关联功能点和风险。
 
-- SQLite 嵌入式数据库集成 (bun:sqlite)
-- Task CRUD（创建、查询、更新步骤、关闭、列表）
-- Discussion CRUD（创建、决议、按条件过滤）
-- StepTokenMetrics CRUD（步骤进入/退出指标记录、聚合查询）
-- 容错处理（数据文件自动创建、重复任务检查）
-- 4 个测试文件，14 个测试用例全部通过
+### [x] 里程碑 1 — Memory System MVP
 
-### 未实现功能
-
-- 大数据量归档/清理策略
-- 数据迁移/Migration 机制
-- AxioDBCloud 远程数据库支持
-
-### 技术笔记
-
-- bun:sqlite 使用预编译语句，性能优于动态 SQL
-- WAL 模式支持并发读（单写），适合多 TUI 轮询场景
-- tokensBySource 使用 JSON 列类型（SQLite 3.38+ 原生支持），配合 json_extract() / json_set() 操作
-- 每进程可创建多个 Database 实例，测试和主进程无冲突
+- [x] SQLite 嵌入式数据库集成 (bun:sqlite，WAL 模式)
+  - 已知问题/风险: 旧 AxioDB 数据无法自动迁移（用户确认丢弃，不影响）
+- [x] Task CRUD（创建、查询、更新步骤、关闭、列表）
+- [x] Discussion CRUD（创建、决议、按条件过滤）
+- [x] StepTokenMetrics CRUD（步骤进入/退出指标记录、聚合查询）
+  - 已知问题/风险: 大数据量归档/清理策略待建设
+- [x] 容错处理（数据文件自动创建、重复任务检查）
+- [x] 4 个测试文件，14 个测试用例全部通过
+- [x] 预编译语句 + JSON 列类型（SQLite 3.38+）
