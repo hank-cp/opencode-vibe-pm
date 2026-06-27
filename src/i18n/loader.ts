@@ -8,7 +8,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ControlPromptTemplate, LanguagePack, Locale } from "./types.js";
+import type { LanguagePack, Locale, PromptsI18n } from "./types.js";
 
 // ─── 已知语言的标签映射 ───
 
@@ -20,7 +20,7 @@ const LOCALE_LABELS: Record<string, string> = {
 // ─── 缓存 ───
 
 let _packsCache: LanguagePack[] | null = null;
-const _promptCache = new Map<string, ControlPromptTemplate>();
+const _promptCache = new Map<string, PromptsI18n>();
 
 // ─── discoverLanguagePacks ───
 
@@ -59,14 +59,14 @@ export function discoverLanguagePacks(): LanguagePack[] {
  * 按 locale 获取 ControlPromptTemplate，未命中回退 en-US。
  * 加载结果内部缓存。
  */
-export async function getControlPromptTemplate(locale: Locale): Promise<ControlPromptTemplate> {
+export async function getControlPromptTemplate(locale: Locale): Promise<PromptsI18n> {
   // 缓存命中
   const cached = _promptCache.get(locale);
   if (cached) return cached;
 
   try {
     const mod = await import(`./prompts-${locale}.ts`);
-    const template = mod.default as ControlPromptTemplate;
+    const template = mod.default as PromptsI18n;
     _promptCache.set(locale, template);
     return template;
   } catch {

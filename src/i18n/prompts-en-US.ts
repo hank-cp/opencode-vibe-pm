@@ -1,12 +1,6 @@
-/**
- * English ControlPrompt Template
- *
- * Faithful translation of the Chinese control prompt from FlowEngine.
- */
+import type { LanguagePack } from "./types.js";
 
-import type { ControlPromptTemplate } from "./types.js";
-
-const enUS: ControlPromptTemplate = {
+const enUS = {
   locale: "en-US",
 
   buildControlPrompt(flowName?: string): string {
@@ -111,6 +105,47 @@ Any of the following = FLOW EXECUTION FAILURE:
 
   isWarningPromptPart(text: string): boolean {
     return text.includes("Flow Violation Detected");
+  },
+
+  tool: {
+    unknownError: "Unknown error",
+    noSessionId: "Cannot get current Session ID",
+    setStepNoTask: "Step set successfully but unable to get task status",
+    unknownSubCommand: (sub: string) => `[vibe-pm] ❌ Unknown sub-command: "${sub}". Supported: view, edit, write-dcp, setup-dcp, init`,
+    editNeedKey: "[vibe-pm] ❌ edit requires key parameter",
+    editNeedValue: "[vibe-pm] ❌ edit requires value parameter",
+    configUpdated: (key: string, value: string) => `[vibe-pm] ✅ Config updated: ${key} = ${value}`,
+    dcpWritten: "[vibe-pm] ✅ DCP config written",
+    operationFailed: (msg: string) => `[vibe-pm] ❌ Operation failed: ${msg}`,
+    installSuccess: (id: string) => `[vibe-pm] ✅ Flow "${id}" installed.\n\nInstalled to:\n- docs/flow/flow-${id}.md\n\n⚠️ Restart OpenCode then use \`/pm-${id}\`.`,
+    installFailure: (msg: string) => `[vibe-pm] ❌ Install failed: ${msg}`,
+    installStartHint: "Please translate template files (Read → Translate → Write):",
+    translateDictNote: "dictionary.md: Keep English terms, translate descriptions to target language.",
+    noTemplatesFound: "[vibe-pm] No templates found under docs/template/. Check template directory.",
+    templateList: (lines: string) => `[vibe-pm] Available templates:\n\n${lines}\n\nTo install: \`\`\`\n/pm-install-flow templateId: <ID>\n\`\`\``,
+    uninstallSuccess: (name: string) => `[vibe-pm] ✅ Flow "${name}" removed.\n\n⚠️ Restart OpenCode for changes to take effect.`,
+    uninstallFailure: (msg: string) => `[vibe-pm] ❌ Uninstall failed: ${msg}`,
+    noSessionIdShort: "Cannot get current Session ID",
+    flowStartNoSession: "Cannot get current Session ID.",
+  },
+
+  buildInitInstructions(packs: LanguagePack[]): string {
+    const languageOptions = packs.map((p) => ({ label: p.label, description: p.locale }));
+    const languageOnAnswer: Record<string, { language: string }> = {};
+    for (const p of packs) languageOnAnswer[p.label] = { language: p.locale };
+    return JSON.stringify({
+      flow: "pm-config-init",
+      description: "vib-pm initialization wizard — guided project setup",
+      steps: [
+        { id: "scope", title: "Config Scope", type: "question", instruction: "Ask user where to write vib-pm config. OpenCode and integration plugin configs are always project-level.", params: { header: "Scope", question: "Where to write vib-pm config? (OpenCode & integration plugins always project-level `.opencode/`)", options: [{ label: "Project", description: "Write to `./vibe-pm/config.json`" }, { label: "Global", description: "Write to `~/.config/vibe-pm/config.json`" }] }, onAnswer: { "Project": { configPath: "./vibe-pm/config.json", scope: "project" }, "Global": { configPath: "~/.config/vibe-pm/config.json", scope: "global" } } },
+        { id: "language", title: "Language", type: "question", instruction: "Write PluginConfig.language.", params: { header: "Language", question: "Choose vib-pm interactive language:", options: languageOptions }, onAnswer: languageOnAnswer },
+        { id: "gitignore", title: ".gitignore", type: "question", instruction: "Ask whether to append entries to .gitignore. Skip if already exists. Use bash.", params: { header: ".gitignore", question: "Which directories to add to .gitignore?", multiple: true, options: [{ label: ".opencode/", description: "OpenCode config" }, { label: ".vibe-pm/", description: "vib-pm data dir" }, { label: ".omo/", description: "oh-my-openagent plans/config" }] }, skipIfExists: true },
+        { id: "agents", title: "AGENTS.md", type: "question", instruction: `Generate AGENTS.md by strict priority:\n\n1. Locate template\n2. Scenario A — template exists:\na) Missing → generate\nb) Exists → ask user (Full Rewrite / Add Missing / Skip, MUST confirm before acting)\n3. Scenario B — missing:\na) Exists → append Constitution reference\nb) Missing → inform user\n4. Constitution: inform user of constraints`, params: { header: "AGENTS.md", question: "Generate AGENTS.md? Template requires only overview & features. Tech stack auto-detected.", options: [{ label: "Yes, generate", description: "Use template" }, { label: "No, skip", description: "Skip" }] }, checkExists: true },
+        { id: "dictionary", title: "Term Dictionary", type: "question", instruction: `Create project term dictionary docs/regulation/dictionary.md (if not exists).\n1. Skip if exists\n2. Copy from template\n3. Generate ~20 initial terms (zh↔en)\n4. Remind user to maintain`, checkExists: true, templateFile: "dictionary-template.md", params: { header: "Dictionary", question: "Create term dictionary? Will generate initial terms from project analysis.", options: [{ label: "Yes, create", description: "Create with initial terms" }, { label: "No, skip", description: "Skip" }] } },
+        { id: "integrations-dcp", title: "Integration: DCP", type: "question", instruction: `Configure DCP plugin.\n1. Check global & project configs for DCP dependency\n2. If missing, ask user. Write to .opencode/opencode.json`, checkInstalled: "opencode-dynamic-context-pruning", checkPaths: ["~/.config/opencode/opencode.json", ".opencode/opencode.json"], params: { header: "DCP Plugin", question: "Install DCP (Dynamic Context Pruning) plugin? Writes to .opencode/opencode.json.", options: [{ label: "Yes", description: "Install" }, { label: "No", description: "Skip" }] } },
+        { id: "done", title: "Done", type: "info", instruction: "Tell user to install flow templates via /pm-install-flow.", message: "✅ Setup complete! Use `/pm-install-flow` to install flow templates (e.g. spec-driven-dev, bug-fix)." },
+      ],
+    });
   },
 };
 

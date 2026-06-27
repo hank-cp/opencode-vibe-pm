@@ -417,12 +417,13 @@ graph TB
 - [x] `ControlPromptTemplate` 增加 `isControlPromptPart` / `isWarningPromptPart` — 检测逻辑也归入模板
   - 已知问题/风险: 提示词文本 + 注入/检测/移除逻辑全部在 `prompts-{locale}.ts` 中，`flow-engine.ts` 零硬编码
 
-### [ ] 里程碑 3 — Phase 3: Template Translation
+### [x] 里程碑 3 — Phase 3: Template Translation
 
-- [ ] `template-manager.ts` 增加 LLM 翻译管道
-- [ ] `installRegulationFromTemplate()` 调用 `translateContent()`
-  - 已知问题/风险: LLM 翻译质量不稳定；翻译增加安装延迟
-- [ ] 翻译失败回退英文源
+- [x] `template-manager.ts`: `installTemplate`→options模式，返回`InstallResult`（文件清单供LLM翻译）
+- [x] `prompts-{locale}.ts` 统一为单一 `PromptsI18n` 导出（ControlPrompt + commandsI18n 合并）
+- [x] `commands.ts`: install/init引导 i18n化（`discoverLanguagePacks`/`getControlPromptTemplate`）
+- [x] 安装成功返回 LLM 翻译指令（文件清单 + dictionary 特别说明）
+  - 已知问题/风险: 剩余 Zod describe/COMMAND desc/同步函数工具错误尚未 i18n，后续处理
 
 ### [ ] 里程碑 4 — Phase 4: TUI Label Migration
 

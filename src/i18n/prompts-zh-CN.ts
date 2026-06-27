@@ -1,13 +1,12 @@
 /**
- * 中文 ControlPrompt 模板
- *
- * 内容来源于 FlowEngine.buildControlPrompt() 和 buildFlowWarningPrompt() 的现有硬编码中文文本。
+ * 中文 I18N — 单一导出，包含所有提示词、消息、工具字符串
  */
+import type { LanguagePack } from "./types.js";
 
-import type { ControlPromptTemplate } from "./types.js";
-
-const zhCN: ControlPromptTemplate = {
+const zhCN = {
   locale: "zh-CN",
+
+  // ─── ControlPrompt (原 ControlPromptTemplate) ───
 
   buildControlPrompt(flowName?: string): string {
     const flowRef = flowName ? `\`docs/flow/flow-${flowName}.md\`` : "docs/flow/";
@@ -111,6 +110,51 @@ const zhCN: ControlPromptTemplate = {
 
   isWarningPromptPart(text: string): boolean {
     return text.includes("流程违规检测");
+  },
+
+  // ─── 工具消息 ───
+
+  tool: {
+    unknownError: "未知错误",
+    noSessionId: "无法获取当前 Session ID",
+    noSessionIdShort: "无法获取当前 Session ID",
+    setStepNoTask: "步骤设置成功但无法获取任务状态",
+    unknownSubCommand: (sub: string) => `[vibe-pm] ❌ 未知子命令: "${sub}"。支持: view, edit, write-dcp, setup-dcp, init`,
+    editNeedKey: "[vibe-pm] ❌ edit 子命令需要提供 key 参数",
+    editNeedValue: "[vibe-pm] ❌ edit 子命令需要提供 value 参数",
+    configUpdated: (key: string, value: string) => `[vibe-pm] ✅ 配置已更新: ${key} = ${value}`,
+    dcpWritten: "[vibe-pm] ✅ DCP 配置已写入",
+    operationFailed: (msg: string) => `[vibe-pm] ❌ 操作失败：${msg}`,
+    installSuccess: (id: string) => `[vibe-pm] ✅ 流程 "${id}" 已成功安装。\n\n已安装到：\n- docs/flow/flow-${id}.md\n\n⚠️ 请重启 OpenCode 后使用 \`/pm-${id}\` 命令启动任务。`,
+    installFailure: (msg: string) => `[vibe-pm] ❌ 安装失败：${msg}`,
+    installStartHint: "请使用以下工具翻译安装的模板文件（Read → 翻译 → Write）：",
+    translateDictNote: "dictionary.md 特殊处理：保留英文术语列，将中文说明列翻译为目标语言。",
+    noTemplatesFound: "[vibe-pm] 未在 docs/template/ 下找到任何模板。请确认模板目录结构正确。",
+    templateList: (lines: string) => `[vibe-pm] 可用的模板列表：\n\n${lines}\n\n要安装一个流程，请运行：\n\`\`\`\n/pm-install-flow templateId: <模板ID>\n\`\`\``,
+    uninstallSuccess: (name: string) => `[vibe-pm] 流程 "${name}" 已移除。\n\n⚠️ 请重启 OpenCode 使变更生效。`,
+    uninstallFailure: (msg: string) => `[vibe-pm] 卸载失败：${msg}`,
+    flowStartNoSession: "无法获取当前 Session ID。",
+  },
+
+  // ─── 初始化向导 ───
+
+  buildInitInstructions(packs: LanguagePack[]): string {
+    const languageOptions = packs.map((p) => ({ label: p.label, description: p.locale }));
+    const languageOnAnswer: Record<string, { language: string }> = {};
+    for (const p of packs) languageOnAnswer[p.label] = { language: p.locale };
+    return JSON.stringify({
+      flow: "pm-config-init",
+      description: "vibe-pm 初始化向导 — 按步骤引导配置项目",
+      steps: [
+        { id: "scope", title: "配置范围", type: "question", instruction: "询问用户 vibe-pm 配置写入位置。opencode 和集成插件配置始终写入项目级。", params: { header: "配置范围", question: "vibe-pm 配置写入哪里？（opencode 和集成插件配置始终项目级 `.opencode/`）", options: [{ label: "项目级", description: "写入项目目录 `./vibe-pm/config.json`" }, { label: "全局", description: "写入 `~/.config/vibe-pm/config.json`" }] }, onAnswer: { "项目级": { configPath: "./vibe-pm/config.json", scope: "project" }, "全局": { configPath: "~/.config/vibe-pm/config.json", scope: "global" } } },
+        { id: "language", title: "交互语言", type: "question", instruction: "写入 PluginConfig.language。", params: { header: "交互语言", question: "选择 vibe-pm 引导流程的交互语言：", options: languageOptions }, onAnswer: languageOnAnswer },
+        { id: "gitignore", title: ".gitignore", type: "question", instruction: "依次询问是否追加条目到 .gitignore。条目已存在则跳过。使用 bash 追加。", params: { header: ".gitignore 配置", question: "哪些目录需要加入 .gitignore？", multiple: true, options: [{ label: ".opencode/", description: "OpenCode 配置目录" }, { label: ".vibe-pm/", description: "vibe-pm 配置数据目录" }, { label: ".omo/", description: "oh-my-openagent 计划/配置目录" }] }, skipIfExists: true },
+        { id: "agents", title: "AGENTS.md", type: "question", instruction: `生成 AGENTS.md。严格按以下优先级规则执行：\n\n1. 确认模板：查找 docs/template/agents-template.md → 插件内置 dist/docs/template/agents-template.md → ../docs/template/agents-template.md\n\n2. 场景 A — 模板存在：\n   a) AGENTS.md 不存在 → 按模板格式生成。占位符填充规则：\n       - 「概述」「主要功能描述」→ 引导用户填写\n       - 「技术栈」「开发环境说明」→ 你分析项目结构后自动推断\n   b) AGENTS.md 已存在 → 分析现有结构与模板的差异，使用 question 工具询问用户：\n       - 选项 1「完整重写」：按模板格式重写，保留现有 AGENTS.md 中的技术细节\n       - 选项 2「补充缺失章节」：仅添加模板中有而现有文件缺失的章节，不改变现有结构\n       - 选项 3「跳过」\n       ⚠️ 禁止在用户未选择的情况下自行决定"轻量更新"——必须先询问，收到明确选择后再执行\n\n3. 场景 B — 模板不存在：\n   a) AGENTS.md 已存在 → 仅追加 Constitution 引用说明（告知后果）\n   b) AGENTS.md 不存在 → 告知用户模板缺失，退出此步骤\n\n4. Constitution：无论最终采用哪种方式，完成后告知用户 Constitution 块的约束效果`, params: { header: "AGENTS.md", question: "是否生成 AGENTS.md？使用内置模板，你只需填写项目概述和主要功能描述。技术栈和开发环境由我自动推断。", options: [{ label: "是，生成", description: "使用模板生成" }, { label: "否，跳过", description: "不生成 AGENTS.md" }] }, checkExists: true },
+        { id: "dictionary", title: "术语字典", type: "question", instruction: `创建项目术语字典 docs/regulation/dictionary.md（如不存在）。\n1. 如果文件已存在，跳过此步骤\n2. 如果不存在，先创建 docs/regulation/ 目录，再从 vibe-pm 插件内置模板（查找路径：先试项目 docs/template/dictionary-template.md，不存在则从插件 dist/docs/template/ 读取）复制模板\n3. 根据当前项目，分析生成 20 条左右的初始术语记录（中英对照）\n4. 在最后的结束总结中提示用户要积极维护字典文档`, checkExists: true, templateFile: "dictionary-template.md", params: { header: "术语字典", question: "是否创建项目术语字典 (docs/regulation/dictionary.md)？将根据项目生成初始术语记录。", options: [{ label: "是，创建", description: "创建字典并生成初始术语" }, { label: "否，跳过", description: "不创建字典" }] } },
+        { id: "integrations-dcp", title: "集成: DCP 插件", type: "question", instruction: `配置 DCP (Dynamic Context Pruning) 插件。\n1. 用 bash 检查全局和项目级 opencode 配置中是否已有 DCP 依赖：~/.config/opencode/opencode.json 和 ./.opencode/opencode.json（或 package.json）\n2. 若未安装，询问用户。安装方式：写入 .opencode/opencode.json 的 dependencies`, checkInstalled: "opencode-dynamic-context-pruning", checkPaths: ["~/.config/opencode/opencode.json", ".opencode/opencode.json"], params: { header: "DCP 插件", question: "是否安装 DCP (Dynamic Context Pruning) 插件？将自动写入 .opencode/opencode.json dependencies。", options: [{ label: "是", description: "安装 DCP 插件" }, { label: "否", description: "跳过" }] } },
+        { id: "done", title: "完成", type: "info", instruction: "提示用户通过 /pm-install-flow 安装流程模板。", message: "✅ 初始化完成！请使用 `/pm-install-flow` 安装需要的流程模板（如 spec-driven-dev、bug-fix 等）。" },
+      ],
+    });
   },
 };
 

@@ -87,13 +87,14 @@ function installCodingStyleFromTemplate(
   docsDir: string,
   regDir: string,
   programmingLanguages?: string[],
-): void {
+): string[] {
+  const result: string[] = [];
   let templateStyleDir = path.join(docsDir, CODING_STYLE_TEMPLATE_SUBDIR);
   if (!fs.existsSync(templateStyleDir)) {
     const pluginDir = getPluginTemplateDir();
-    if (!pluginDir) return;
+    if (!pluginDir) return result;
     templateStyleDir = path.join(pluginDir, "_coding_style");
-    if (!fs.existsSync(templateStyleDir)) return;
+    if (!fs.existsSync(templateStyleDir)) return result;
   }
 
   const regStyleDir = path.join(regDir, CODING_STYLE_REG_SUBDIR);
@@ -107,21 +108,23 @@ function installCodingStyleFromTemplate(
     languages.push("General");
   }
 
-  // 复制检测到的语言文件（已存在则跳过，不覆盖用户自定义内容）
   for (const lang of languages) {
     const srcPath = path.join(templateStyleDir, `${lang.toLowerCase()}.md`);
     const destPath = path.join(regStyleDir, `${lang.toLowerCase()}.md`);
     if (fs.existsSync(srcPath) && !fs.existsSync(destPath)) {
       fs.copyFileSync(srcPath, destPath);
+      result.push(destPath);
     }
   }
 
-  // 生成引用索引文件（如已存在则不覆盖）
   const indexDest = path.join(regDir, CODING_STYLE_OUTPUT);
   if (!fs.existsSync(indexDest)) {
     const indexContent = generateCodingStyleIndex(languages);
     fs.writeFileSync(indexDest, indexContent, "utf-8");
+    result.push(indexDest);
   }
+
+  return result;
 }
 
 function generateCodingStyleIndex(languages: string[]): string {
@@ -192,12 +195,22 @@ export function scanTemplates(projectDir: string): TemplateMeta[] {
   return templates;
 }
 
+export interface InstallResult {
+  flowPath: string;
+  regulationPaths: string[];
+  codingStylePaths: string[];
+  dictionaryPath: string | null;
+}
+
 export function installTemplate(
   projectDir: string,
   templateId: string,
-  programmingLanguages?: string[],
-  overwrite?: boolean,
-): void {
+  options?: {
+    programmingLanguages?: string[];
+    overwrite?: boolean;
+    locale?: string;
+  },
+): InstallResult {
   const templates = scanTemplates(projectDir);
   const meta = templates.find((t) => t.id === templateId);
   if (!meta) {
@@ -207,46 +220,45 @@ export function installTemplate(
   const docsDir = getDocsDir(projectDir);
   const flowDir = path.join(docsDir, FLOW_DIR);
   const regDir = path.join(docsDir, REGULATION_DIR);
+  const regulationPaths: string[] = [];
 
-  // 确保目录存在
   fs.mkdirSync(flowDir, { recursive: true });
   fs.mkdirSync(regDir, { recursive: true });
 
-  // 安装 Flow 文档（若已存在且未传 overwrite，提示用户确认后覆盖）
   const destFlow = path.join(flowDir, `flow-${meta.id}.md`);
-  if (fs.existsSync(destFlow) && !overwrite) {
+  if (fs.existsSync(destFlow) && !options?.overwrite) {
     throw new TemplateConflictError(
       `"${templateId}" 已存在。如需覆盖安装，请使用 overwrite 参数。`,
     );
   }
   fs.copyFileSync(meta.flowPath, destFlow);
 
-  // 安装配套 Regulation（如存在）
   const bundleRegDir = path.join(meta.bundleDir, "regulations");
   if (fs.existsSync(bundleRegDir)) {
-    const regFiles = fs
-      .readdirSync(bundleRegDir)
-      .filter((f) => f.endsWith(".md"));
-    for (const regFile of regFiles) {
-      const src = path.join(bundleRegDir, regFile);
+    for (const regFile of fs.readdirSync(bundleRegDir).filter((f) => f.endsWith(".md"))) {
       const dest = path.join(regDir, regFile);
       if (!fs.existsSync(dest)) {
-        fs.copyFileSync(src, dest);
+        fs.copyFileSync(path.join(bundleRegDir, regFile), dest);
+        regulationPaths.push(dest);
       }
     }
   }
 
-  // 安装 Constitution（如缺失）
-  installConstitutionFromTemplate(docsDir, regDir);
+  const constResult = installRegulationFromTemplate(docsDir, regDir, CONSTITUTION_TEMPLATE, CONSTITUTION_OUTPUT);
+  if (constResult) regulationPaths.push(constResult);
 
-  // 安装 Dictionary（如缺失）
-  installDictionaryFromTemplate(docsDir, regDir);
+  const dictResult = installRegulationFromTemplate(docsDir, regDir, DICTIONARY_TEMPLATE, DICTIONARY_OUTPUT);
 
-  // 安装 Coding Style（如缺失）
-  installCodingStyleFromTemplate(docsDir, regDir, programmingLanguages);
+  const codingStylePaths = installCodingStyleFromTemplate(docsDir, regDir, options?.programmingLanguages);
 
-  // 写入 DCP 保护配置（如果 DCP 插件已安装）
   writeDcpConfig(projectDir);
+
+  return {
+    flowPath: destFlow,
+    regulationPaths,
+    codingStylePaths,
+    dictionaryPath: dictResult,
+  };
 }
 
 // ─── Regulation 安装 ───
@@ -256,43 +268,20 @@ function installRegulationFromTemplate(
   regDir: string,
   templateName: string,
   outputName: string,
-): void {
+): string | null {
   const dest = path.join(regDir, outputName);
-  if (fs.existsSync(dest)) return;
+  if (fs.existsSync(dest)) return null;
 
   let templatePath = path.join(docsDir, TEMPLATE_DIR, templateName);
   if (!fs.existsSync(templatePath)) {
     const pluginDir = getPluginTemplateDir();
-    if (!pluginDir) return;
+    if (!pluginDir) return null;
     templatePath = path.join(pluginDir, templateName);
-    if (!fs.existsSync(templatePath)) return;
+    if (!fs.existsSync(templatePath)) return null;
   }
 
   fs.copyFileSync(templatePath, dest);
-}
-
-function installConstitutionFromTemplate(
-  docsDir: string,
-  regDir: string,
-): void {
-  installRegulationFromTemplate(
-    docsDir,
-    regDir,
-    CONSTITUTION_TEMPLATE,
-    CONSTITUTION_OUTPUT,
-  );
-}
-
-function installDictionaryFromTemplate(
-  docsDir: string,
-  regDir: string,
-): void {
-  installRegulationFromTemplate(
-    docsDir,
-    regDir,
-    DICTIONARY_TEMPLATE,
-    DICTIONARY_OUTPUT,
-  );
+  return dest;
 }
 
 export function uninstallFlow(projectDir: string, flowName: string): void {

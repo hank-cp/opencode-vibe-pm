@@ -93,10 +93,10 @@ describe("Template Manager", () => {
     expect(templates[0].id).toBe("real");
   });
 
-  it("install_copies_to_flow_dir: 安装模板到 flow 目录", () => {
+  it("install_copies_to_flow_dir: 安装模板到 flow 目录", async () => {
     writeTemplateBundle(tmpDir, "my-flow", "My Flow");
 
-    installTemplate(tmpDir, "my-flow");
+    await installTemplate(tmpDir, "my-flow");
 
     const flowPath = path.join(tmpDir, "docs", "flow", "flow-my-flow.md");
     expect(fs.existsSync(flowPath)).toBe(true);
@@ -106,43 +106,43 @@ describe("Template Manager", () => {
     expect(content).toContain("Template ID");
   });
 
-  it("install_copies_regulations: 安装时复制配套 Regulation", () => {
+  it("install_copies_regulations: 安装时复制配套 Regulation", async () => {
     writeTemplateWithRegulations(tmpDir, "with-regs", ["custom-check.md"]);
 
-    installTemplate(tmpDir, "with-regs");
+    await installTemplate(tmpDir, "with-regs");
 
     const regPath = path.join(tmpDir, "docs", "regulation", "custom-check.md");
     expect(fs.existsSync(regPath)).toBe(true);
     expect(fs.readFileSync(regPath, "utf-8")).toContain("Test regulation");
   });
 
-  it("install_overwrite_error: 已存在且未传 overwrite 时抛错", () => {
+  it("install_overwrite_error: 已存在且未传 overwrite 时抛错", async () => {
     writeTemplateBundle(tmpDir, "dup", "Duplicate");
-    installTemplate(tmpDir, "dup");
+    await installTemplate(tmpDir, "dup");
 
     expect(() => installTemplate(tmpDir, "dup")).toThrow(
       TemplateConflictError,
     );
   });
 
-  it("install_overwrite_force: 传 overwrite=true 时覆盖成功", () => {
+  it("install_overwrite_force: 传 overwrite=true 时覆盖成功", async () => {
     writeTemplateBundle(tmpDir, "dup2", "Original");
-    installTemplate(tmpDir, "dup2");
+    await installTemplate(tmpDir, "dup2");
 
     // 修改模板内容，验证覆盖
     const flowPath = path.join(tmpDir, "docs", "template", "dup2", "flow.md");
     fs.writeFileSync(flowPath, "# Updated Flow\n\n**Template ID**: `dup2`\n\nUpdated content.", "utf-8");
 
-    expect(() => installTemplate(tmpDir, "dup2", undefined, true)).not.toThrow();
+    expect(() => installTemplate(tmpDir, "dup2", { overwrite: true })).not.toThrow();
     const installed = path.join(tmpDir, "docs", "flow", "flow-dup2.md");
     expect(fs.readFileSync(installed, "utf-8")).toContain("Updated content.");
   });
 
-  it("uninstall_removes_file: 卸载删除目标文件", () => {
+  it("uninstall_removes_file: 卸载删除目标文件", async () => {
     writeTemplateBundle(tmpDir, "rm-me", "Remove Me");
     writeTemplateBundle(tmpDir, "keep", "Keep Me");
-    installTemplate(tmpDir, "rm-me");
-    installTemplate(tmpDir, "keep");
+    await installTemplate(tmpDir, "rm-me");
+    await installTemplate(tmpDir, "keep");
 
     uninstallFlow(tmpDir, "rm-me");
 
@@ -151,11 +151,11 @@ describe("Template Manager", () => {
     expect(flows[0]).toBe("keep");
   });
 
-  it("list_installed_flows: 列出已安装流程", () => {
+  it("list_installed_flows: 列出已安装流程", async () => {
     writeTemplateBundle(tmpDir, "f1", "Flow 1");
     writeTemplateBundle(tmpDir, "f2", "Flow 2");
-    installTemplate(tmpDir, "f1");
-    installTemplate(tmpDir, "f2");
+    await installTemplate(tmpDir, "f1");
+    await installTemplate(tmpDir, "f2");
 
     const flows = listInstalledFlows(tmpDir);
     expect(flows).toHaveLength(2);
@@ -163,13 +163,13 @@ describe("Template Manager", () => {
     expect(flows).toContain("f2");
   });
 
-  it("install_does_not_overwrite_existing_regulation: 已存在的 Regulation 不覆盖", () => {
+  it("install_does_not_overwrite_existing_regulation: 已存在的 Regulation 不覆盖", async () => {
     writeTemplateWithRegulations(tmpDir, "r1", ["shared.md"]);
     // 在 regulation 目录预置同名文件
     const existingPath = path.join(tmpDir, "docs", "regulation", "shared.md");
     fs.writeFileSync(existingPath, "existing content");
 
-    installTemplate(tmpDir, "r1");
+    await installTemplate(tmpDir, "r1");
 
     // 不应覆盖已有文件
     expect(fs.readFileSync(existingPath, "utf-8")).toBe("existing content");
@@ -184,12 +184,12 @@ describe("Template Manager", () => {
       fs.writeFileSync(path.join(styleDir, "general.md"), "# General");
     }
 
-    it("installTemplate 传递 programmingLanguages → 只复制指定语言", () => {
+    it("installTemplate 传递 programmingLanguages → 只复制指定语言", async () => {
       writeTemplateBundle(tmpDir, "lang-test", "Lang Test");
       createCodingStyleTemplates(tmpDir);
 
       const languages = ["TypeScript", "Python"];
-      installTemplate(tmpDir, "lang-test", languages);
+      await installTemplate(tmpDir, "lang-test", { programmingLanguages: languages });
 
       const codingDir = path.join(tmpDir, "docs", "regulation", "coding_style");
       expect(fs.existsSync(path.join(codingDir, "typescript.md"))).toBe(true);
@@ -197,11 +197,11 @@ describe("Template Manager", () => {
       expect(fs.existsSync(path.join(codingDir, "general.md"))).toBe(true);
     });
 
-    it("installTemplate 不传 programmingLanguages → General 兜底", () => {
+    it("installTemplate 不传 programmingLanguages → General 兜底", async () => {
       writeTemplateBundle(tmpDir, "lang-fallback", "Lang Fallback");
       createCodingStyleTemplates(tmpDir);
 
-      installTemplate(tmpDir, "lang-fallback");
+      await installTemplate(tmpDir, "lang-fallback");
 
       const codingDir = path.join(tmpDir, "docs", "regulation", "coding_style");
       expect(fs.existsSync(path.join(codingDir, "general.md"))).toBe(true);
@@ -301,7 +301,7 @@ describe("Template Manager", () => {
       }
     });
 
-    it("installTemplate_fallback_regulation: 项目无模板时从插件内置复制 regulation", () => {
+    it("installTemplate_fallback_regulation: 项目无模板时从插件内置复制 regulation", async () => {
       // 项目没有 docs/template/，regulation 应通过回退从插件内置模板安装
       const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-pm-test-fbreg-"));
       try {
@@ -309,7 +309,7 @@ describe("Template Manager", () => {
         fs.mkdirSync(path.join(docsDir, "flow"), { recursive: true });
         fs.mkdirSync(path.join(docsDir, "regulation"), { recursive: true });
 
-        installTemplate(dir, "bug-fix");
+        await installTemplate(dir, "bug-fix");
 
         expect(fs.existsSync(path.join(docsDir, "regulation", "constitution.md"))).toBe(true);
         expect(fs.existsSync(path.join(docsDir, "regulation", "dictionary.md"))).toBe(true);
