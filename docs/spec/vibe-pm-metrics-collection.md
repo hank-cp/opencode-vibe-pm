@@ -648,6 +648,8 @@ async getStepTokenBreakdown(sessionId: string): Promise<StepTokenBreakdown[]> {
 - [x] StepTokenMetrics.tokensBySource 扩展 + recordStepTokens (`src/memory/`)
   - 已知问题/风险: `recordStepTokens` 合并路径对升级前旧数据后向不兼容
 - [x] TokenCounter 类：tiktoken 编码 + `countContextTokens` 来源分类 (`src/token/`)
+  - 已知问题/风险: Anthropic tokenizer backend 精度偏差 ~15-20%（仅本地近似参考）
+- [x] 模型自动选择（`model-registry.ts` — provider→backend 映射：OpenAI→tiktoken, Anthropic→claude, Meta/Llama→llama-tokenizer-js）
   - 已知问题/风险: tiktoken 编码耗时在大型消息中可能阻塞（无超时保护）
 - [x] FlowControl 按 `<protect>` 标记分类
   - 已知问题/风险: Reasoning 检测依赖 part.type，可能随 model/SDK 变更有误分类风险
@@ -655,4 +657,5 @@ async getStepTokenBreakdown(sessionId: string): Promise<StepTokenBreakdown[]> {
 - [x] messages.transform 集成全部 Token 计数 (`src/core/plugin.ts`)
 - [x] Session 级 Token 聚合（session_tokens 表 + ApiTelemetry + scaleFactor）
 - [x] session.created event → initSessionTokens 自动初始化
+- [x] SubagentTokenMetrics 记录（`recordSubagentTokens` / `getSubagentTokens`）
 - [x] 3 个测试文件（token-counter / task-query / session-tokens），22+ 测试用例

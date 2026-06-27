@@ -246,6 +246,7 @@ S13 [Human-in-loop] 用户验收 → S14 合流
 - [x] 模板卸载：`/pm-uninstall-flow` → 删除 flow 文件 + 对应 command 文件
   - 已知问题/风险: 卸载流程不处理 regulations 文件清理（仅清理 flow + command）
 - [x] Command 文件自动生成（`.opencode/commands/{cmd}.md`）
-- [x] 编码风格模板安装（语言检测 + `_coding_style/` 复制 + 引用入口生成）
+- [x] DCP 保护配置自动写入（`writeDcpConfig` — protectTags + protectedFilePatterns）
+- [x] 编码风格模板安装（语言检测 + 13 种语言别名映射 + `_coding_style/` 复制 + 引用入口生成）
 - [x] 4 个内置模板全部完成：research、new-feature、bug-fix、large-refactor
   - 已知问题/风险: 跨模板模板 ID 冲突处理依赖用户确认覆盖

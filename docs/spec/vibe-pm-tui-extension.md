@@ -477,6 +477,6 @@ function compactTokens(tokens: number): string;
   - 已知问题/风险: Collapsible 仅支持鼠标切换，无键盘快捷键
 - [x] `createTuiPlugin` 工厂 + `SidebarContent` 主渲染 + `createSidebarSlot` 注册
   - 已知问题/风险: sidebar_content slot 宽度有限，超长内容可能截断
-- [x] 事件驱动刷新（150ms 防抖）+ 5s 定时轮询兜底
+- [x] 事件驱动刷新（150ms 防抖）+ 1s 定时轮询兜底
 - [x] 非 TUI 环境静默降级 + 构建流程（tsc + jsx-shim）
   - 已知问题/风险: 构建需 post-build 脚本 `jsx-shim.mjs`，增加复杂度

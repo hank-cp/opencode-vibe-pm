@@ -334,3 +334,4 @@ class MemorySystem implements IMemorySystem {
 - [x] 容错处理（数据文件自动创建、重复任务检查）
 - [x] 4 个测试文件，14 个测试用例全部通过
 - [x] 预编译语句 + JSON 列类型（SQLite 3.38+）
+- [x] SubagentTokenMetrics 表及 CRUD（`recordSubagentTokens` / `getSubagentTokens`）
