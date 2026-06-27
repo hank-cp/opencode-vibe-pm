@@ -50,12 +50,12 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
           if (data.type === "active") {
             return (
               <box width="100%" flexDirection="column">
-                <text fg={t.text}>流程: {data.flow}</text>
+                <text fg={t.text}>Flow: {data.flow}</text>
                 <text fg={t.warning}>
-                  步骤: {data.currentStep} — {data.currentStepName}
+                  Step: {data.currentStep} — {data.currentStepName}
                 </text>
                 <text fg={t.textMuted}>
-                  开始: {startTime}  耗时: {elapsed}
+                  Started: {startTime}  Elapsed: {elapsed}
                 </text>
               </box>
             );
@@ -64,10 +64,10 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
           if (data.type === "last") {
             return (
               <box width="100%" flexDirection="column">
-                <text fg={t.text}>流程: {data.flow}</text>
-                <text fg={t.success}>步骤: 任务已结束</text>
+                <text fg={t.text}>Flow: {data.flow}</text>
+                <text fg={t.success}>Step: Completed</text>
                 <text fg={t.textMuted}>
-                  开始: {startTime}  耗时: {elapsed}
+                  Started: {startTime}  Elapsed: {elapsed}
                 </text>
               </box>
             );
@@ -78,7 +78,7 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
       </box>
 
       <box width="100%" flexDirection="column" marginBottom={1}>
-        <text>Token 分布</text>
+        <text>Tokens</text>
         {(() => {
           const td = props.tokenData();
           if (td.totalTokens <= 0 || td.sourceBreakdown.length === 0) return (
@@ -108,10 +108,10 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
       </box>
 
       <box width="100%" flexDirection="column" marginBottom={1}>
-        <Collapsible title="Token 详情" defaultCollapsed={true} titleColor={theme().text}>
+        <Collapsible title="Token Details" defaultCollapsed={true} titleColor={theme().text}>
           {(() => {
             const td = props.tokenData();
-            if (td.sourceBreakdown.length === 0) return (<text fg={theme().textMuted}>暂无数据</text>);
+            if (td.sourceBreakdown.length === 0) return (<text fg={theme().textMuted}>No data</text>);
             return (<box width="100%" flexDirection="column">
               {td.sourceBreakdown.map(entry => {
                 const left = entry.source;
@@ -140,10 +140,10 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
       </box>
 
       <box width="100%" flexDirection="column">
-        <Collapsible title="步骤 Token" defaultCollapsed={true} titleColor={theme().text}>
+        <Collapsible title="Step Tokens" defaultCollapsed={true} titleColor={theme().text}>
           {(() => {
             const td = props.tokenData();
-            if (td.stepBreakdown.length === 0) return (<text fg={theme().textMuted}>暂无数据</text>);
+            if (td.stepBreakdown.length === 0) return (<text fg={theme().textMuted}>No data</text>);
             const steps = [...td.stepBreakdown].sort((a,b) =>
               (parseInt(a.step.replace('S', ''), 10) || 0) -
               (parseInt(b.step.replace('S', ''), 10) || 0)

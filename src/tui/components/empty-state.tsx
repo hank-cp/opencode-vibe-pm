@@ -10,7 +10,7 @@ export function EmptyState(props: EmptyStateProps): JSX.Element {
   return (
     <box width="100%" flexDirection="row" justifyContent="center">
       <text fg={props.mutedColor}>
-        {props.message ?? "暂无 vibe-pm 任务"}
+        {props.message ?? "No active vibe-pm tasks"}
       </text>
     </box>
   );

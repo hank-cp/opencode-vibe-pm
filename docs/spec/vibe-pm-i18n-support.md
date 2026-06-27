@@ -425,11 +425,10 @@ graph TB
 - [x] 安装成功返回 LLM 翻译指令（文件清单 + dictionary 特别说明）
   - 已知问题/风险: 剩余 Zod describe/COMMAND desc/同步函数工具错误尚未 i18n，后续处理
 
-### [ ] 里程碑 4 — Phase 4: TUI Label Migration
+### [x] 里程碑 4 — Phase 4: TUI Label Migration
 
-- [ ] `sidebar-content.tsx` 中 10 个中文字符串 → 英文
-- [ ] `empty-state.tsx` 中 1 个中文字符串 → 英文
-  - 已知问题/风险: 可独立于 Phase 2/3 并行实施
+- [x] `sidebar-content.tsx`: 10 个中文字符串 → 英文（Flow/Step/Started/Elapsed/Completed/Tokens/Token Details/Step Tokens/No data）
+- [x] `empty-state.tsx`: 1 个中文字符串 → 英文（"No active vibe-pm tasks"）
 
 ### [ ] 里程碑 5 — Phase 5: Template Source Migration
 
