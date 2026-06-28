@@ -5,7 +5,7 @@
 
 > **OpenCode 的结构化开发工作流插件。**
 >
-> vibe-pm 让 vibe-coding 不跑偏 — FSM 驱动的任务管理、精准上下文注入、数据驱动的持续优化 — 每次对话都稳定、可追溯、可改进。
+> vibe-pm是一个OpenCode插件, 它能让 vibe-coding 不跑偏。
 
 ## 为什么需要 vibe-pm？
 

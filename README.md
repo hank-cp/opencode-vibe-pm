@@ -5,7 +5,7 @@
 
 > **Structured development workflows for OpenCode.**
 >
-> vibe-pm keeps vibe-coding on rails — FSM-governed tasks, precision context injection, and data-driven optimization — so every session is stable, traceable, and improvable.
+> vibe-pm is a OpenCode plugin. It keeps vibe-coding on rails.
 
 ## Why vibe-pm?
 
