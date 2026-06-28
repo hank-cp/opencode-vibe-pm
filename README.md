@@ -32,6 +32,7 @@ Key checkpoints require human approval. No silent drift.
 3. **Spec + Task-driven**: every session is anchored by Spec → Plan → State
 4. Key steps enforce **human approval** — your Coding Agent never drifts off-course
 5. **Native language support** — vibe-code in your own language with a unified dictionary to eliminate naming ambiguity
+6. Collect **real-time Token usage statistics**, and display in TUI sidebar
 
 This project is built entirely with vibe-pm and Chinese as the development language.
 
