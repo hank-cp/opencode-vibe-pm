@@ -1,54 +1,54 @@
-# Python 编码风格
+# Python Coding Style
 
-## 通用格式
+## General Formatting
 
-- 统一使用 UTF-8 编码，换行符使用 LF
-- 使用 Black + isort 自动格式化代码（保存时自动执行）
-- 缩进使用 4 空格，不使用 Tab
-- 行长度建议不超过 88 字符
-- 文件末尾保留一个空行
+- Use UTF-8 encoding with LF line endings
+- Use Black + isort for automatic code formatting (run on save)
+- Indent with 4 spaces, do not use tabs
+- Recommended line length: no more than 88 characters
+- Keep one blank line at the end of the file
 
-## 文件组织
+## File Organization
 
-### 命名
+### Naming
 
-- 源文件使用 `snake_case`
-- 目录名使用 `snake_case`
-- 测试文件命名：`test_*.py` 或 `*_test.py`
+- Source files use `snake_case`
+- Directory names use `snake_case`
+- Test file naming: `test_*.py` or `*_test.py`
 
-### Import 分组
+### Import Grouping
 
 ```python
-# 1. 标准库
+# 1. Standard library
 import os
 from pathlib import Path
 
-# 2. 第三方库
+# 2. Third-party libraries
 import requests
 from pydantic import BaseModel
 
-# 3. 项目内部模块
+# 3. Project internal modules
 from app.core.config import settings
 from app.models.user import User
 ```
 
-### 文件结构
+### File Structure
 
-- 每个文件尽量只有一个主要导出
-- 辅助类型/函数使用命名导出
-- 模块暴露出清晰的公共 API
+- Each file should ideally have one main export
+- Use named exports for helper types/functions
+- Modules should expose a clean public API
 
-## 命名规范
+## Naming Conventions
 
-### 变量
+### Variables
 
-- 使用 `snake_case`
-- 短作用域用短名字：`i`, `item`, `ctx`
-- 长作用域用描述性名字：`task_config`, `message_count`
-- 布尔变量用疑问词前缀：`is_active`, `has_plan`, `can_proceed`
-- 不使用匈牙利命名法
+- Use `snake_case`
+- Short scope uses short names: `i`, `item`, `ctx`
+- Long scope uses descriptive names: `task_config`, `message_count`
+- Boolean variables use interrogative prefixes: `is_active`, `has_plan`, `can_proceed`
+- Do not use Hungarian notation
 
-### 常量
+### Constants
 
 - `UPPER_SNAKE_CASE`
 
@@ -57,16 +57,16 @@ DEFAULT_LANGUAGE = "zh-CN"
 MAX_RETRY_COUNT = 3
 ```
 
-### 函数
+### Functions
 
-- 使用 `snake_case`
-- 动词开头：`get_task`, `find_flow`, `create_plan`, `parse_spec`
-- 事件处理函数：`handle_xxx` 或 `on_xxx`
+- Use `snake_case`
+- Start with a verb: `get_task`, `find_flow`, `create_plan`, `parse_spec`
+- Event handler functions: `handle_xxx` or `on_xxx`
 
-### 类型与类
+### Types and Classes
 
-- 使用 `PascalCase`
-- 遵循 PEP 8，类名使用 CapWords
+- Use `PascalCase`
+- Follow PEP 8, class names use CapWords
 
 ```python
 class TaskState:
@@ -75,9 +75,9 @@ class TaskState:
     current_step: str
 ```
 
-### 枚举
+### Enums
 
-使用 `Enum`，成员使用 `UPPER_SNAKE_CASE`
+Use `Enum`, members use `UPPER_SNAKE_CASE`
 
 ```python
 from enum import Enum
@@ -88,19 +88,19 @@ class TaskStatus(Enum):
     CLOSED = "closed"
 ```
 
-## 类型安全
+## Type Safety
 
-### 推荐方式
+### Recommended Practices
 
 ```python
-# ✅ 使用类型注解
+# ✅ Use type annotations
 def process(data: dict[str, object]) -> Result:
     if not isinstance(data, dict) or "id" not in data:
         raise TypeError("Invalid data")
     ...
 
-# ✅ 使用 mypy / pyright 进行静态检查
-# ✅ 使用 dataclass / Pydantic 定义数据结构
+# ✅ Use mypy / pyright for static checking
+# ✅ Use dataclass / Pydantic to define data structures
 from dataclasses import dataclass
 
 @dataclass
@@ -110,28 +110,28 @@ class TaskState:
     current_step: str
 ```
 
-### 禁止事项
+### Prohibitions
 
-- ❌ 禁止裸 except（至少捕获 Exception）
-- ❌ 禁止在生产代码中使用 print() 代替日志
-- ❌ 禁止可变默认参数
+- ❌ No bare except (at minimum catch Exception)
+- ❌ Do not use print() instead of logging in production code
+- ❌ No mutable default arguments
 
-## 函数设计
+## Function Design
 
-### 参数
+### Parameters
 
-- 超过 3 个参数使用对象/结构体参数
+- Use object/struct parameters when exceeding 3 arguments
 
-### 返回值
+### Return Values
 
-- 优先返回具体类型，避免 None
-- 可能返回"空"的场景使用 `Result` 模式（如 returns 库）或 `Optional[T]`
+- Prefer concrete types, avoid None
+- For "empty" return scenarios, use the `Result` pattern (e.g., returns library) or `Optional[T]`
 
-## 异步处理
+## Async Handling
 
-- 使用 `async/await`（asyncio）
-- 异步函数使用 `async def`
-- 避免混用同步/异步代码
+- Use `async/await` (asyncio)
+- Use `async def` for async functions
+- Avoid mixing synchronous and asynchronous code
 
 ```python
 async def load_task(session_id: str) -> Task | None:
@@ -139,11 +139,11 @@ async def load_task(session_id: str) -> Task | None:
     return Task.from_row(data) if data else None
 ```
 
-## 错误处理
+## Error Handling
 
-- 明确捕获异常类型，不使用裸 `except:`
-- 在系统边界进行输入校验
-- 使用自定义异常类
+- Catch specific exception types, do not use bare `except:`
+- Validate inputs at system boundaries
+- Use custom exception classes
 
 ```python
 try:
@@ -153,11 +153,11 @@ except ConnectionError as e:
     raise OperationError("Failed to complete operation") from e
 ```
 
-## 日志
+## Logging
 
-- 使用 `logging` 模块，不直接用 `print()`
-- 日志消息使用英文
-- 关键路径记录 info/debug 日志
+- Use the `logging` module, do not use `print()` directly
+- Log messages in English
+- Record info/debug logs on critical paths
 
 ```python
 import logging
@@ -167,29 +167,29 @@ logger.info("Task created", extra={"session_id": session_id})
 logger.error("Failed to load task", extra={"error": str(e)})
 ```
 
-## 注释与文档
+## Comments and Documentation
 
-- 代码注释使用英文
-- 公共 API 使用 docstring（Google 或 NumPy 风格）
-- 复杂逻辑添加解释性注释
+- Code comments in English
+- Public APIs use docstrings (Google or NumPy style)
+- Add explanatory comments for complex logic
 
-## 占位代码
+## Placeholder Code
 
 ```python
-# TODO(username): 需要对接 API — 预计 v1.1
-# FIXME(username): 并发场景下可能数据竞争 — 需要加锁
-# HACK(username): 临时绕过限制 — v1.0 后替换
+# TODO(username): Need to integrate API — expected v1.1
+# FIXME(username): Possible data race under concurrency — needs locking
+# HACK(username): Temporary workaround — replace after v1.0
 ```
 
-## 导出规范
+## Export Conventions
 
 ```python
-# __init__.py 中控制导出
+# Control exports in __init__.py
 __all__ = ["FlowParser", "parse_flow", "FlowDefinition"]
 
-# 主要导出
+# Main export
 class FlowParser: ...
 
-# 辅助函数使用命名导出
+# Helper functions use named exports
 def parse_flow(path: str) -> FlowDefinition: ...
 ```

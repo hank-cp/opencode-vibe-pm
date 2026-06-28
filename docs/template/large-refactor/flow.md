@@ -1,42 +1,42 @@
-# 大规模重构
+# Large-Scale Refactoring
 
 **Template ID**: `large-refactor`
 **Category**: development
-**Description**: 大规模代码重构流程（影响范围评估 → 迁移路径 → 兼容性验证 → 合流）
+**Description**: Large-scale code refactoring workflow (Impact assessment → Migration path → Compatibility verification → Integration)
 **Command**: `/pm-large-refactor`
 **Version**: 1.0.0
 
 ---
 
-## 适用场景
+## Applicable Scenarios
 
-- 跨模块架构调整
-- API 签名变更
-- 数据模型迁移
-- 影响范围超过 5 个文件的重构
+- Cross-module architecture adjustments
+- API signature changes
+- Data model migration
+- Refactoring affecting more than 5 files
 
 ---
 
-## 输入要求
+## Input Requirements
 
-| 输入项 | 必填 | 说明 |
+| Input Item | Required | Description |
 |--------|------|------|
-| 重构目标 | 是 | 重构动机、期望效果 |
-| 影响范围估计 | 否 | 粗略估计涉及的文件和模块 |
+| Refactoring goal | Yes | Refactoring motivation, expected outcome |
+| Impact scope estimate | No | Rough estimate of affected files and modules |
 
 ---
 
-## 默认交付清单
+## Default Deliverables
 
-- 影响范围评估报告
-- 迁移路径设计文档
-- 重构代码（含向后兼容层）
-- 迁移测试
-- 兼容性验证报告
+- Impact scope assessment report
+- Migration path design document
+- Refactored code (with backward compatibility layer)
+- Migration tests
+- Compatibility verification report
 
 ---
 
-## 状态机
+## State Machine
 
 ```mermaid
 stateDiagram-v2
@@ -69,174 +69,174 @@ stateDiagram-v2
 
 ---
 
-## 任务步骤
+## Task Steps
 
-### S1: 理解重构意图
+### S1: Understand Refactoring Intent
 
-**目标**：准确理解重构目标、动机和期望效果。
+**Goal**: Accurately understand the refactoring objective, motivation, and expected outcome.
 
-1. 阅读重构需求描述
-2. 提取核心目标——改什么？为什么改？期望效果？
-3. 初步评估范围
+1. Read the refactoring requirement description
+2. Extract core objectives — What to change? Why change? Expected outcome?
+3. Preliminary scope assessment
 
-**完成后**：自动进入 S2
-
----
-
-### S2: 探索现有代码
-
-**目标**：全面了解受影响代码的现状。
-
-1. 搜索所有引用点（函数、类型、接口）
-2. 分析调用链路和依赖关系
-3. 标记被依赖的外部接口
-
-**完成后**：自动进入 S3
+**On completion**: Automatically proceed to S2
 
 ---
 
-### S3: 标记影响范围与风险
+### S2: Explore Existing Code
 
-**目标**：系统评估重构的波及面和风险。
+**Goal**: Gain a thorough understanding of the current state of the affected code.
 
-1. 列出所有受影响文件和模块
-2. 评估破坏性变更的影响
-3. 标记高风险区域（数据迁移、API 兼容）
-4. 按风险排序
-5. **访谈后重新分析**：从 S4 返回后，基于已澄清的答案，重新审视 S3 原始标记列表：
-   - 澄清的答案是否引入了新的影响范围或风险点？
-   - 已澄清的结论与现有架构有无新矛盾？
-   - 是否有原先未标记的高风险区域？
-6. 若发现新疑问 → 整理新问题列表，返回 S4 继续访谈；若无新疑问 → 进入 S5
+1. Search all reference points (functions, types, interfaces)
+2. Analyze call chains and dependency relationships
+3. Mark external interfaces that are depended upon
 
-**完成后**：无新疑问 → 自动进入 S5；有新疑问 → 返回 S4
+**On completion**: Automatically proceed to S3
 
 ---
 
-### S4: [Human-in-loop] 渐进式访谈 ⚠️
+### S3: Mark Impact Scope and Risks
 
-> **⚠️ 本步骤需要用户介入。** 每次只问 1 个问题。
+**Goal**: Systematically assess the blast radius and risks of the refactoring.
 
-**目标**：澄清重构决策中的模糊点。
+1. List all affected files and modules
+2. Assess the impact of breaking changes
+3. Mark high-risk areas (data migration, API compatibility)
+4. Sort by risk level
+5. **Re-analysis after interview**: After returning from S4, re-examine the S3 original marker list based on clarified answers:
+   - Do the clarified answers introduce new impact scopes or risk points?
+   - Are there new conflicts between the clarified conclusions and the existing architecture?
+   - Are there high-risk areas that were not previously marked?
+6. If new questions arise → compile a new question list and return to S4 to continue the interview; if no new questions → proceed to S5
 
-1. 使用 question / confirm 逐题提问
-2. 覆盖：兼容策略、迁移窗口、回滚方案
-
-**完成后**：用户确认「不再追问」→ 返回 S3 重新分析
-
----
-
-### S5: 设计方案与迁移路径
-
-**目标**：设计完整的重构方案和迁移计划。
-**引用 Regulation**：coding_style.md、constitution.md
-
-1. 设计新架构/接口/数据模型
-2. 设计向后兼容层（如 Adapter / Facade）
-3. 设计迁移路径（渐进式 vs 大爆炸式）
-4. 标注废弃（Deprecation）时间线
-
-**完成后**：自动进入 S6
+**On completion**: No new questions → automatically proceed to S5; new questions → return to S4
 
 ---
 
-### S6: [Human-in-loop] 审查计划 ⚠️
+### S4: [Human-in-loop] Progressive Interview ⚠️
 
-**目标**：用户评审重构计划。
+> **⚠️ This step requires user intervention.** Ask only 1 question at a time.
 
-1. 展示：影响范围、迁移路径、兼容策略、风险
-2. 使用 confirm 工具等待评审
+**Goal**: Clarify ambiguities in refactoring decisions.
 
-**完成后**：通过 → S7，需修改 → S5
+1. Use question / confirm to ask questions one at a time
+2. Cover: compatibility strategy, migration window, rollback plan
 
----
-
-### S7: 编写代码（保持向后兼容）
-
-**目标**：按迁移路径逐步实现重构。
-**引用 Regulation**：coding_style.md、constitution.md
-
-1. 先建兼容层，再改内部实现
-2. 每个改动后运行构建/类型检查
-3. 标记废弃 API（@deprecated）
-
-**完成后**：自动进入 S8
+**On completion**: User confirms "no more questions" → return to S3 for re-analysis
 
 ---
 
-### S8: 编写迁移测试
+### S5: Design Solution and Migration Path
 
-**目标**：编写覆盖旧行为和新行为的测试。
-**引用 Regulation**：coding_style.md
+**Goal**: Design a complete refactoring solution and migration plan.
+**Reference Regulation**: coding_style.md, constitution.md
 
-1. 保留旧 API 的回归测试
-2. 新增新 API 的行为测试
-3. 新增兼容层测试
+1. Design the new architecture / interfaces / data model
+2. Design the backward compatibility layer (e.g., Adapter / Facade)
+3. Design the migration path (incremental vs big bang)
+4. Mark the deprecation timeline
 
-**完成后**：自动进入 S9
-
----
-
-### S9: 运行测试修复
-
-**目标**：全部测试通过。
-
-1. 运行全部测试
-2. 修复失败项
-3. 确认无回归
-
-**完成后**：全部通过 → S10
+**On completion**: Automatically proceed to S6
 
 ---
 
-### S10: 兼容性验证
+### S6: [Human-in-loop] Review Plan ⚠️
 
-**目标**：验证向后兼容性。
-**引用 Regulation**：migration-checklist.md
+**Goal**: User reviews the refactoring plan.
 
-1. 运行旧 API 的调用方测试
-2. 验证数据格式兼容性
-3. 验证配置文件兼容性
-4. 检查 Deprecation Warning 输出
+1. Present: impact scope, migration path, compatibility strategy, risks
+2. Use the confirm tool to wait for review
 
-**完成后**：自动进入 S11
+**On completion**: Approved → S7, needs revision → S5
 
 ---
 
-### S11: 自查
+### S7: Write Code (Maintaining Backward Compatibility)
 
-**目标**：全面自检。
-**引用 Regulation**：checklist.md
+**Goal**: Implement the refactoring incrementally following the migration path.
+**Reference Regulation**: coding_style.md, constitution.md
 
-1. 迁移路径是否完整
-2. 兼容层是否覆盖所有旧 API
-3. 测试是否覆盖旧行为和新行为
-4. 文档是否更新
+1. Build the compatibility layer first, then modify internal implementation
+2. Run build / type check after each change
+3. Mark deprecated APIs (@deprecated)
 
-**完成后**：通过 → S12，需修复 → S7
-
----
-
-### S12: [Human-in-loop] 用户验收 ⚠️
-
-**目标**：用户确认重构效果。
-
-1. 展示重构报告（影响范围、迁移路径、兼容性）
-2. 使用 confirm 工具等待确认
-
-**完成后**：通过 → S13，需修复 → S7
+**On completion**: Automatically proceed to S8
 
 ---
 
-### S13: 合流
+### S8: Write Migration Tests
 
-**目标**：最终验证，收尾文档，询问是否提交。
+**Goal**: Write tests covering both old and new behavior.
+**Reference Regulation**: coding_style.md
 
-1. 运行最终构建校验和测试
-2. 更新 Spec 和 Migration 文档
-3. 使用 `question` 工具询问用户：「是否执行 `git commit`？」
-   - 若用户选择「是」：执行 `git add -A && git commit`，使用本次重构的总结作为 commit message
-   - 若用户选择「否」：跳过提交
-   - ⚠️ 用户选择不影响任务结束
+1. Retain regression tests for old APIs
+2. Add behavioral tests for new APIs
+3. Add compatibility layer tests
 
-**完成后**：任务结束
+**On completion**: Automatically proceed to S9
+
+---
+
+### S9: Run Tests and Fix
+
+**Goal**: All tests pass.
+
+1. Run all tests
+2. Fix failures
+3. Confirm no regressions
+
+**On completion**: All pass → S10
+
+---
+
+### S10: Compatibility Verification
+
+**Goal**: Verify backward compatibility.
+**Reference Regulation**: migration-checklist.md
+
+1. Run tests for callers of old APIs
+2. Verify data format compatibility
+3. Verify configuration file compatibility
+4. Check Deprecation Warning output
+
+**On completion**: Automatically proceed to S11
+
+---
+
+### S11: Self-Check
+
+**Goal**: Comprehensive self-check.
+**Reference Regulation**: checklist.md
+
+1. Is the migration path complete
+2. Does the compatibility layer cover all old APIs
+3. Do tests cover both old and new behavior
+4. Is documentation updated
+
+**On completion**: Pass → S12, needs fixes → S7
+
+---
+
+### S12: [Human-in-loop] User Acceptance ⚠️
+
+**Goal**: User confirms the refactoring results.
+
+1. Present the refactoring report (impact scope, migration path, compatibility)
+2. Use the confirm tool to wait for confirmation
+
+**On completion**: Approved → S13, needs fixes → S7
+
+---
+
+### S13: Integration
+
+**Goal**: Final verification, wrap up documentation, ask whether to commit.
+
+1. Run final build validation and tests
+2. Update Spec and Migration documentation
+3. Use the `question` tool to ask the user: "Execute `git commit`?"
+   - If user selects "Yes": execute `git add -A && git commit`, using the refactoring summary as the commit message
+   - If user selects "No": skip the commit
+   - ⚠️ User choice does not affect task completion
+
+**On completion**: Task ends

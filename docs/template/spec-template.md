@@ -1,188 +1,190 @@
-# Feature Spec 模板
+# Feature Spec Template
 
-## 用法
+## Usage
 
-新建 Feature Spec 时，参考此模板的组织结构，输出到 `/docs/spec/{feature-name}.md`，按章节填充内容。不适用于当前功能的章节可删除。
+When creating a new Feature Spec, follow the structure of this template, output to `/docs/spec/{feature-name}.md`, and fill in each section accordingly. Sections not applicable to the current feature may be removed.
 
-对于非纯代码类功能（流程设计、架构设计、规则制定等），根据实际情况裁剪章节。
-
----
-
-# {功能标题}
-
-**创建日期**: {YYYY-MM-DD}
-**状态**: Draft / Review / Final
-**输入来源**: {用户需求 / 设计讨论 / 技术方案 / 任务要求}
+For non-code-oriented features (process design, architecture design, rule definition, etc.), tailor the sections as appropriate.
 
 ---
 
-## 需求背景
+# {Feature Title}
 
-<!-- 描述要解决什么目标问题，不解决会导致什么后果 -->
-
-{背景描述}
+**Created Date**: {YYYY-MM-DD}
+**Status**: Draft / Review / Final
+**Input Source**: {User Request / Design Discussion / Technical Proposal / Task Requirement}
 
 ---
 
-## 用例场景与用户故事
+## Background & Requirements
+
+<!-- Describe the target problem to solve, and the consequences of not solving it -->
+
+{Background Description}
+
+---
+
+## Use Cases & User Stories
 
 <!--
-  用户故事按优先级（P1/P2/P3）排列。
-  每个用户故事必须可独立测试、独立交付。
-  P1 = 最核心价值，即使只实现这一个也应构成可用 MVP。
-  对于非交互类功能（如架构、流程、规则），可省略用户故事，用"用例场景"描述系统行为。
+  User stories are ordered by priority (P1/P2/P3).
+  Each user story must be independently testable and independently deliverable.
+  P1 = core value; even if only this one is implemented, it should form a usable MVP.
+  For non-interactive features (e.g., architecture, process, rules), user stories can be omitted;
+  use "Use Case Scenarios" to describe system behavior instead.
 -->
 
-### 用户故事 1 — {标题}（优先级：P1）
+### User Story 1 — {Title} (Priority: P1)
 
-{简要描述用户旅程}
+{Brief description of the user journey}
 
-**优先原因**: {为什么是 P1}
+**Priority Reason**: {Why it is P1}
 
-**独立验证**: {如何独立测试这个故事 — 例如"执行 xxx 命令后应看到 xxx 输出"}
+**Independent Verification**: {How to independently test this story — e.g., "After running xxx command, xxx output should appear"}
 
-**验收场景**:
+**Acceptance Scenarios**:
 
-1. **Given** {初始状态}, **When** {操作}, **Then** {预期结果}
-2. **Given** {初始状态}, **When** {操作}, **Then** {预期结果}
-
----
-
-### 用户故事 2 — {标题}（优先级：P2）
-
-{简要描述用户旅程}
-
-**优先原因**: {为什么是 P2}
-
-**独立验证**: {如何独立测试这个故事}
-
-**验收场景**:
-
-1. **Given** {初始状态}, **When** {操作}, **Then** {预期结果}
+1. **Given** {initial state}, **When** {action}, **Then** {expected result}
+2. **Given** {initial state}, **When** {action}, **Then** {expected result}
 
 ---
 
-### 用户故事 3 — {标题}（优先级：P3）
+### User Story 2 — {Title} (Priority: P2)
 
-{简要描述用户旅程}
+{Brief description of the user journey}
 
-**优先原因**: {为什么是 P3}
+**Priority Reason**: {Why it is P2}
 
-**独立验证**: {如何独立测试这个故事}
+**Independent Verification**: {How to independently test this story}
 
-**验收场景**:
+**Acceptance Scenarios**:
 
-1. **Given** {初始状态}, **When** {操作}, **Then** {预期结果}
-
----
-
-## 设计要点
-
-### 领域模型
-
-{涉及的核心实体/概念，实体之间的关系}
-
-| 实体 | 属性 | 关系 |
-|------|------|------|
-| {实体名} | {关键属性} | {关联的实体及关系} |
-
-### 关键路径
-
-{主流程描述，可用步骤列表或流程图}
-
-### 条件分支
-
-{不同条件下的行为分支}
-
-### 接口设计
-
-{对外暴露的接口，参数和返回值}
-
-### 交互设计
-
-{用户与系统的交互流程，关键界面的布局或操作序列}
-
-> 可选使用 Mermaid 序列图描述交互
-
-### 可配置项
-
-| 配置项 | 默认值 | 说明 |
-|--------|--------|------|
-| {key} | {value} | {描述} |
+1. **Given** {initial state}, **When** {action}, **Then** {expected result}
 
 ---
 
-## 分解索引
+### User Story 3 — {Title} (Priority: P3)
+
+{Brief description of the user journey}
+
+**Priority Reason**: {Why it is P3}
+
+**Independent Verification**: {How to independently test this story}
+
+**Acceptance Scenarios**:
+
+1. **Given** {initial state}, **When** {action}, **Then** {expected result}
+
+---
+
+## Design Highlights
+
+### Domain Model
+
+{Core entities/concepts involved, and the relationships between entities}
+
+| Entity | Attributes | Relationships |
+|--------|------------|---------------|
+| {Entity Name} | {Key Attributes} | {Related entities and their relationships} |
+
+### Critical Path
+
+{Main flow description; may use step list or flow chart}
+
+### Conditional Branches
+
+{Behavior branches under different conditions}
+
+### Interface Design
+
+{Externally exposed interfaces, parameters, and return values}
+
+### Interaction Design
+
+{User-system interaction flow, key interface layouts, or operation sequences}
+
+> Optionally use Mermaid sequence diagrams to describe interactions
+
+### Configurable Items
+
+| Config Item | Default Value | Description |
+|-------------|---------------|-------------|
+| {key} | {value} | {description} |
+
+---
+
+## Decomposition Index
 
 <!--
-  当 Spec 范围过大、不适合在单文档中描述所有细节时，使用此章节。
-  "设计要点"仅保留分层架构（领域模型、模块关系、关键路径），
-  各功能点的详细设计（领域模型、接口设计、测试用例等）分解到独立 Spec。
-  不适用时删除本段注释和表格。
+  Use this section when the Spec scope is too large to describe all details in a single document.
+  "Design Highlights" retains only the layered architecture (domain model, module relationships, critical path);
+  detailed designs for individual feature points (domain models, interface designs, test cases, etc.)
+  are decomposed into independent Specs.
+  Remove this comment and table when not applicable.
 -->
 
-| 功能点 | 详细设计 Spec | 说明 |
-|--------|--------------|------|
-| {功能点名称} | [`spec-{name}.md`](./{parent-feature}/spec-{name}.md) | {简要说明} |
+| Feature Point | Detailed Spec | Description |
+|---------------|---------------|-------------|
+| {Feature Point Name} | [`spec-{name}.md`](./{parent-feature}/spec-{name}.md) | {Brief description} |
 
 ---
 
-## 边界与错误情况
+## Edge Cases & Error Handling
 
-| 场景 | 预期行为 |
-|------|---------|
-| {空输入} | {处理方式} |
-| {极值输入} | {处理方式} |
-| {并发访问} | {处理方式} |
-| {依赖不可用} | {降级策略} |
-| {非法操作} | {错误提示} |
-
----
-
-## 测试用例
-
-### ${测试文件名}
-
-- **测试文件**: `[文件名](/path/to/xxx_test.go)`
-- **关联设计文档**: 关联的 Feature Spec 文档
-- **Setup/Teardown**: Setup/Teardown 需要做的事情
-
-| 动作指令 | 测试方法 | Given | When | Then | Notes |
-|----------|----------|-------|------|------|-------|
-| ${新增/修改/废弃} | `${testMethod}` | ${gherkin} | ${gherkin} | ${gherkin} | ${备注} |
+| Scenario | Expected Behavior |
+|----------|-------------------|
+| {Empty input} | {How to handle} |
+| {Extreme value input} | {How to handle} |
+| {Concurrent access} | {How to handle} |
+| {Dependency unavailable} | {Degradation strategy} |
+| {Invalid operation} | {Error message} |
 
 ---
 
-## 约束与限制
+## Test Cases
 
-### 技术约束
+### ${Test File Name}
 
-{依赖版本、性能要求、兼容性要求}
+- **Test File**: `[file name](/path/to/xxx_test.go)`
+- **Associated Design Doc**: The associated Feature Spec document
+- **Setup/Teardown**: What needs to be done for Setup/Teardown
 
-### 业务约束
-
-{不可打破的业务规则、合规/安全要求}
-
-### 已知风险
-
-{最大的不确定性、最可能出问题的地方}
-
-### 影响范围
-
-{影响哪些现有模块，是否需要修改已有代码}
+| Action | Test Method | Given | When | Then | Notes |
+|--------|-------------|-------|------|------|-------|
+| ${Add/Modify/Deprecate} | `${testMethod}` | ${gherkin} | ${gherkin} | ${gherkin} | ${notes} |
 
 ---
 
-## 实施规划
+## Constraints & Limitations
 
-> 本部分在开发过程中持续更新。以里程碑为粒度拆解，每个里程碑关联功能点和风险。
+### Technical Constraints
 
-### [x] 里程碑 1 — {标题}
+{Dependency versions, performance requirements, compatibility requirements}
 
-- [x] {功能点1}
-  - 已知问题/风险: {交付时仍存在的问题/风险, 留待后续解决}
+### Business Constraints
 
-### [ ] 里程碑 2 — {标题}
+{Unbreakable business rules, compliance/security requirements}
 
-- [x] {功能点2}
-  - 已知问题/风险: {同上}
+### Known Risks
+
+{Greatest uncertainties, most likely areas to go wrong}
+
+### Impact Scope
+
+{Which existing modules are affected, whether existing code needs modification}
+
+---
+
+## Implementation Plan
+
+> This section is continuously updated during development. Break down by milestone granularity, associating each milestone with feature points and risks.
+
+### [x] Milestone 1 — {Title}
+
+- [x] {Feature Point 1}
+  - Known Issues/Risks: {Issues/risks remaining at delivery time, to be resolved later}
+
+### [ ] Milestone 2 — {Title}
+
+- [x] {Feature Point 2}
+  - Known Issues/Risks: {Same as above}

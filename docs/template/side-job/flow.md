@@ -1,147 +1,147 @@
-# 短平快任务
+# Quick Turnaround Tasks
 
 **Template ID**: `side-job`
 **Category**: side-job
-**Description**: 短平快任务流程——LLM 必须在执行前将方案与用户确认
+**Description**: Quick turnaround task flow — LLM must confirm the plan with the user before execution
 **Command**: `/pm-side-job`
 **Version**: 1.0.0
 
 ---
 
-## 适用场景
+## Applicable Scenarios
 
-- 意图明确、不需要深度调研的独立小任务
-- 一次性修改、配置调整、小范围重构、脚本编写等
-- 用户期望 LLM 在执行前先思考方案并确认，而非直接动手
+- Independent small tasks with clear intent that don't require deep research
+- One-off modifications, config adjustments, small-scale refactoring, script writing, etc.
+- Users expect the LLM to think through a plan and get confirmation before taking action
 
-**不适用**：复杂架构设计、需要根因分析的 Bug 修复、大规模重构。
-
----
-
-## 输入要求
-
-| 输入项 | 必填 | 说明 |
-|--------|------|------|
-| 任务描述 | 是 | 要做什么、期望效果是什么 |
-
-输入不满足要求时，引导用户补充后继续。
+**Not applicable**: Complex architecture design, bug fixes requiring root cause analysis, large-scale refactoring.
 
 ---
 
-## 默认交付清单
+## Input Requirements
 
-- 完成用户描述的任务
-- 如有代码变更，通过 LSP 诊断和构建验证
+| Input Item | Required | Description |
+|------------|----------|-------------|
+| Task Description | Yes | What to do, and the expected outcome |
+
+If the input does not meet requirements, guide the user to supplement before continuing.
 
 ---
 
-## 状态机
+## Default Deliverables
+
+- Complete the task described by the user
+- If code changes are involved, pass LSP diagnostics and build verification
+
+---
+
+## State Machine
 
 ```mermaid
 stateDiagram-v2
-    [*] --> S1_理解意图: 触发
-    S1_理解意图 --> S2_确认方案
-    S2_确认方案 --> S1_理解意图: 用户要求修正
-    S2_确认方案 --> S1_理解意图: 方案不可行需重新分析
-    S2_确认方案 --> S3_执行: 用户确认通过
-    S3_执行 --> S4_验收合流
-    S4_验收合流 --> S3_执行: 需修改
-    S4_验收合流 --> [*]: 通过
+    [*] --> S1_UnderstandIntent: Trigger
+    S1_UnderstandIntent --> S2_ConfirmPlan
+    S2_ConfirmPlan --> S1_UnderstandIntent: User requests revision
+    S2_ConfirmPlan --> S1_UnderstandIntent: Plan is infeasible, needs re-analysis
+    S2_ConfirmPlan --> S3_Execute: User confirms approval
+    S3_Execute --> S4_AcceptanceIntegration
+    S4_AcceptanceIntegration --> S3_Execute: Modifications needed
+    S4_AcceptanceIntegration --> [*]: Passed
 
-    note right of S2_确认方案
-        ⚠️ 需要用户介入
+    note right of S2_ConfirmPlan
+        ⚠️ Requires user intervention
     end note
 
-    note right of S4_验收合流
-        ⚠️ 需要用户介入
+    note right of S4_AcceptanceIntegration
+        ⚠️ Requires user intervention
     end note
 ```
 
 ---
 
-## 任务步骤
+## Task Steps
 
-### S1: 理解意图
+### S1: Understand Intent
 
-**目标**：准确理解用户要做什么，分析可行方案。
+**Goal**: Accurately understand what the user wants to do, and analyze feasible approaches.
 
-1. 阅读用户描述，提取核心任务和约束条件
-2. 必要时阅读相关源码和文档（用 read 工具直接读取）
-3. 搜索项目内相关文件了解现有模式（用 explore agent 并行搜索）
-4. 如果描述不清晰或信息不足，使用 `question` / `confirm` 工具追问
-5. 思考 2-3 个可行方案，评估各自的改动范围、风险和影响
-6. 选出推荐方案，准备在 S2 展示
+1. Read the user's description, extract the core task and constraints
+2. Read relevant source code and documentation as needed (using the read tool directly)
+3. Search for related files within the project to understand existing patterns (using explore agent for parallel searches)
+4. If the description is unclear or information is insufficient, use the `question` / `confirm` tools to follow up
+5. Consider 2-3 feasible approaches, evaluate each in terms of scope of changes, risk, and impact
+6. Select the recommended approach, ready to present in S2
 
-**注意**：本步骤**禁止**编辑、创建或删除任何文件。
+**Note**: **Do not** edit, create, or delete any files during this step.
 
-**完成后**：自动进入 S2
-
----
-
-### S2: [Human-in-loop] 确认执行方案 ⚠️
-
-> **⚠️ 本步骤需要用户介入。** LLM 展示执行方案，使用 `confirm` / `question` 工具等待用户**明确确认**后方可推进。
-
-**目标**：将执行方案展示给用户，获取明确确认。
-
-1. 调用 `pm_task_set_step(step="S2")` 声明进入步骤
-2. 展示执行方案，至少包含：
-   - **任务理解**：一句话概括要做什么
-   - **执行步骤**：具体要改哪些文件、做什么修改（顺序和依赖关系）
-   - **影响范围**：可能影响的模块或功能
-   - **风险点**：需要注意的地方（如有）
-3. ⚠️ 使用 `confirm` / `question` 工具等待用户明确确认：
-   - **必须**收到用户「确认 / 同意 / 通过 / 没问题 / 可以 / go ahead / LGTM」等**强烈正面**的指令后方可推进
-   - 含糊/弱肯定话术（「看起来行」「试试吧」「嗯」「应该可以」）视为**未确认**，必须追问用户明确表态
-   - 用户沉默不回应视为**未确认**，禁止自行推进
-4. **严禁**在收到明确确认前执行任何代码修改、文件编辑或 todo 创建
-5. 若用户要求调整方案 → 返回 S1 重新分析（或在本步骤就地修正后重新确认）
-
-**状态流转**：
-- 用户明确确认 → S3
-- 用户要求修正 → 返回 S1（重新分析方案）
-- 方案经简单调整后重新确认 → 留在 S2 继续确认
-
-**完成后**：用户明确确认 → 进入 S3
+**On completion**: Automatically proceed to S2
 
 ---
 
-### S3: 执行
+### S2: [Human-in-loop] Confirm Execution Plan ⚠️
 
-**目标**：按确认的方案执行任务。
+> **⚠️ This step requires user intervention.** The LLM presents the execution plan and uses the `confirm` / `question` tools to wait for the user's **explicit confirmation** before proceeding.
 
-1. 调用 `pm_task_set_step(step="S3")` 声明进入步骤
-2. 创建 todo 列表（如果任务包含多个子步骤）
-3. 严格按照 S2 确认的方案执行：
-   - 只改方案中列出的文件
-   - 不引入方案外的修改
-   - 遵循项目宪章「代码品质优先原则」
-4. 每完成一个子步骤，更新 todo 状态
-5. 完成后运行项目构建/类型检查/LSP 诊断验证
+**Goal**: Present the execution plan to the user and obtain explicit confirmation.
 
-**完成后**：自动进入 S4
+1. Call `pm_task_set_step(step="S2")` to declare entry into this step
+2. Present the execution plan, including at minimum:
+   - **Task Understanding**: A one-sentence summary of what to do
+   - **Execution Steps**: Which specific files to modify, what changes to make (order and dependencies)
+   - **Scope of Impact**: Modules or features that may be affected
+   - **Risk Points**: Areas to watch out for (if any)
+3. ⚠️ Use the `confirm` / `question` tools to wait for the user's explicit confirmation:
+   - **Must** receive a **strongly affirmative** instruction such as "confirmed / agree / approved / no problem / OK / go ahead / LGTM" before proceeding
+   - Vague or weakly affirmative language ("looks doable", "give it a try", "mm", "should be fine") is treated as **unconfirmed** — must follow up with the user for a clear stance
+   - User silence is treated as **unconfirmed** — do not proceed on your own
+4. **Strictly prohibited** from performing any code modifications, file edits, or todo creation before receiving explicit confirmation
+5. If the user requests plan adjustments → return to S1 for re-analysis (or revise in place at this step and re-confirm)
+
+**State transitions**:
+- User explicitly confirms → S3
+- User requests revisions → return to S1 (re-analyze the plan)
+- Plan adjusted with simple changes and re-confirmed → stay at S2 to continue confirmation
+
+**On completion**: User explicitly confirms → proceed to S3
 
 ---
 
-### S4: [Human-in-loop] 验收合流 ⚠️
+### S3: Execute
 
-> **⚠️ 本步骤需要用户介入。** 用户审查执行结果，确认后合流。
+**Goal**: Execute the task according to the confirmed plan.
 
-**目标**：用户验收最终成果，确认交付。
+1. Call `pm_task_set_step(step="S3")` to declare entry into this step
+2. Create a todo list (if the task involves multiple sub-steps)
+3. Strictly follow the plan confirmed in S2:
+   - Only modify files listed in the plan
+   - Do not introduce changes outside the plan
+   - Follow the project constitution's "Code Quality First" principle
+4. Update todo status upon completing each sub-step
+5. After completion, run project build / type check / LSP diagnostics for verification
 
-1. 调用 `pm_task_set_step(step="S4")` 声明进入步骤
-2. 展示执行摘要：
-   - 修改了哪些文件
-   - 做了什么改动（diff 摘要）
-   - 验证结果（构建/类型检查/LSP 诊断是否通过）
-3. 使用 `confirm` / `question` 工具等待用户验收确认
-4. 验收通过后，使用 `question` 工具询问用户：「是否执行 `git commit`？」
-   - 若用户选择「是」：执行 `git add -A && git commit`，使用本次任务的总结作为 commit message
-   - 若用户选择「否」：跳过提交
-   - ⚠️ 用户选择不影响任务结束
+**On completion**: Automatically proceed to S4
 
-**状态流转**：
-- 用户通过 → 合流结束
-- 用户要求修改 → 退回 S3
+---
 
-**完成后**：调用 `pm_task_close()` 结束任务并触发分析
+### S4: [Human-in-loop] Acceptance & Integration ⚠️
+
+> **⚠️ This step requires user intervention.** The user reviews the execution results and confirms integration.
+
+**Goal**: User accepts the final deliverable and confirms completion.
+
+1. Call `pm_task_set_step(step="S4")` to declare entry into this step
+2. Present an execution summary:
+   - Which files were modified
+   - What changes were made (diff summary)
+   - Verification results (build / type check / LSP diagnostics passed or not)
+3. Use the `confirm` / `question` tools to wait for the user's acceptance confirmation
+4. After acceptance, use the `question` tool to ask the user: "Proceed with `git commit`?"
+   - If the user chooses "Yes": run `git add -A && git commit`, using the task summary as the commit message
+   - If the user chooses "No": skip the commit
+   - ⚠️ The user's choice does not affect task completion
+
+**State transitions**:
+- User approves → integration complete
+- User requests modifications → return to S3
+
+**On completion**: Call `pm_task_close()` to end the task and trigger analysis

@@ -1,71 +1,71 @@
-# Java 编码风格
+# Java Coding Style
 
-## 通用格式
+## General Format
 
-- 统一使用 UTF-8 编码，换行符使用 LF
-- 使用 Spotless / google-java-format 自动格式化代码
-- 缩进使用 4 空格，不使用 Tab
-- 行长度建议不超过 120 字符
-- 文件末尾保留一个空行
+- Use UTF-8 encoding uniformly, LF for line endings
+- Use Spotless / google-java-format for automatic code formatting
+- Use 4 spaces for indentation, no tabs
+- Recommended line length: max 120 characters
+- Keep one blank line at end of file
 
-## 文件组织
+## File Organization
 
-### 命名
+### Naming
 
-- 源文件使用 `PascalCase`（一个文件一个公共类）
-- 目录名使用 `snake_case` 或按包名约定
-- 测试文件命名：`*Test.java`，在 `src/test/` 下镜像 `src/main/` 结构
-- 包名全小写，使用反向域名（如 `com.example.project`）
+- Source files use `PascalCase` (one public class per file)
+- Directory names use `snake_case` or follow package naming conventions
+- Test file naming: `*Test.java`, mirroring `src/main/` structure under `src/test/`
+- Package names are all lowercase, using reverse domain notation (e.g. `com.example.project`)
 
-### Import 分组
+### Import Grouping
 
 ```java
-// 1. 静态导入
+// 1. Static imports
 import static org.junit.Assert.*;
 
-// 2. Java 标准库
+// 2. Java standard library
 import java.util.List;
 import java.util.Optional;
 
-// 3. 第三方库
+// 3. Third-party libraries
 import com.google.common.collect.ImmutableList;
 
-// 4. 项目内部
+// 4. Project internals
 import com.example.project.core.TaskState;
 ```
 
-### 文件结构
+### File Structure
 
-- 每个文件一个顶层类，类名与文件名一致
-- 每个文件尽量只有一个主要导出
-- 辅助类型/函数使用命名导出
+- One top-level class per file, class name matches file name
+- Each file should ideally have only one main export
+- Helper types/functions use named exports
 
-## 命名规范
+## Naming Conventions
 
-### 变量
+### Variables
 
-- 使用 `camelCase`
-- 短作用域用短名字：`i`, `item`, `ctx`
-- 长作用域用描述性名字：`taskConfig`, `messageCount`
-- 布尔变量用疑问词前缀：`isActive`, `hasPlan`, `canProceed`
+- Use `camelCase`
+- Short scope: short names, e.g. `i`, `item`, `ctx`
+- Long scope: descriptive names, e.g. `taskConfig`, `messageCount`
+- Boolean variables: question-word prefix, e.g. `isActive`, `hasPlan`, `canProceed`
 
-### 常量
+### Constants
 
-- `UPPER_SNAKE_CASE`（`static final` 字段）
+- `UPPER_SNAKE_CASE` (`static final` fields)
 
-### 函数
+### Functions
 
-- 使用 `camelCase`
-- 动词开头：`getTask`, `findFlow`, `createPlan`, `parseSpec`
+- Use `camelCase`
+- Verb-prefixed: `getTask`, `findFlow`, `createPlan`, `parseSpec`
 
-### 类型与接口
+### Types and Interfaces
 
-- 使用 `PascalCase`
-- 接口名不加 `I` 前缀
+- Use `PascalCase`
+- No `I` prefix for interface names
 
-### 枚举
+### Enums
 
-使用 `enum`，成员使用 `UPPER_SNAKE_CASE`：
+Use `enum`, members in `UPPER_SNAKE_CASE`:
 
 ```java
 public enum TaskStatus {
@@ -75,29 +75,29 @@ public enum TaskStatus {
 }
 ```
 
-## 类型安全
+## Type Safety
 
-### 规则
+### Rules
 
-- ✅ 使用泛型避免原始类型
-- ✅ 使用 `Optional<T>` 代替 null 返回
-- ✅ 使用 `final` 修饰不可变字段
-- ❌ 禁止捕获 `Exception` 后吞掉
+- ✅ Use generics to avoid raw types
+- ✅ Use `Optional<T>` instead of returning null
+- ✅ Use `final` for immutable fields
+- ❌ Never catch `Exception` and swallow it
 
-## 函数设计
+## Function Design
 
-### 参数
+### Parameters
 
-- 超过 3 个参数使用 Builder 模式处理复杂构造
+- Use Builder pattern for complex construction when exceeding 3 parameters
 
-### 返回值
+### Return Values
 
-- `Optional<T>` 或自定义 `Result<T, E>`
+- `Optional<T>` or custom `Result<T, E>`
 
-## 异步处理
+## Async Handling
 
-- 使用 `CompletableFuture<T>` 或响应式框架
-- 异步方法返回 `Future<T>`
+- Use `CompletableFuture<T>` or reactive frameworks
+- Async methods return `Future<T>`
 
 ```java
 public CompletableFuture<Optional<Task>> loadTask(String sessionId) {
@@ -106,11 +106,11 @@ public CompletableFuture<Optional<Task>> loadTask(String sessionId) {
 }
 ```
 
-## 错误处理
+## Error Handling
 
-- 捕获具体异常类型
-- 使用自定义异常类
-- 在 finally 中释放资源（或使用 try-with-resources）
+- Catch specific exception types
+- Use custom exception classes
+- Release resources in `finally` (or use try-with-resources)
 
 ```java
 try {
@@ -121,10 +121,10 @@ try {
 }
 ```
 
-## 日志
+## Logging
 
-- 使用 SLF4J + Logback
-- 日志消息使用英文
+- Use SLF4J + Logback
+- Log messages in English
 
 ```java
 import org.slf4j.Logger;
@@ -135,20 +135,20 @@ logger.info("Task created, sessionId={}", sessionId);
 logger.error("Failed to load task", e);
 ```
 
-## 注释与文档
+## Comments and Documentation
 
-- 代码注释使用英文
-- 公共 API 使用 Javadoc
-- 复杂逻辑添加解释性注释
+- Code comments in English
+- Use Javadoc for public APIs
+- Add explanatory comments for complex logic
 
-## 占位代码
+## Placeholder Code
 
 ```java
-// TODO(username): 需要对接 API — 预计 v1.1
-// FIXME(username): 并发场景下可能数据竞争 — 需要加锁
-// HACK(username): 临时绕过限制 — v1.0 后替换
+// TODO(username): Need to integrate API — estimated v1.1
+// FIXME(username): Possible data race in concurrent scenario — need locking
+// HACK(username): Temporary workaround — replace after v1.0
 ```
 
-## 导出规范
+## Export Conventions
 
-使用 `public` / `protected` / package-private 控制可见性
+Use `public` / `protected` / package-private to control visibility

@@ -1,194 +1,194 @@
-# Spec 设计
+# Spec Design
 
 **Template ID**: `design-spec`
 **Category**: design
-**Description**: 从需求到 Spec 文档的渐进式设计流程（理解/探索/访谈/设计/审查，6步）
+**Description**: Progressive design workflow from requirements to Spec documents (understand / explore / interview / design / review, 6 steps)
 **Command**: `/pm-design-spec`
 **Version**: 1.0.0
 
 ---
 
-## 适用场景
+## Applicable Scenarios
 
-- 从零设计新功能的 Spec 文档
-- 将模糊需求转化为结构化设计规格
-- 需要多轮用户访谈才能明确的复杂设计任务
+- Designing a Spec document for a new feature from scratch
+- Translating vague requirements into structured design specifications
+- Complex design tasks requiring multiple rounds of user interviews to clarify
 
-**不适用**：已有 Spec 的增量修改（使用 spec-driven-dev）、纯代码调研（使用 research）。
-
----
-
-## 输入要求
-
-| 输入项 | 必填 | 说明 |
-|--------|------|------|
-| 需求描述 | 是 | 功能设想、问题描述、目标概要 |
-| 约束条件 | 否 | 已知的技术/业务限制 |
+**Not applicable**: Incremental modifications to an existing Spec (use spec-driven-dev); pure code research (use research).
 
 ---
 
-## 默认交付清单
+## Input Requirements
 
-- Spec 文档（格式参考 `docs/template/spec-template.md`）
-- 如有必要，附带调研笔记或决策记录
+| Input Item | Required | Description |
+|------------|----------|-------------|
+| Requirement Description | Yes | Feature concept, problem statement, goal summary |
+| Constraints | No | Known technical/business constraints |
 
 ---
 
-## 状态机
+## Default Deliverables Checklist
+
+- Spec document (format reference: `docs/template/spec-template.md`)
+- Research notes or decision records if necessary
+
+---
+
+## State Machine
 
 ```mermaid
 stateDiagram-v2
-    [*] --> S1_理解需求
-    S1_理解需求 --> S2_探索已知事实
-    S2_探索已知事实 --> S3_标记缺口与矛盾
-    S3_标记缺口与矛盾 --> S4_渐进式访谈
-    S4_渐进式访谈 --> S4_渐进式访谈: 继续追问
-    S4_渐进式访谈 --> S3_标记缺口与矛盾: 基于澄清答案重新分析
-    S3_标记缺口与矛盾 --> S4_渐进式访谈: 发现新疑问
-    S3_标记缺口与矛盾 --> S5_设计环节: 无更多疑问
-    S5_设计环节 --> S6_用户审查输出
-    S6_用户审查输出 --> S5_设计环节: 需修改
-    S6_用户审查输出 --> [*]: 通过
+    [*] --> S1_Understand_Requirements
+    S1_Understand_Requirements --> S2_Explore_Known_Facts
+    S2_Explore_Known_Facts --> S3_Identify_Gaps_and_Contradictions
+    S3_Identify_Gaps_and_Contradictions --> S4_Progressive_Interview
+    S4_Progressive_Interview --> S4_Progressive_Interview: Continue follow-up
+    S4_Progressive_Interview --> S3_Identify_Gaps_and_Contradictions: Re-analyze based on clarified answers
+    S3_Identify_Gaps_and_Contradictions --> S4_Progressive_Interview: New questions discovered
+    S3_Identify_Gaps_and_Contradictions --> S5_Design_Phase: No further questions
+    S5_Design_Phase --> S6_User_Review_Output
+    S6_User_Review_Output --> S5_Design_Phase: Revisions needed
+    S6_User_Review_Output --> [*]: Approved
 
-    note right of S4_渐进式访谈
-        ⚠️ 需要用户介入
+    note right of S4_Progressive_Interview
+        ⚠️ Requires user intervention
     end note
 
-    note right of S6_用户审查输出
-        ⚠️ 需要用户介入
+    note right of S6_User_Review_Output
+        ⚠️ Requires user intervention
     end note
 ```
 
 ---
 
-## 任务步骤
+## Task Steps
 
-### S1: 理解需求
+### S1: Understand Requirements
 
-**目标**：准确理解用户输入的核心意图和期望产出。
+**Goal**: Accurately understand the core intent and expected output of the user's input.
 
-1. 逐段阅读用户提供的需求描述
-2. 提取核心意图——要解决什么问题？要达成什么目标？
-3. 初步识别需求中已明确的部分和模糊地带
-4. 确认输出范围——是完整的 Feature Spec、系统设计，还是特定模块的设计
+1. Read the user-provided requirement description section by section
+2. Extract the core intent — what problem to solve? What goal to achieve?
+3. Preliminarily identify what is already clear in the requirements and what remains vague
+4. Confirm the output scope — is it a complete Feature Spec, system design, or a design for a specific module?
 
-**完成后**：自动进入 S2
-
----
-
-### S2: 探索已知事实
-
-**目标**：搜索项目内外部相关信息，建立设计所需的知识基线。
-
-1. 搜索项目内已有的相关文档、代码、Spec（使用 explore agent 并行搜索）
-2. 搜索外部参考资料——最佳实践、开源实现、技术文档（使用 librarian agent）
-3. 记录关键发现：
-   - 现有系统的约束和能力边界
-   - 可复用的模块或接口
-   - 已知的技术限制或依赖
-4. 汇总发现，建立知识基线——作为后续设计的"已知事实"依据
-
-**引用工具**：explore / librarian Agent（按需并行）
-
-**完成后**：自动进入 S3
+**Upon completion**: Automatically proceed to S2
 
 ---
 
-### S3: 标记缺口与矛盾
+### S2: Explore Known Facts
 
-**目标**：系统性地找出所有模糊、缺失、冲突的设计点。
+**Goal**: Search for internal and external project-related information to establish the knowledge baseline needed for design.
 
-1. 对照输入需求与 S2 知识基线，标记三类问题：
-   - **缺失项**：设计中完全空白的核心部分
-   - **模糊项**：描述不够具体、存在歧义的内容
-   - **矛盾项**：需求意图与已知事实冲突的地方
-2. 按影响程度排序——阻塞性问题优先（先解决会影响后续设计的缺口）
-3. 为 S4 准备逐题访谈列表——每个问题应聚焦、可回答
-4. **访谈后重新分析**：从 S4 返回后，基于已澄清的答案，重新审视 S3 原始标记列表：
-   - 澄清的答案是否引入了新的模糊点？
-   - 已澄清的结论与现有知识基线有无新矛盾？
-   - 是否有原先未发现的缺失项？
-5. 若发现新疑问 → 整理新问题列表，返回 S4 继续访谈；若无新疑问 → 进入 S5
+1. Search for existing relevant documents, code, and specs within the project (using explore agent in parallel)
+2. Search for external references — best practices, open-source implementations, technical documentation (using librarian agent)
+3. Record key findings:
+   - Constraints and capability boundaries of the existing system
+   - Reusable modules or interfaces
+   - Known technical limitations or dependencies
+4. Summarize findings and establish a knowledge baseline — serving as the foundation of "known facts" for subsequent design
 
-**完成后**：无新疑问 → 自动进入 S5；有新疑问 → 返回 S4
+**Reference tools**: explore / librarian Agent (in parallel as needed)
+
+**Upon completion**: Automatically proceed to S3
 
 ---
 
-### S4: [Human-in-loop] 渐进式访谈 ⚠️
+### S3: Identify Gaps and Contradictions
 
-> **⚠️ 本步骤需要用户介入。** 使用 `question` / `confirm` 阻塞式工具向用户提问——每次只问 1 个问题。
+**Goal**: Systematically identify all vague, missing, or conflicting design points.
 
-**目标**：通过逐题提问澄清所有模糊点和矛盾点。
+1. Cross-reference the input requirements with the S2 knowledge baseline to flag three categories of issues:
+   - **Missing items**: Core parts that are completely absent from the design
+   - **Ambiguous items**: Content with insufficient specificity or inherent ambiguity
+   - **Contradictory items**: Areas where the requirement intent conflicts with known facts
+2. Sort by impact — prioritize blocking issues (gaps that will affect subsequent design decisions first)
+3. Prepare a per-question interview list for S4 — each question should be focused and answerable
+4. **Post-interview re-analysis**: After returning from S4, re-examine the original S3 flagged list based on the clarified answers:
+   - Do the clarified answers introduce new ambiguities?
+   - Do the clarified conclusions conflict with the existing knowledge baseline?
+   - Are there newly discovered missing items that were previously unnoticed?
+5. If new questions are discovered → organize a new question list and return to S4 to continue interviewing; if no new questions → proceed to S5
 
-1. 使用 `question` / `confirm` 阻塞式工具发出问题——每次只问 1 个问题
-2. 等待用户回复后才能问下一个
-3. 如果用户回答引出新方向，先深入追问，再切回原路线
-4. 循环直到用户确认「没有其他需要澄清的问题」
-5. 访谈结束前，基于已澄清的需求预估 Spec 覆盖范围：
-   - 若范围明显过大（涉及 3 个以上独立模块/子系统），建议采用分解设计
-   - 使用 `question` 工具询问用户：「该 Spec 范围较大（涉及 {N} 个模块），是否采用分解设计——产出一个总览 Spec + 多个独立功能的详细设计 Spec？」
-   - 若用户同意 → 标记「S5 采用分解设计」；若不同意 → 按常规单文档设计
-6. **绝不**在普通文本中批量抛出多个问题
-
-**完成后**：用户确认「不再追问」→ 返回 S3 重新分析
-
----
-
-### S5: 设计环节
-
-**目标**：基于澄清后的需求，产出结构化的 Spec 文档。
-
-1. 整理 S1-S4 的全部信息：
-   - 明确的需求背景和目标
-   - 用户访谈中的关键决策和澄清结果
-   - S2 收集到的技术约束和已知事实
-2. 按照 `docs/template/spec-template.md` 的组织结构填充各章节：
-   - 需求背景
-   - 用例场景与用户故事（标注优先级 P1/P2/P3）
-   - 设计要点（领域模型、关键路径、条件分支、接口设计、可配置项）
-   - 边界与错误情况
-   - 约束与限制（技术约束、业务约束、已知风险、影响范围）
-3. 若 S4 中用户选择了分解设计：
-   - 产出总览 Spec（主 Spec），"设计要点"仅描述模块分层架构和模块间接口
-   - 为每个独立功能点产出独立的详细设计 Spec（完整章节）
-   - 子 Spec 保存到 `/docs/spec/{parent-feature}/` 目录下，文件命名 `spec-{feature-name}.md`
-   - 在主 Spec 中使用「分解索引」表格指向各详细设计 Spec
-4. 输出 Spec 文档：
-   - 常规设计 → `/docs/spec/{feature-name}.md`
-   - 分解设计 → 主 Spec 保存为 `/docs/spec/{feature-name}/spec-{feature-name}.md`，子 Spec 保存到同目录
-5. 不适用于当前设计的章节标注「不适用」后保留骨架
-6. 标注设计中仍待决策的开放项（如有）
-
-**引用文档**：`docs/template/spec-template.md`
-
-**完成后**：自动进入 S6
+**Upon completion**: No new questions → automatically proceed to S5; new questions exist → return to S4
 
 ---
 
-### S6: [Human-in-loop] 用户审查输出 ⚠️
+### S4: [Human-in-loop] Progressive Interview ⚠️
 
-> **⚠️ 本步骤需要用户介入。** 用户审查 Spec 文档，确认后完成。
+> **⚠️ This step requires user intervention.** Use `question` / `confirm` blocking tools to ask the user — only 1 question at a time.
 
-**目标**：用户审查 Spec 文档，确认设计满足需求。
+**Goal**: Clarify all ambiguous and contradictory points through per-question interviewing.
 
-1. 展示 Spec 文档摘要——核心设计决策、关键用户故事、主要约束和风险
-2. 使用 `confirm` 工具等待用户对 Spec 整体审查确认
-3. 审查通过后，使用 `question` 工具询问用户：「是否执行 `git commit`？」
-   - 若用户选择「是」：执行 `git add -A && git commit`，使用本次 Spec 设计的总结作为 commit message
-   - 若用户选择「否」：跳过提交
-   - ⚠️ 用户选择不影响任务结束
+1. Use `question` / `confirm` blocking tools to issue questions — only 1 question at a time
+2. Wait for the user's reply before asking the next question
+3. If the user's answer leads to a new direction, follow up deeply before returning to the original route
+4. Loop until the user confirms "there are no other questions that need clarification"
+5. Before concluding the interview, estimate the Spec coverage scope based on the clarified requirements:
+   - If the scope is clearly too large (involving 3 or more independent modules/subsystems), suggest adopting a decomposed design
+   - Use the `question` tool to ask the user: "This Spec has a relatively large scope (involving {N} modules). Would you like to adopt a decomposed design — producing one overview Spec + multiple detailed design Specs for independent features?"
+   - If the user agrees → mark "S5 will use decomposed design"; if they disagree → proceed with the conventional single-document design
+6. **Never** batch multiple questions in plain text
 
-> ⚠️ **重要**：Spec 设计到 S6 为止。本流程的交付物是 Spec 文档，**不进入代码实现**。后续如需实现，应通过 `/pm-spec-driven-dev` 或 `/pm-new-feature` 启动独立任务。如需将 Spec 拆解为分步计划，使用 `/pm-plan`。
-
-**状态流转**：
-- 用户通过 → 合流结束
-- 用户要求修改 → 退回 S5
-
-**完成后**：任务结束
+**Upon completion**: User confirms "no further follow-up" → return to S3 for re-analysis
 
 ---
 
-> **设计原则**：
-> - **精准优先于数量**：Spec 只写入确定的信息，不确定的标注为「待决策」
-> - **LLM 判断流转**：模型根据用户反馈决定状态转换
-> - **关键节点人机协作**：S4 渐进式访谈 + S6 审查输出，两处用户把关
+### S5: Design Phase
+
+**Goal**: Based on the clarified requirements, produce a structured Spec document.
+
+1. Consolidate all information from S1–S4:
+   - Clear requirement background and goals
+   - Key decisions and clarification results from user interviews
+   - Technical constraints and known facts collected in S2
+2. Populate each section following the organizational structure of `docs/template/spec-template.md`:
+   - Requirement background
+   - Use cases and user stories (annotated with priority P1/P2/P3)
+   - Design points (domain model, critical paths, conditional branches, interface design, configurable items)
+   - Edge cases and error scenarios
+   - Constraints and limitations (technical constraints, business constraints, known risks, scope of impact)
+3. If the user chose decomposed design in S4:
+   - Produce an overview Spec (master Spec), where "Design Points" only describes the module layering architecture and inter-module interfaces
+   - Produce independent detailed design Specs (full sections) for each independent feature
+   - Save sub-Specs to the `/docs/spec/{parent-feature}/` directory, with file naming `spec-{feature-name}.md`
+   - Use a "Decomposition Index" table in the master Spec to reference each detailed design Spec
+4. Output the Spec document(s):
+   - Conventional design → `/docs/spec/{feature-name}.md`
+   - Decomposed design → master Spec saved as `/docs/spec/{feature-name}/spec-{feature-name}.md`, sub-Specs saved to the same directory
+5. For sections not applicable to the current design, mark "Not Applicable" while retaining the skeleton
+6. Note any open items still pending decision in the design (if any)
+
+**Reference document**: `docs/template/spec-template.md`
+
+**Upon completion**: Automatically proceed to S6
+
+---
+
+### S6: [Human-in-loop] User Review Output ⚠️
+
+> **⚠️ This step requires user intervention.** The user reviews the Spec document and confirms it to complete.
+
+**Goal**: The user reviews the Spec document and confirms that the design meets the requirements.
+
+1. Present a Spec document summary — core design decisions, key user stories, major constraints and risks
+2. Use the `confirm` tool to wait for the user's overall review approval of the Spec
+3. After approval, use the `question` tool to ask the user: "Run `git commit`?"
+   - If the user selects "Yes": execute `git add -A && git commit`, using the summary of this Spec design as the commit message
+   - If the user selects "No": skip the commit
+   - ⚠️ The user's choice does not affect task completion
+
+> ⚠️ **Important**: Spec design ends at S6. The deliverable of this workflow is the Spec document — it does **not** enter code implementation. For subsequent implementation, start an independent task via `/pm-spec-driven-dev` or `/pm-new-feature`. To decompose the Spec into a step-by-step plan, use `/pm-plan`.
+
+**State transitions**:
+- User approves → merge and end
+- User requests modifications → return to S5
+
+**Upon completion**: Task ends
+
+---
+
+> **Design Principles**:
+> - **Precision over quantity**: The Spec only contains confirmed information; uncertain items are marked as "Pending Decision"
+> - **LLM-driven transitions**: The model decides state transitions based on user feedback
+> - **Human-machine collaboration at key nodes**: S4 Progressive Interview + S6 Review Output, two user checkpoints

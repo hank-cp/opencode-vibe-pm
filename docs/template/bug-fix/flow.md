@@ -1,189 +1,189 @@
-# Bug 修复
+# Bug Fix
 
 **Template ID**: `bug-fix`
 **Category**: maintenance
-**Description**: Bug 修复标准化流程（根因分析 → 修复 → 回归 → 验收）
+**Description**: Standardized bug fix workflow (root cause analysis → fix → regression → acceptance)
 **Command**: `/pm-bug-fix`
 **Version**: 1.0.0
 
 ---
 
-## 适用场景
+## Applicable Scenarios
 
-- 生产环境或开发阶段的 Bug 修复
-- 需要根因分析的非琐碎修复
+- Bug fixes in production or development environments
+- Non-trivial fixes requiring root cause analysis
 
 ---
 
-## 输入要求
+## Input Requirements
 
-| 输入项 | 必填 | 说明 |
+| Input | Required | Description |
 |--------|------|------|
-| Bug 描述 | 是 | 现象、复现步骤、影响范围 |
-| 相关代码/日志 | 否 | 帮助定位问题的信息 |
+| Bug Description | Yes | Symptoms, reproduction steps, impact scope |
+| Related Code/Logs | No | Information to help locate the issue |
 
 ---
 
-## 默认交付清单
+## Default Deliverables
 
-- 根因分析报告
-- 修复代码 + 回归测试
-- 交付报告
+- Root cause analysis report
+- Fix code + regression tests
+- Delivery report
 
 ---
 
-## 状态机
+## State Machine
 
 ```mermaid
 stateDiagram-v2
-    [*] --> S1_理解Bug: 触发
-    S1_理解Bug --> S2_根因分析
-    S2_根因分析 --> S3_审查方案
-    S3_审查方案 --> S2_根因分析: 需修改
-    S3_审查方案 --> S4_编写修复代码: 通过
-    S4_编写修复代码 --> S5_编写测试
-    S5_编写测试 --> S6_回归验证
-    S6_回归验证 --> S7_自查
-    S7_自查 --> S8_用户验收: 通过
-    S7_自查 --> S4_编写修复代码: 需修复
-    S8_用户验收 --> S9_合流: 通过
-    S8_用户验收 --> S4_编写修复代码: 需修复
-    S9_合流 --> [*]
+    [*] --> S1_UnderstandingBug: Trigger
+    S1_UnderstandingBug --> S2_RootCauseAnalysis
+    S2_RootCauseAnalysis --> S3_ReviewPlan
+    S3_ReviewPlan --> S2_RootCauseAnalysis: Needs revision
+    S3_ReviewPlan --> S4_WriteFix: Approved
+    S4_WriteFix --> S5_WriteTests
+    S5_WriteTests --> S6_RegressionVerification
+    S6_RegressionVerification --> S7_SelfCheck
+    S7_SelfCheck --> S8_UserAcceptance: Pass
+    S7_SelfCheck --> S4_WriteFix: Needs fix
+    S8_UserAcceptance --> S9_Merge: Pass
+    S8_UserAcceptance --> S4_WriteFix: Needs fix
+    S9_Merge --> [*]
 
-    note right of S3_审查方案: ⚠️ 需要用户介入
-    note right of S8_用户验收: ⚠️ 需要用户介入
+    note right of S3_ReviewPlan: ⚠️ Human-in-loop
+    note right of S8_UserAcceptance: ⚠️ Human-in-loop
 ```
 
 ---
 
-## 任务步骤
+## Task Steps
 
-### S1: 理解 Bug 描述
+### S1: Understand the Bug
 
-**目标**：准确理解 Bug 现象、复现条件和影响范围。
+**Goal**: Accurately understand the bug symptoms, reproduction conditions, and impact scope.
 
-1. 阅读 Bug 描述、日志、截图
-2. 确认复现步骤
-3. 如果描述不清晰，使用 `question` 工具追问确认
-4. 评估影响范围（功能、数据、安全）
+1. Read the bug description, logs, and screenshots
+2. Confirm reproduction steps
+3. If the description is unclear, use the `question` tool to ask for clarification
+4. Assess impact scope (functionality, data, security)
 
-**完成后**：自动进入 S2
+**On completion**: Automatically advance to S2
 
 ---
 
-### S2: 根因分析
+### S2: Root Cause Analysis
 
-**目标**：定位根因，提出修复方案。
+**Goal**: Identify the root cause and propose a fix plan.
 
-1. 阅读相关源码
-2. 追踪调用链路
-3. 分析定位根因
-4. 分析测试用例覆盖:
-  - 搜索与受影响代码相关的已有测试用例（`{受影响模块}_test.go`）
-  - 判断已有测试是否覆盖了这个异常路径：
-    - 如果**已覆盖**，说明为什么现有测试没有捕获到这个 bug（断言不够精确？mock 数据太理想？测试跳过了？）
-    - 如果**未覆盖**，说明缺失了哪种测试场景
-  - 判断修复后是否需要新增或修改测试用例
-5. 提出修复方案: 遵循项目宪章「代码品质优先原则」，力求优雅、直达核心、代码可阅读可维护
+1. Read relevant source code
+2. Trace the call chain
+3. Analyze and identify the root cause
+4. Analyze test case coverage:
+   - Search for existing test cases related to the affected code (`{affected_module}_test.go`)
+   - Determine whether existing tests cover this abnormal path:
+     - If **covered**, explain why the existing tests did not catch this bug (assertions not precise enough? mock data too ideal? tests skipped?)
+     - If **not covered**, describe which test scenario is missing
+   - Determine whether new or modified test cases are needed after the fix
+5. Propose a fix plan: follow the project constitution's "Code Quality First" principle — strive for elegance, directness, and readable, maintainable code
 
 ```markdown
-## 根因分析
+## Root Cause Analysis
 
-- **现象**: {用户看到的问题}
-- **触发条件**: {什么条件下会触发}
-- **根因**: {代码层面为什么出错，引用具体文件和行号}
-- **影响范围**: {影响了哪些功能 / 哪些用户}
+- **Symptom**: {what the user observed}
+- **Trigger Condition**: {under what conditions it triggers}
+- **Root Cause**: {code-level reason for the failure, citing specific file and line numbers}
+- **Impact Scope**: {which features / which users are affected}
 
 
 ```
 
-**完成后**：自动进入 S3
+**On completion**: Automatically advance to S3
 
 ---
 
-### S3: [Human-in-loop] 审查方案 ⚠️
+### S3: [Human-in-loop] Review Fix Plan ⚠️
 
-**目标**：用户审查修复方案。
+**Goal**: User reviews the fix plan.
 
-1. 展示：根因、修复方案、替代方案、风险评估
-2. 使用 confirm 工具等待确认
+1. Present: root cause, fix plan, alternatives, risk assessment
+2. Use the `confirm` tool to wait for confirmation
 
-**完成后**：通过 → S4，需修改 → S2
-
----
-
-### S4: 编写修复代码
-
-**目标**：按确认方案编写修复。
-**引用 Regulation**：coding_style.md
-
-1. 最小化修复——只改根因代码
-2. 不引入无关重构
-3. 运行项目构建/类型检查验证
-
-**完成后**：自动进入 S5
+**On completion**: Approved → S4, Needs revision → S2
 
 ---
 
-### S5: 编写测试
+### S4: Write the Fix
 
-**目标**：编写回归测试防止复发。
-**引用 Regulation**：coding_style.md
+**Goal**: Write the fix according to the approved plan.
+**Referenced Regulation**: coding_style.md
 
-1. 覆盖复现场景
-2. 覆盖边界条件
-3. 覆盖相关功能（防止副作用）
+1. Minimal fix — only change the root cause code
+2. Do not introduce unrelated refactoring
+3. Run project build / type check to verify
 
-**完成后**：自动进入 S6
-
----
-
-### S6: 回归验证
-
-**目标**：确认修复有效且无回归。
-
-1. 运行全部测试
-2. 验证原 Bug 场景不再复现
-3. 检查相关功能正常
-
-**完成后**：自动进入 S7
+**On completion**: Automatically advance to S5
 
 ---
 
-### S7: 自查
+### S5: Write Tests
 
-**目标**：全面自检修复质量。
-**引用 Regulation**：checklist.md
+**Goal**: Write regression tests to prevent recurrence.
+**Referenced Regulation**: coding_style.md
 
-1. 修复是否符合代码品质优先原则
-2. 测试是否全部通过
-3. 有无引入新问题
-4. 文档是否需要更新
+1. Cover the reproduction scenario
+2. Cover edge cases
+3. Cover related functionality (prevent side effects)
 
-**完成后**：通过 → S8，需修复 → S4
-
----
-
-### S8: [Human-in-loop] 用户验收 ⚠️
-
-**目标**：用户确认修复效果。
-
-1. 展示修复报告（根因、改动、测试结果）
-2. 使用 confirm 工具等待确认
-
-**完成后**：通过 → S9，需修复 → S4
+**On completion**: Automatically advance to S6
 
 ---
 
-### S9: 合流
+### S6: Regression Verification
 
-**目标**：最终验证，收尾文档，询问是否提交。
+**Goal**: Confirm the fix is effective and there is no regression.
 
-1. 运行最终构建校验和测试
-2. 更新 Spec 和 Plan 文档（如需要）
-3. 使用 `question` 工具询问用户：「是否执行 `git commit`？」
-   - 若用户选择「是」：执行 `git add -A && git commit`，使用本次修复的总结作为 commit message
-   - 若用户选择「否」：跳过提交
-   - ⚠️ 用户选择不影响任务结束
+1. Run all tests
+2. Verify the original bug scenario no longer reproduces
+3. Check that related functionality works correctly
 
-**完成后**：任务结束
+**On completion**: Automatically advance to S7
+
+---
+
+### S7: Self-Check
+
+**Goal**: Thoroughly self-review fix quality.
+**Referenced Regulation**: checklist.md
+
+1. Does the fix comply with the code quality first principle?
+2. Do all tests pass?
+3. Have any new issues been introduced?
+4. Does documentation need updating?
+
+**On completion**: Pass → S8, Needs fix → S4
+
+---
+
+### S8: [Human-in-loop] User Acceptance ⚠️
+
+**Goal**: User confirms the fix result.
+
+1. Present the fix report (root cause, changes, test results)
+2. Use the `confirm` tool to wait for confirmation
+
+**On completion**: Approved → S9, Needs fix → S4
+
+---
+
+### S9: Merge
+
+**Goal**: Final verification, wrap-up documentation, ask whether to commit.
+
+1. Run final build check and tests
+2. Update Spec and Plan documents (if needed)
+3. Use the `question` tool to ask the user: "Execute `git commit`?"
+   - If the user selects "Yes": run `git add -A && git commit`, using the fix summary as the commit message
+   - If the user selects "No": skip commit
+   - ⚠️ User selection does not affect task completion
+
+**On completion**: Task ends

@@ -1,114 +1,114 @@
-# 通用编码风格
+# General Coding Style
 
-> 本文件为未支持语言的通用编码规范。当项目使用的语言没有对应的特定规范文件时，以本文件为基准。
+> This file is the general coding standard for unsupported languages. When the project's language has no specific style guide, this file serves as the baseline.
 
-## 通用格式
+## General Format
 
-- 统一使用 UTF-8 编码，换行符使用 LF
-- 使用项目约定的格式化工具
-- 缩进使用项目约定（建议 2 或 4 空格）
-- 行长度建议不超过 100 字符
-- 文件末尾保留一个空行
+- Use UTF-8 encoding, LF line endings
+- Use the project's designated formatter
+- Indentation follows project convention (recommended 2 or 4 spaces)
+- Line length should not exceed 100 characters
+- Keep one blank line at end of file
 
-## 文件组织
+## File Organization
 
-### 命名
+### Naming
 
-- 源文件命名使用项目约定（建议 `kebab-case` 或 `snake_case`）
-- 目录名使用项目约定（建议 `kebab-case`）
-- 测试文件命名按项目约定
+- Source files use project convention (recommended `kebab-case` or `snake_case`)
+- Directory names use project convention (recommended `kebab-case`)
+- Test file naming follows project convention
 
-### Import / 依赖引入
+### Import / Dependency Resolution
 
-1. 标准库/内置模块
-2. 第三方依赖
-3. 项目内部模块
+1. Standard library / built-in modules
+2. Third-party dependencies
+3. Project internal modules
 
-### 文件结构
+### File Structure
 
-- 每个文件尽量只有一个主要导出
-- 辅助类型/函数使用命名导出
-- 模块暴露出清晰的公共 API
+- Prefer one primary export per file
+- Use named exports for helper types/functions
+- Expose a clean public API from each module
 
-## 命名规范
+## Naming Conventions
 
-### 变量
+### Variables
 
-- 使用项目约定（建议 `camelCase` 或 `snake_case`）
-- 短作用域用短名字
-- 长作用域用描述性名字
-- 布尔变量用疑问词前缀
-- 不使用匈牙利命名法
+- Use project convention (recommended `camelCase` or `snake_case`)
+- Short scope → short names
+- Long scope → descriptive names
+- Boolean variables use question-word prefixes
+- Do not use Hungarian notation
 
-### 常量
+### Constants
 
-- 使用项目约定（建议 `UPPER_SNAKE_CASE`）
+- Use project convention (recommended `UPPER_SNAKE_CASE`)
 
-### 函数
+### Functions
 
-- 使用项目约定（建议 `camelCase` 或 `snake_case`）
-- 动词开头
+- Use project convention (recommended `camelCase` or `snake_case`)
+- Start with a verb
 
-### 类型 / 接口 / 类
+### Types / Interfaces / Classes
 
-- 使用项目约定（建议 `PascalCase`）
-- 接口/类型名不加前缀
+- Use project convention (recommended `PascalCase`)
+- Do not prefix interface/type names
 
-### 枚举 / 联合类型
+### Enums / Union Types
 
-- 按项目约定
+- Follow project convention
 
-## 类型安全
+## Type Safety
 
-- 避免使用动态类型/任意类型
-- 优先使用类型注解/类型提示
-- 显式错误处理，不吞掉异常
+- Avoid dynamic types / any-type
+- Prefer type annotations / type hints
+- Explicit error handling; never swallow exceptions
 
-## 函数设计
+## Function Design
 
-### 参数
+### Parameters
 
-- 超过 3 个参数使用对象/结构体参数
+- Use object/struct parameters when exceeding 3 parameters
 
-### 返回值
+### Return Values
 
-- 优先返回具体类型
-- 可能返回"空"的场景使用项目约定（如 `Result<T, E>`、`Optional<T>`、`(T, error)`）
+- Prefer returning concrete types
+- For nullable scenarios, use project convention (e.g., `Result<T, E>`, `Optional<T>`, `(T, error)`)
 
-## 控制流
+## Control Flow
 
-- 优先使用提前返回，减少嵌套层级
+- Prefer early returns to reduce nesting depth
 
-## 异步处理
+## Async Handling
 
-- 使用语言/框架推荐的异步模式
+- Use the language/framework's recommended async pattern
 
-## 错误处理
+## Error Handling
 
-- 所有错误必须显式处理
-- 在系统边界进行输入校验
-- 不在内部逻辑中添加"不可能发生"的错误处理
+- All errors must be handled explicitly
+- Validate inputs at system boundaries
+- Do not add "impossible" error handling in internal logic
 
-## 日志
+## Logging
 
-- 使用项目统一的日志模块
-- 日志消息使用英文
-- 关键路径记录 info/debug 日志
+- Use the project's unified logging module
+- Log messages in English
+- Record info/debug logs on critical paths
 
-## 注释与文档
+## Comments & Documentation
 
-- 代码注释使用英文
-- 公共 API 添加文档注释
-- 复杂逻辑添加解释性注释
+- Code comments in English
+- Add doc comments to public APIs
+- Add explanatory comments for complex logic
 
-## 占位代码
+## Placeholder Code
 
 ```
-// TODO(username): 需要对接 API — 预计 v1.1
-// FIXME(username): 并发场景下可能数据竞争 — 需要加锁
-// HACK(username): 临时绕过限制 — v1.0 后替换
+// TODO(username): needs API integration — expected v1.1
+// FIXME(username): potential data race under concurrency — needs locking
+// HACK(username): temporary workaround — replace after v1.0
 ```
 
-## 导出规范
+## Export Conventions
 
-使用语言/框架推荐的可见性控制
+Use the language/framework's recommended visibility control

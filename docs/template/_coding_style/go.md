@@ -1,72 +1,72 @@
-# Go 编码风格
+# Go Coding Style
 
-## 通用格式
+## General Format
 
-- 统一使用 UTF-8 编码，换行符使用 LF
-- 使用 gofmt / goimports 自动格式化代码（保存时自动执行）
-- 缩进使用 Tab
-- 行长度建议不超过 120 字符
-- 文件末尾保留一个空行
+- Use UTF-8 encoding uniformly, with LF line endings
+- Use gofmt / goimports to auto-format code (run automatically on save)
+- Use Tab for indentation
+- Recommended line length: no more than 120 characters
+- Keep one blank line at the end of the file
 
-## 文件组织
+## File Organization
 
-### 命名
+### Naming
 
-- 源文件使用 `snake_case`（小写 + 下划线）
-- 目录名使用 `snake_case`（小写，简短）
-- 测试文件命名：`*_test.go`，与被测文件同目录
-- 包名使用简短小写单词，避免下划线
+- Source files use `snake_case` (lowercase + underscores)
+- Directory names use `snake_case` (lowercase, concise)
+- Test files are named: `*_test.go`, in the same directory as the file under test
+- Package names use short lowercase words, avoid underscores
 
-### Import 分组
+### Import Grouping
 
 ```go
 import (
-    // 1. 标准库
+    // 1. Standard library
     "fmt"
     "os"
 
-    // 2. 第三方库
+    // 2. Third-party libraries
     "github.com/gin-gonic/gin"
 
-    // 3. 项目内部包
+    // 3. Internal project packages
     "example.com/project/internal/models"
 )
 ```
 
-### 文件结构
+### File Structure
 
-- 一个目录一个包，包名与目录名一致
-- 每个文件尽量只有一个主要导出
-- 辅助类型/函数使用命名导出
+- One package per directory, package name matches directory name
+- Each file should ideally have only one primary export
+- Helper types/functions use named exports
 
-## 命名规范
+## Naming Conventions
 
-### 变量
+### Variables
 
-- 使用 `camelCase`（导出：`PascalCase`）
-- 短作用域用短名字：`i`, `item`, `ctx`
-- 长作用域用描述性名字：`taskConfig`, `messageCount`
-- 布尔变量用疑问词前缀：`isActive`, `hasPlan`, `canProceed`
+- Use `camelCase` (exported: `PascalCase`)
+- Short scope → short names: `i`, `item`, `ctx`
+- Long scope → descriptive names: `taskConfig`, `messageCount`
+- Boolean variables use question-word prefixes: `isActive`, `hasPlan`, `canProceed`
 
-### 常量
+### Constants
 
-- `PascalCase` 或 `camelCase`（导出：`PascalCase`）
-- Go 不使用 UPPER_SNAKE_CASE
+- `PascalCase` or `camelCase` (exported: `PascalCase`)
+- Go does not use UPPER_SNAKE_CASE
 
-### 函数
+### Functions
 
-- 使用 `camelCase`（导出：`PascalCase`）
-- 动词开头：`getTask`, `findFlow`, `createPlan`, `parseSpec`
+- Use `camelCase` (exported: `PascalCase`)
+- Start with a verb: `getTask`, `findFlow`, `createPlan`, `parseSpec`
 
-### 类型与结构体
+### Types and Structs
 
-- 使用 `PascalCase`
-- 接口名通常以 `-er` 结尾（如 `Reader`, `Writer`）
-- Go 没有类，使用 `PascalCase` 命名 struct
+- Use `PascalCase`
+- Interface names typically end with `-er` (e.g., `Reader`, `Writer`)
+- Go has no classes; use `PascalCase` for struct names
 
-### 枚举
+### Enums
 
-Go 没有原生枚举，使用 `const` + `iota`：
+Go has no native enums; use `const` + `iota`:
 
 ```go
 type TaskStatus int
@@ -78,35 +78,35 @@ const (
 )
 ```
 
-## 类型安全
+## Type Safety
 
-### 规则
+### Rules
 
-- ✅ 使用强类型，避免 `interface{}`（优先使用泛型或具体类型）
-- ✅ 显式错误处理：每个可能失败的调用都检查 `if err != nil`
-- ✅ 使用 `go vet` 和 `staticcheck` 进行静态分析
-- ❌ 禁止忽略错误返回值
+- ✅ Use strong typing; avoid `interface{}` (prefer generics or concrete types)
+- ✅ Explicit error handling: check `if err != nil` for every call that may fail
+- ✅ Use `go vet` and `staticcheck` for static analysis
+- ❌ Never ignore returned error values
 
-## 函数设计
+## Function Design
 
-### 参数
+### Parameters
 
-- 超过 3 个参数使用结构体参数
+- Use a struct parameter when there are more than 3 parameters
 
-### 返回值
+### Return Values
 
-- `(T, error)` 元组
+- `(T, error)` tuple
 
-## 控制流
+## Control Flow
 
-- 优先使用提前返回（early return），减少嵌套
-- `switch` 不需要 `break`，使用 `fallthrough` 明确穿透
+- Prefer early returns to reduce nesting
+- `switch` does not need `break`; use `fallthrough` for explicit fall-through
 
-## 异步处理
+## Async Handling
 
-- 使用 goroutine + channel 进行并发
-- 使用 `context.Context` 传递取消信号和超时
-- 使用 `sync.WaitGroup` / `errgroup` 管理并发
+- Use goroutine + channel for concurrency
+- Use `context.Context` to propagate cancellation signals and timeouts
+- Use `sync.WaitGroup` / `errgroup` to manage concurrency
 
 ```go
 func LoadTask(ctx context.Context, sessionID string) (*Task, error) {
@@ -114,11 +114,11 @@ func LoadTask(ctx context.Context, sessionID string) (*Task, error) {
 }
 ```
 
-## 错误处理
+## Error Handling
 
-- 每个可能失败的调用都显式处理错误
-- 错误信息使用小写开头，不以标点结尾
-- 使用 `fmt.Errorf` 包装错误
+- Explicitly handle errors for every call that may fail
+- Error messages start with a lowercase letter and do not end with punctuation
+- Use `fmt.Errorf` to wrap errors
 
 ```go
 data, err := db.Query("SELECT * FROM tasks WHERE session_id = ?", sessionID)
@@ -127,32 +127,32 @@ if err != nil {
 }
 ```
 
-## 日志
+## Logging
 
-- 使用结构化日志库（如 `slog`、`zap`）
-- 日志消息使用英文
+- Use structured logging libraries (e.g., `slog`, `zap`)
+- Log messages use English
 
 ```go
 slog.Info("task created", "sessionID", sessionID)
 slog.Error("failed to load task", "error", err)
 ```
 
-## 注释与文档
+## Comments and Documentation
 
-- 代码注释使用英文
-- 导出的类型/函数必须有文档注释（以名称开头）
-- 复杂逻辑添加解释性注释
+- Code comments use English
+- Exported types/functions must have doc comments (starting with the name)
+- Add explanatory comments for complex logic
 
-## 占位代码
+## Placeholder Code
 
 ```go
-// TODO(username): 需要对接 API — 预计 v1.1
-// FIXME(username): 并发场景下可能数据竞争 — 需要加锁
-// HACK(username): 临时绕过限制 — v1.0 后替换
+// TODO(username): Needs API integration — planned for v1.1
+// FIXME(username): Possible data race under concurrency — needs locking
+// HACK(username): Temporary workaround — replace after v1.0
 ```
 
-## 导出规范
+## Export Conventions
 
-- 大写首字母 = 导出（public）
-- 小写首字母 = 包内私有（private）
-- 避免导出不必要的符号
+- Capitalized first letter = exported (public)
+- Lowercase first letter = package-private (private)
+- Avoid exporting unnecessary symbols

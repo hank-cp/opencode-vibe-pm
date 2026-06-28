@@ -1,28 +1,28 @@
-# 大规模重构兼容性验证清单
+# Large-Scale Refactoring Compatibility Checklist
 
-## 接口兼容性
+## Interface Compatibility
 
-- [ ] 所有旧 API 保持可用（通过 Adapter / Facade / @deprecated 标记）
-- [ ] 旧 API 调用新 API 时无数据丢失或格式错误
-- [ ] Deprecation Warning 正确输出（如启用）
-- [ ] 新 API 的行为与旧 API 文档描述一致（或已更新文档）
+- [ ] All legacy APIs remain available (via Adapter / Facade / @deprecated marks)
+- [ ] No data loss or format errors when legacy APIs call new APIs
+- [ ] Deprecation warnings output correctly (if enabled)
+- [ ] New API behavior matches legacy API documentation (or docs have been updated)
 
-## 数据兼容性
+## Data Compatibility
 
-- [ ] 旧数据格式可正常读取
-- [ ] 新旧数据格式可互相转换
-- [ ] 数据库迁移脚本可回滚
-- [ ] 配置文件格式兼容（或已提供迁移工具）
+- [ ] Legacy data formats can be read normally
+- [ ] New and old data formats can be converted bidirectionally
+- [ ] Database migration scripts are reversible
+- [ ] Config file format is compatible (or migration tool provided)
 
-## 测试覆盖
+## Test Coverage
 
-- [ ] 所有旧 API 的回归测试通过
-- [ ] 新 API 的行为测试通过
-- [ ] 兼容层测试通过（旧→新 调用链路）
-- [ ] 边界条件测试通过（空数据、极值、并发）
+- [ ] All legacy API regression tests pass
+- [ ] New API behavior tests pass
+- [ ] Compatibility layer tests pass (legacy→new call path)
+- [ ] Edge case tests pass (empty data, extreme values, concurrency)
 
-## 迁移路径
+## Migration Path
 
-- [ ] 迁移文档已更新（迁移步骤、时间线、回滚方案）
-- [ ] 调用方已通知（如涉及外部模块或团队）
-- [ ] 废弃（Deprecation）里程碑已标注（版本号 + 预计移除时间）
+- [ ] Migration docs updated (steps, timeline, rollback plan)
+- [ ] Callers notified (if external modules or teams are involved)
+- [ ] Deprecation milestones marked (version number + estimated removal date)

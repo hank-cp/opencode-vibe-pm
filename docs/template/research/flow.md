@@ -1,161 +1,161 @@
-# 调研任务
+# Research Task
 
 **Template ID**: `research`
 **Category**: research
-**Description**: 梳理需求、设计文档、研究分析的调研工作流
+**Description**: Research workflow for organizing requirements, design documents, and analysis
 **Command**: `/pm-research`
 **Version**: 1.0.0
 
 ---
 
-## 适用场景
+## Applicable Scenarios
 
-- 梳理需求、整理维护文档
-- 调研分析、研究开放性问题
-- 设计撰写 Spec 文档、技术方案
+- Organizing requirements, maintaining documentation
+- Research analysis, investigating open-ended questions
+- Designing and writing Spec documents, technical proposals
 
-**不适用**：代码实现、Bug修复。
-
----
-
-## 输入要求
-
-| 输入项 | 必填 | 说明 |
-|--------|------|------|
-| 需求描述/草案/想法雏形 | 是 | 描述要解决什么问题或达成什么目标 |
-
-输入不满足要求时，引导用户补充后继续。
+**Not applicable**: Code implementation, bug fixes.
 
 ---
 
-## 默认交付清单
+## Input Requirements
 
-- 调研报告 / Spec 文档 / 技术方案
-- 如有规划阶段，输出计划文档到 `/docs/plan/[plan]_*.md`
+| Input Item | Required | Description |
+|------------|----------|-------------|
+| Requirement description / draft / initial idea | Yes | Describe the problem to solve or the goal to achieve |
+
+If the input does not meet requirements, guide the user to supplement before continuing.
 
 ---
 
-## 状态机
+## Default Deliverables
+
+- Research report / Spec document / Technical proposal
+- If a planning phase is involved, output the plan document to `/docs/plan/[plan]_*.md`
+
+---
+
+## State Machine
 
 ```mermaid
 stateDiagram-v2
-    [*] --> S1_理解输入意图
-    S1_理解输入意图 --> S2_探索已知事实
-    S2_探索已知事实 --> S3_标记缺口与矛盾
-    S3_标记缺口与矛盾 --> S4_渐进式访谈
-    S4_渐进式访谈 --> S4_渐进式访谈: 继续追问
-    S4_渐进式访谈 --> S3_标记缺口与矛盾: 基于澄清答案重新分析
-    S3_标记缺口与矛盾 --> S4_渐进式访谈: 发现新疑问
-    S3_标记缺口与矛盾 --> S5_执行环节: 无更多疑问
-    S5_执行环节 --> S6_用户审查输出
-    S6_用户审查输出 --> S5_执行环节: 需修改
-    S6_用户审查输出 --> [*]: 通过
+    [*] --> S1_Understand_Intent
+    S1_Understand_Intent --> S2_Explore_Known_Facts
+    S2_Explore_Known_Facts --> S3_Mark_Gaps_and_Conflicts
+    S3_Mark_Gaps_and_Conflicts --> S4_Progressive_Interview
+    S4_Progressive_Interview --> S4_Progressive_Interview: Continue probing
+    S4_Progressive_Interview --> S3_Mark_Gaps_and_Conflicts: Re-analyze based on clarified answers
+    S3_Mark_Gaps_and_Conflicts --> S4_Progressive_Interview: New questions found
+    S3_Mark_Gaps_and_Conflicts --> S5_Execution_Phase: No more questions
+    S5_Execution_Phase --> S6_User_Review
+    S6_User_Review --> S5_Execution_Phase: Revisions needed
+    S6_User_Review --> [*]: Approved
 
-    note right of S4_渐进式访谈
-        ⚠️ 需要用户介入
+    note right of S4_Progressive_Interview
+        ⚠️ Requires user intervention
     end note
 
-    note right of S6_用户审查输出
-        ⚠️ 需要用户介入
+    note right of S6_User_Review
+        ⚠️ Requires user intervention
     end note
 ```
 
 ---
 
-## 任务步骤
+## Task Steps
 
-### S1: 理解输入意图
+### S1: Understand Input Intent
 
-**目标**：准确理解用户输入的核心意图。
+**Goal**: Accurately understand the core intent of the user's input.
 
-1. 逐段阅读用户提供的描述
-2. 提取核心意图——要解决什么问题？要达成什么目标？
-3. 识别已覆盖的信息和初步发现的缺口
+1. Read the user-provided description paragraph by paragraph
+2. Extract the core intent — what problem to solve? What goal to achieve?
+3. Identify covered information and preliminary gaps
 
-**完成后**：自动进入 S2
-
----
-
-### S2: 探索相关已知事实
-
-**目标**：搜索项目内外部相关信息，建立知识基线。
-
-1. 搜索项目内已有的相关文档和代码
-2. 搜索外部参考资料（文档、最佳实践、开源实现）
-3. 记录关键发现和约束条件
-4. 汇总发现，建立知识基线
-
-**引用工具**：explore / librarian Agent（按需并行）
-
-**完成后**：自动进入 S3
+**After completion**: Automatically proceed to S2
 
 ---
 
-### S3: 标记信息缺口与矛盾点
+### S2: Explore Related Known Facts
 
-**目标**：系统性地找出所有模糊、缺失、冲突的地方。
+**Goal**: Search for relevant internal and external information to establish a knowledge baseline.
 
-1. 对照输入意图与已知事实，标记：
-   - **缺失项**：设计中完全空白的关键部分
-   - **模糊项**：描述不够具体、存在歧义
-   - **矛盾项**：设计意图与已知事实冲突的地方
-2. 按影响程度排序——阻塞性问题优先
-3. 为 S4 准备逐题访谈列表
-4. **访谈后重新分析**：从 S4 返回后，基于已澄清的答案，重新审视 S3 原始标记列表：
-   - 澄清的答案是否引入了新的模糊点？
-   - 已澄清的结论与现有知识基线有无新矛盾？
-   - 是否有原先未发现的缺失项？
-5. 若发现新疑问 → 整理新问题列表，返回 S4 继续访谈；若无新疑问 → 进入 S5
+1. Search for existing relevant documents and code within the project
+2. Search for external reference materials (documentation, best practices, open-source implementations)
+3. Document key findings and constraints
+4. Summarize findings to establish a knowledge baseline
 
-**完成后**：无新疑问 → 自动进入 S5；有新疑问 → 返回 S4
+**Referenced tools**: explore / librarian Agent (parallel on demand)
+
+**After completion**: Automatically proceed to S3
 
 ---
 
-### S4: [Human-in-loop] 渐进式访谈 ⚠️
+### S3: Mark Information Gaps and Contradictions
 
-> **⚠️ 本步骤需要用户介入。** 使用 `question` / `confirm` 阻塞式工具向用户提问——每次只问 1 个问题。
+**Goal**: Systematically identify all vague, missing, and conflicting areas.
 
-**目标**：通过逐题提问澄清所有模糊点和矛盾点。
+1. Compare input intent with known facts, and mark:
+   - **Missing items**: Key parts of the design that are completely blank
+   - **Vague items**: Descriptions that are not specific enough or contain ambiguity
+   - **Conflicting items**: Places where design intent conflicts with known facts
+2. Prioritize by impact — blocking issues first
+3. Prepare a question-by-question interview list for S4
+4. **Post-interview re-analysis**: After returning from S4, based on clarified answers, re-examine the original S3 marker list:
+   - Do the clarified answers introduce new ambiguities?
+   - Do the clarified conclusions conflict with the existing knowledge baseline?
+   - Are there previously undiscovered missing items?
+5. If new questions found → organize new question list, return to S4 for further interview; if no new questions → proceed to S5
 
-1. 使用 `question` / `confirm` 阻塞式工具发出问题——每次只问 1 个问题
-2. 等待用户回复后才能问下一个
-3. 如果用户回答引出新方向，先深入追问，再切回原路线
-4. 循环直到用户确认「没有其他需要澄清的问题」
-5. **绝不**在普通文本中批量抛出多个问题
-
-**完成后**：用户确认「不再追问」→ 返回 S3 重新分析
-
----
-
-### S5: 执行环节
-
-**目标**：基于澄清后的需求设计方案，按计划执行并产出最终成果。
-
-1. 梳理完整设计——模块、接口、数据流、边界处理
-2. 将任务拆解为可独立执行和验证的子任务，标注依赖关系和并行机会
-3. 按计划中的子任务顺序执行，产出最终成果（调研报告 / Spec 文档 / 技术方案）
-4. 标记 `[P]` 的任务可并行处理，每完成一个子任务更新进度
-5. 汇总所有产出，准备供用户审查
-
-**完成后**：自动进入 S6
+**After completion**: No new questions → automatically proceed to S5; new questions → return to S4
 
 ---
 
-### S6: [Human-in-loop] 用户审查输出 ⚠️
+### S4: [Human-in-loop] Progressive Interview ⚠️
 
-> **⚠️ 本步骤需要用户介入。** 用户审查最终产出，确认后合流。
+> **⚠️ This step requires user intervention.** Use `question` / `confirm` blocking tools to ask the user — only one question at a time.
 
-**目标**：用户审查最终调研产出，确认交付物满足需求。
+**Goal**: Clarify all vague points and contradictions through sequential questioning.
 
-1. 展示最终产出摘要（报告 / Spec / 方案的关键内容和结论）
-2. 使用 `confirm` 工具等待用户审查确认
-3. 审查通过后，使用 `question` 工具询问用户：「是否执行 `git commit`？」
-   - 若用户选择「是」：执行 `git add -A && git commit`，使用本次调研的总结作为 commit message
-   - 若用户选择「否」：跳过提交
-   - ⚠️ 用户选择不影响任务结束
+1. Use `question` / `confirm` blocking tools to ask questions — only one question at a time
+2. Wait for the user's response before asking the next one
+3. If the user's answer leads to a new direction, follow up deeply before returning to the original path
+4. Loop until the user confirms "no further questions need clarification"
+5. **Never** batch multiple questions in plain text
 
-**状态流转**：
-- 用户通过 → 合流结束
-- 用户要求修改 → 退回 S5
+**After completion**: User confirms "no further questions" → return to S3 for re-analysis
 
-**完成后**：任务结束
+---
+
+### S5: Execution Phase
+
+**Goal**: Design the solution based on clarified requirements, execute according to plan, and produce final deliverables.
+
+1. Outline the complete design — modules, interfaces, data flow, edge-case handling
+2. Break down tasks into independently executable and verifiable subtasks, noting dependencies and parallelization opportunities
+3. Execute subtasks in the planned order to produce the final deliverable (research report / Spec document / technical proposal)
+4. Mark tasks with `[P]` for parallel processing; update progress after completing each subtask
+5. Consolidate all outputs and prepare for user review
+
+**After completion**: Automatically proceed to S6
+
+---
+
+### S6: [Human-in-loop] User Review Output ⚠️
+
+> **⚠️ This step requires user intervention.** The user reviews the final output and confirms before merging.
+
+**Goal**: User reviews the final research output and confirms that deliverables meet requirements.
+
+1. Present a summary of the final output (key content and conclusions of the report / Spec / proposal)
+2. Use the `confirm` tool to wait for user review and approval
+3. After approval, use the `question` tool to ask the user: "Execute `git commit`?"
+   - If the user selects "Yes": run `git add -A && git commit`, using the research summary as the commit message
+   - If the user selects "No": skip the commit
+   - ⚠️ The user's choice does not affect task completion
+
+**State transitions**:
+- User approves → merge and end
+- User requests revisions → return to S5
+
+**After completion**: Task ends

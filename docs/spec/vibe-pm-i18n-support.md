@@ -430,8 +430,10 @@ graph TB
 - [x] `sidebar-content.tsx`: 10 个中文字符串 → 英文（Flow/Step/Started/Elapsed/Completed/Tokens/Token Details/Step Tokens/No data）
 - [x] `empty-state.tsx`: 1 个中文字符串 → 英文（"No active vibe-pm tasks"）
 
-### [ ] 里程碑 5 — Phase 5: Template Source Migration
+### [x] 里程碑 5 — Phase 5: Template Source Migration
 
-- [ ] 全部 6 个流程模板 → 英文源
-- [ ] constitution-template、dictionary-template、spec-template、agents-template → 英文
-  - 已知问题/风险: 依赖 Phase 3 完成后辅助翻译；混合中英文源风险
+- [x] 6 个 flow 模板 → 英文源（research / bug-fix / large-refactor / side-job / design-spec / spec-driven-dev）
+- [x] constitution-template / agents-template / spec-template → 英文
+- [x] 7 个 coding_style 模板 → 英文（general / typescript / python / go / rust / java / sql）
+- [x] migration-checklist → 英文
+- [x] dictionary-template 保留双语对照格式（中英文术语表）

@@ -1,56 +1,56 @@
-# TypeScript 编码风格
+# TypeScript Coding Style
 
-## 通用格式
+## General Formatting
 
-- 统一使用 UTF-8 编码，换行符使用 LF
-- 使用 Prettier 自动格式化代码（保存时自动执行）
-- 缩进使用 2 空格，不使用 Tab
-- 行长度建议不超过 100 字符
-- 文件末尾保留一个空行
+- Use UTF-8 encoding, LF line endings
+- Use Prettier for automatic code formatting (run on save)
+- Use 2-space indentation, no tabs
+- Recommended max line length of 100 characters
+- Keep one blank line at end of file
 
-## 文件组织
+## File Organization
 
-### 命名
+### Naming
 
-- TypeScript 源文件使用 `kebab-case` 或 `camelCase`，与所在模块保持一致
-- 目录名使用 `kebab-case`
-- 测试文件命名：`*.test.ts` 或 `*.spec.ts`，与被测文件同目录
+- TypeScript source files use `kebab-case` or `camelCase`, consistent with the module they belong to
+- Directory names use `kebab-case`
+- Test file naming: `*.test.ts` or `*.spec.ts`, co-located with the file under test
 
-### Import 分组
+### Import Grouping
 
 ```typescript
-// 1. Node 内置模块
+// 1. Node built-in modules
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-// 2. 第三方库
+// 2. Third-party libraries
 import axios from 'axios';
 import { z } from 'zod';
 
-// 3. 项目内部模块（使用相对路径或别名）
+// 3. Project-internal modules (relative paths or aliases)
 import { TaskState } from '../state/task-state';
 import { FlowParser } from './flow-parser';
 ```
 
-### 文件结构
+### File Structure
 
-- 每个文件尽量只有一个主要导出
-- 辅助类型/函数使用命名导出
-- 模块暴露出清晰的公共 API
+- Each file should ideally have one primary export
+- Auxiliary types/functions use named exports
+- Modules expose a clear public API
 
-## 命名规范
+## Naming Conventions
 
-### 变量
+### Variables
 
-- 使用 `camelCase`
-- 短作用域用短名字：`i`, `item`, `ctx`
-- 长作用域用描述性名字：`taskConfig`, `messageCount`
-- 布尔变量用疑问词前缀：`isActive`, `hasPlan`, `canProceed`
-- 不使用匈牙利命名法
+- Use `camelCase`
+- Short names for short scopes: `i`, `item`, `ctx`
+- Descriptive names for long scopes: `taskConfig`, `messageCount`
+- Boolean variables prefixed with a question word: `isActive`, `hasPlan`, `canProceed`
+- No Hungarian notation
 
-### 常量
+### Constants
 
-- `UPPER_SNAKE_CASE`（模块级）/ `camelCase`（函数内）
+- `UPPER_SNAKE_CASE` (module-level) / `camelCase` (within functions)
 
 ```typescript
 const DEFAULT_LANGUAGE = 'zh-CN';
@@ -61,17 +61,17 @@ function process() {
 }
 ```
 
-### 函数
+### Functions
 
-- 使用 `camelCase`
-- 动词开头：`getTask`, `findFlow`, `createPlan`, `parseSpec`
-- 事件处理函数：`handleXxx` 或 `onXxx`
+- Use `camelCase`
+- Start with a verb: `getTask`, `findFlow`, `createPlan`, `parseSpec`
+- Event handler functions: `handleXxx` or `onXxx`
 
-### 类型与接口
+### Types & Interfaces
 
-- 使用 `PascalCase`
-- 接口名不加 `I` 前缀
-- 类型别名不加 `T` 前缀
+- Use `PascalCase`
+- Do not prefix interface names with `I`
+- Do not prefix type aliases with `T`
 
 ```typescript
 interface TaskState {
@@ -87,14 +87,14 @@ type StepTransition = {
 };
 ```
 
-### 类
+### Classes
 
-- 使用 `PascalCase`，单数形式
-- 公共方法在前，私有方法在后
+- Use `PascalCase`, singular form
+- Public methods first, private methods last
 
-### 枚举
+### Enums
 
-使用 `PascalCase`，成员使用 `PascalCase`
+Use `PascalCase`, members use `PascalCase`
 
 ```typescript
 enum TaskStatus {
@@ -104,39 +104,39 @@ enum TaskStatus {
 }
 ```
 
-## 类型安全
+## Type Safety
 
-### 禁止事项
+### Prohibited
 
 ```typescript
-// ❌ 禁止 any
+// ❌ Do not use any
 function process(data: any): any { }
 
-// ❌ 禁止 @ts-ignore / @ts-expect-error
+// ❌ Do not use @ts-ignore / @ts-expect-error
 // @ts-ignore
 const x = something;
 
-// ❌ 禁止空 catch
+// ❌ Do not use empty catch blocks
 try { } catch (e) { }
 
-// ❌ 禁止非空断言滥用
+// ❌ Do not abuse non-null assertions
 const x = data!.value!;
 ```
 
-### 推荐方式
+### Recommended
 
 ```typescript
-// ✅ 使用 unknown 代替 any
+// ✅ Use unknown instead of any
 function process(data: unknown): Result {
   if (!isValidData(data)) throw new TypeError('Invalid data');
 }
 
-// ✅ 类型守卫
+// ✅ Type guards
 function isValidData(data: unknown): data is ValidData {
   return typeof data === 'object' && data !== null && 'id' in data;
 }
 
-// ✅ 显式错误处理
+// ✅ Explicit error handling
 try {
   await riskyOperation();
 } catch (e) {
@@ -145,11 +145,11 @@ try {
 }
 ```
 
-## 函数设计
+## Function Design
 
-### 参数
+### Parameters
 
-- 超过 3 个参数使用对象参数
+- Use an object parameter when there are more than 3 parameters
 
 ```typescript
 // ❌
@@ -164,16 +164,16 @@ function createTask(params: {
 }): Task { }
 ```
 
-### 返回值
+### Return Values
 
-- 优先返回具体类型，而非 `undefined | null`
-- 可能返回"空"的场景使用 `Result<T, E>` 模式或 `Option<T>`
+- Prefer concrete return types over `undefined | null`
+- For "empty" scenarios, use the `Result<T, E>` pattern or `Option<T>`
 
-## 异步处理
+## Async Handling
 
-- 统一使用 `async/await`，避免原始 Promise
-- 异步函数返回 `Promise<T>`，类型明确
-- 顶层 async 使用 IIFE 或 `.catch()` 兜底
+- Consistently use `async/await`, avoid raw Promises
+- Async functions return `Promise<T>` with explicit types
+- Top-level async uses IIFE or `.catch()` as a safety net
 
 ```typescript
 async function loadTask(sessionId: string): Promise<Task | null> {
@@ -182,11 +182,11 @@ async function loadTask(sessionId: string): Promise<Task | null> {
 }
 ```
 
-## 错误处理
+## Error Handling
 
-- 所有错误必须显式处理（传递/包装/处理/终止）
-- 在系统边界（用户输入、外部 API）进行校验
-- 不在内部逻辑中添加"不可能发生"的错误处理
+- All errors must be handled explicitly (propagate / wrap / handle / abort)
+- Validate at system boundaries (user input, external APIs)
+- Do not add "impossible" error handling in internal logic
 
 ```typescript
 try {
@@ -197,41 +197,41 @@ try {
 }
 ```
 
-## 日志
+## Logging
 
-- 使用项目统一的日志模块（不直接用 `console.log`）
-- 日志消息使用英文
-- 关键路径记录 info/debug 日志
+- Use the project's unified logging module (not raw `console.log`)
+- Log messages in English
+- Log info/debug on critical paths
 
 ```typescript
 logger.info('Task created', { sessionId, flow });
 logger.error('Failed to load task', { sessionId, error: String(e) });
 ```
 
-## 注释与文档
+## Comments & Documentation
 
-- 代码注释使用英文
-- 公共 API 使用 JSDoc 注释
-- 复杂逻辑添加解释性注释
+- Code comments in English
+- Public APIs use JSDoc comments
+- Add explanatory comments for complex logic
 
-## 占位代码
+## Placeholder Code
 
 ```typescript
-// TODO(username): 需要对接 API — 预计 v1.1
-// FIXME(username): 并发场景下可能数据竞争 — 需要加锁
-// HACK(username): 临时绕过限制 — v1.0 后替换
+// TODO(username): Need to integrate API — expected v1.1
+// FIXME(username): Possible data race under concurrency — needs locking
+// HACK(username): Temporary workaround — replace after v1.0
 ```
 
-## 导出规范
+## Export Conventions
 
 ```typescript
-// 主要导出
+// Primary export
 export class FlowParser { }
 
-// 辅助类型/函数使用命名导出
+// Auxiliary types/functions use named exports
 export interface FlowDefinition { }
 export function parseFlow(path: string): FlowDefinition { }
 
-// 内部实现不导出
+// Internal implementation — not exported
 function validateStep(step: unknown): step is StepDefinition { }
 ```

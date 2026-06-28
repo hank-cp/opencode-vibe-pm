@@ -1,70 +1,70 @@
-# Rust 编码风格
+# Rust Coding Style
 
-## 通用格式
+## General Format
 
-- 统一使用 UTF-8 编码，换行符使用 LF
-- 使用 rustfmt 自动格式化代码（保存时自动执行）
-- 缩进使用 4 空格，不使用 Tab
-- 行长度建议不超过 100 字符
-- 文件末尾保留一个空行
+- Use UTF-8 encoding consistently, LF for line endings
+- Use rustfmt for automatic code formatting (runs on save)
+- Use 4 spaces for indentation, no tabs
+- Line length recommended not to exceed 100 characters
+- Keep one blank line at the end of files
 
-## 文件组织
+## File Organization
 
-### 命名
+### Naming
 
-- 源文件使用 `snake_case`
-- 目录名使用 `snake_case`
-- 测试文件命名：`#[cfg(test)]` 模块内联或 `tests/` 目录
+- Source files use `snake_case`
+- Directory names use `snake_case`
+- Test file naming: inline `#[cfg(test)]` modules or `tests/` directory
 
-### Import 分组
+### Import Grouping
 
 ```rust
-// 1. 标准库
+// 1. Standard library
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-// 2. 第三方 crate
+// 2. Third-party crates
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
-// 3. 项目内部模块
+// 3. Project internal modules
 use crate::core::config::Config;
 use crate::models::user::User;
 ```
 
-### 文件结构
+### File Structure
 
-- 每个文件尽量只有一个主要导出
-- 辅助类型/函数使用命名导出
-- 模块暴露出清晰的公共 API
+- Prefer one primary export per file
+- Use named exports for auxiliary types/functions
+- Expose a clear public API from modules
 
-## 命名规范
+## Naming Conventions
 
-### 变量
+### Variables
 
-- 使用 `snake_case`
-- 短作用域用短名字：`i`, `item`, `ctx`
-- 长作用域用描述性名字：`task_config`, `message_count`
+- Use `snake_case`
+- Short names for short scopes: `i`, `item`, `ctx`
+- Descriptive names for longer scopes: `task_config`, `message_count`
 
-### 常量
+### Constants
 
 - `UPPER_SNAKE_CASE`
-- 静态变量使用 `SCREAMING_SNAKE_CASE`
+- Static variables use `SCREAMING_SNAKE_CASE`
 
-### 函数
+### Functions
 
-- 使用 `snake_case`
-- 动词开头：`get_task`, `find_flow`, `create_plan`, `parse_spec`
+- Use `snake_case`
+- Start with a verb: `get_task`, `find_flow`, `create_plan`, `parse_spec`
 
-### 类型
+### Types
 
-- 使用 `PascalCase`
-- trait 名使用 PascalCase，避免 `-able` 后缀
-- Rust 没有类，struct/enum 使用 `PascalCase`
+- Use `PascalCase`
+- Trait names use PascalCase, avoid `-able` suffix
+- Rust has no classes; struct/enum use `PascalCase`
 
-### 枚举
+### Enums
 
-使用 `enum` + `#[derive(...)]`：
+Use `enum` with `#[derive(...)]`:
 
 ```rust
 #[derive(Debug, Clone, PartialEq)]
@@ -75,37 +75,37 @@ enum TaskStatus {
 }
 ```
 
-## 类型安全
+## Type Safety
 
-### 规则
+### Rules
 
-- ✅ 利用 Rust 的所有权和借用系统，避免不必要的 `.clone()`
-- ✅ 使用 `Result<T, E>` 和 `Option<T>` 代替 null
-- ✅ 使用 `clippy` 进行 lint 检查
-- ❌ 禁止使用 `unsafe`（除非有充分理由并注释说明）
-- ❌ 禁止 `unwrap()` 和 `expect()` 在生产路径中
+- ✅ Leverage Rust's ownership and borrowing system; avoid unnecessary `.clone()`
+- ✅ Use `Result<T, E>` and `Option<T>` instead of null
+- ✅ Use `clippy` for lint checks
+- ❌ Do not use `unsafe` (unless with a strong justification and comments)
+- ❌ Do not use `unwrap()` or `expect()` in production paths
 
-## 函数设计
+## Function Design
 
-### 参数
+### Parameters
 
-- 超过 3 个参数使用结构体参数
-- 使用 builder 模式处理复杂构造
+- Use struct parameters when exceeding 3 parameters
+- Use the builder pattern for complex construction
 
-### 返回值
+### Return Values
 
-- `Result<T, E>` 和 `Option<T>`
+- `Result<T, E>` and `Option<T>`
 
-## 控制流
+## Control Flow
 
-- 使用 `match` 进行模式匹配
-- 使用 `if let` 简化单分支匹配
-- 使用 `?` 运算符传播错误
+- Use `match` for pattern matching
+- Use `if let` to simplify single-branch matches
+- Use the `?` operator to propagate errors
 
-## 异步处理
+## Async Handling
 
-- 使用 `tokio` 运行时
-- 异步函数返回 `impl Future<Output = T>` 或标注 `async fn`
+- Use the `tokio` runtime
+- Async functions return `impl Future<Output = T>` or are annotated with `async fn`
 
 ```rust
 async fn load_task(session_id: &str) -> Result<Option<Task>, DbError> {
@@ -114,11 +114,11 @@ async fn load_task(session_id: &str) -> Result<Option<Task>, DbError> {
 }
 ```
 
-## 错误处理
+## Error Handling
 
-- 使用 `thiserror` 定义错误类型
-- 使用 `?` 运算符传播错误
-- 使用 `anyhow` 处理应用级错误
+- Use `thiserror` to define error types
+- Use the `?` operator to propagate errors
+- Use `anyhow` for application-level errors
 
 ```rust
 use thiserror::Error;
@@ -130,32 +130,32 @@ enum AppError {
 }
 ```
 
-## 日志
+## Logging
 
-- 使用 `tracing` / `log` crate
-- 日志消息使用英文
+- Use the `tracing` / `log` crate
+- Log messages in English
 
 ```rust
 tracing::info!(session_id = %session_id, "task created");
 tracing::error!(error = %e, "failed to load task");
 ```
 
-## 注释与文档
+## Comments & Documentation
 
-- 代码注释使用英文
-- 公共 API 使用 `///` 文档注释
-- 模块使用 `//!` 注释
+- Code comments in English
+- Use `///` doc comments for public API
+- Use `//!` comments for modules
 
-## 占位代码
+## Placeholder Code
 
 ```rust
-// TODO(username): 需要对接 API — 预计 v1.1
-// FIXME(username): 并发场景下可能数据竞争 — 需要加锁
-// HACK(username): 临时绕过限制 — v1.0 后替换
+// TODO(username): Needs API integration — planned for v1.1
+// FIXME(username): Possible data race in concurrent scenarios — needs locking
+// HACK(username): Temporary workaround — replace after v1.0
 ```
 
-## 导出规范
+## Export Conventions
 
-- 使用 `pub` 控制可见性
-- `pub(crate)` 限制 crate 内可见
-- 模块通过 `mod.rs` 或同名文件组织
+- Use `pub` to control visibility
+- `pub(crate)` restricts visibility to within the crate
+- Organize modules via `mod.rs` or same-name files

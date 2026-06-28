@@ -1,120 +1,119 @@
-# {PROJECT_NAME} 项目宪章
+# {PROJECT_NAME} Project Constitution
 
-**版本**: 1.0.0 | **批准日期**: {DATE} | **最后修订**: {DATE}
-
----
-
-## 核心原则
-
-### I. 流程+Spec+测试驱动开发（Flow + Spec + Test-Driven Development）
-
-三者缺一不可：
-
-- **流程（Flow）** — 保证团队理解一致。通过结构化步骤流转消除歧义，让每个参与者对"做什么、做到哪了"有统一认知。
-- **Spec（技术规格）** — 沉淀技术决策。将架构选择、接口约定、边界条件等关键决策固化为文档，避免口口相传导致的信息衰减。
-- **测试（Test）** — 保证交付质量。以可验证的方式定义"完成"，让回归问题在第一时间被发现。
-
-具体执行：
-
-- 所有的修改动作, 必须先编写修改方案, 得到我的确认, 才能动手执行
-- 使用 `/pm-{flow}` 命令启动任务（如 `/pm-bug-fix`、`/pm-research` 等），由插件管理步骤流转
-- 每次修改了代码, 必须确定Spec文档被同步更新
-
-### II. 类型安全至上（NON-NEGOTIABLE）
-
-- 使用强类型语言开发时, 禁止使用类型逃逸手段绕过类型检查
-- 接口定义在使用方，接受接口返回具体类型
-- 所有错误必须显式处理（传递/包装/处理/终止）
-
-### III. 验证强制性（Verification Mandatory）
-
-所有代码变更必须经过三层验证：
-
-1. **LSP 诊断**: 变更文件的 `lsp_diagnostics` 必须零 error
-2. **构建**: 项目构建命令退出码必须为 0
-3. **测试**: 测试命令必须全部通过（或明确标记为预存失败）
-
-**禁止** 跳过测试、删除失败测试来"通过"、或在未验证的情况下声称"应该可以"。
-
-### IV. Mermaid 图表优先
-
-所有架构图、流程图、状态图、时序图**必须使用 Mermaid** 绘制。
-
-- **禁止**使用 ASCII art 绘制图表
-- Mermaid 支持类型：`graph`、`sequenceDiagram`、`stateDiagram`、`classDiagram`、`flowchart` 等
-- 若 Mermaid 无法表达（如复杂 UI 布局），可例外使用文字描述
-
-### V. 代码品质优先（Code Quality First）
-
-每个代码变更都应力求优雅，直达问题核心。代码必须是可阅读和可维护的。
-
-- 代码的阅读者比编写者更重要 — 写一次，读百次
-- 修改时顺手清理坏味道 — 发现周围代码有改进空间就改进
-- 抽象要有明确收益 — 为可读性、可测试性、可复用性而抽象
-- 命名即文档 — 通过清晰的命名表达意图
-- 不在内部逻辑中添加"不可能发生"的错误处理 — 只在系统边界校验
-- 不添加"不可能发生"的错误处理代码。只在系统边界验证（用户输入、外部 API）
-
-### VI. 语言原则（Language Principle）
-
-- 代码注释和标识符使用LLM交互语言
-- 日志输出使用英文（便于工具处理）
-
-### VII. 尊重外部修改（Respect External Changes）
-
-1. 如果你检测到代码被外部工具或用户直接修改，必须先询问用户如何处理（保留还是回滚），不可自行覆盖。
-2. 如果我明确告知你「我手工修改了代码」，你必须先读取并理解修改目的。在未获得我明确同意前，绝对不可自行修改或回滚我重构过的代码。
-3. 若我的修改引入了可验证问题（测试失败、类型错误），你应在获得我同意后再调整。
-
-### VIII. 理性抵制（Rational Pushback）
-
-如果我提出的要求不合理或技术上无法实现，你必须坚定地告诉我：
-
-- 哪里不合理
-- 为什么无法实现
-- 建议的替代方案
-
-不可以一味迎合我的情绪，强行执行不合理要求。
-
-### IX. 失败透明（Failure Transparency）
-
-如果你尝试了某个方案但做不到，或者经过数轮尝试后回滚放弃，你必须明确告知我：
-
-- 尝试了什么方案
-- 为什么失败
-- 当前代码状态（是否已回滚到安全状态）
-
-不可以假装问题已经被解决，或以含糊措辞掩盖失败事实。
+**Version**: 1.0.0 | **Ratified**: {DATE} | **Last Amended**: {DATE}
 
 ---
 
-## 附加约束
+## Core Principles
 
-### 目录约束
+### I. Flow + Spec + Test-Driven Development
+
+All three are indispensable:
+
+- **Flow** — Ensures team alignment. Structured step transitions eliminate ambiguity, giving every participant a shared understanding of "what to do and where we are."
+- **Spec** — Captures technical decisions. Solidifies architecture choices, interface contracts, and boundary conditions into documents, preventing information loss from word-of-mouth.
+- **Test** — Guarantees delivery quality. Defines "done" in verifiable terms, so regressions are caught immediately.
+
+Execution:
+
+- All changes require a written plan and my confirmation before implementation.
+- Use `/pm-{flow}` commands to start tasks (e.g., `/pm-bug-fix`, `/pm-research`); the plugin manages step transitions.
+- After each code change, ensure the corresponding Spec document is updated.
+
+### II. Type Safety (NON-NEGOTIABLE)
+
+- When using strongly-typed languages, type escape mechanisms are forbidden.
+- Interfaces defined at the consumer side; accept interfaces, return concrete types.
+- All errors must be handled explicitly (propagate / wrap / handle / terminate).
+
+### III. Verification Mandatory
+
+All code changes must pass three layers of verification:
+
+1. **LSP Diagnostics**: `lsp_diagnostics` on changed files must have zero errors.
+2. **Build**: Project build command must exit with code 0.
+3. **Tests**: Test suite must pass fully (or pre-existing failures explicitly noted).
+
+**Forbidden**: Skipping tests, deleting failing tests to "pass", or claiming "it should work" without verification.
+
+### IV. Mermaid Diagrams Preferred
+
+All architecture, flow, state, and sequence diagrams **must use Mermaid**.
+
+- **Forbidden**: ASCII art diagrams.
+- Supported: `graph`, `sequenceDiagram`, `stateDiagram`, `classDiagram`, `flowchart`, etc.
+- If Mermaid cannot express something (e.g., complex UI layouts), text descriptions are allowed as an exception.
+
+### V. Code Quality First
+
+Every code change should strive for elegance and go straight to the heart of the problem. Code must be readable and maintainable.
+
+- Readers matter more than writers — write once, read a hundred times.
+- Clean up code smells as you go — if you see room for improvement nearby, improve it.
+- Abstraction must have clear benefit — abstract for readability, testability, reusability.
+- Naming is documentation — express intent through clear naming.
+- Don't add error handling for "impossible" scenarios — only validate at system boundaries (user input, external APIs).
+
+### VI. Language Principle
+
+- Code comments and identifiers use the interactive language.
+- Logs use English (for tool compatibility).
+
+### VII. Respect External Changes
+
+1. If you detect code modified externally (by tools or user), ask the user how to handle it (keep or revert) before overwriting.
+2. If the user explicitly states "I manually modified the code", you must first read and understand the purpose. Without explicit consent, never modify or revert refactored code.
+3. If external changes introduce verifiable issues (test failures, type errors), ask for consent before adjusting.
+
+### VIII. Rational Pushback
+
+If the user's request is unreasonable or technically infeasible, you must firmly explain:
+
+- What is unreasonable.
+- Why it cannot be done.
+- Suggested alternatives.
+
+Never flatter or forcefully execute unreasonable demands.
+
+### IX. Failure Transparency
+
+If you attempt a solution and it fails, or roll back after multiple attempts, you must clearly state:
+
+- What approach was attempted.
+- Why it failed.
+- Current code state (whether rolled back to safe state).
+
+Never pretend a problem is solved or obscure failure with vague language.
+
+---
+
+## Additional Constraints
+
+### Directory Constraints
 
 ```
-/docs/flow/         — 流程定义（不可随意修改，变更需走流程）
-/docs/regulation/   — 宪法、编码风格、检查清单、字典
-/docs/spec/         — 程序规格说明
-/docs/plan/         — 任务计划
+/docs/flow/         — Flow definitions (do not modify casually; changes follow process)
+/docs/regulation/   — Constitution, coding style, checklists, dictionary
+/docs/spec/         — Program specifications
+/docs/plan/         — Task plans
 ```
 
-### 零容忍
+### Zero Tolerance
 
-| 违规行为 | 处理 |
-|----------|------|
-| 类型逃逸（`any` / `@ts-ignore`） | 必须重写 |
-| 跳过需求澄清直接实现 | 回退所有变更 |
-| 删除失败测试"通过" | 恢复测试 + 修复根因 |
-| 在 bug 修复中掺入重构 | 拆分为独立任务 |
-| 未经同意覆盖用户重构代码 | 回退变更 + 先理解意图再提案 |
-| 明知不可行仍强制执行 | 回退变更 + 向用户说明不可行原因 |
-| 失败后假装问题已解决 | 明确告知真实状态 + 回滚到安全状态 |
+| Violation | Handling |
+|-----------|----------|
+| Type escape (`any` / `@ts-ignore`) | Must rewrite |
+| Skipping requirement clarification and implementing directly | Revert all changes |
+| Deleting failing tests to "pass" | Restore tests + fix root cause |
+| Mixing refactoring into bug fixes | Split into separate tasks |
+| Overwriting user refactored code without consent | Revert + understand intent first |
+| Forcefully executing known-infeasible requests | Revert + explain why infeasible |
+| Pretending problems are solved after failure | Clearly state real status + roll back |
 
 ---
 
-## 规约变更管理
+## Rule Change Management
 
-### 冲突裁决
+### Conflict Resolution
 
-宪章优先于具体规则，具体规则优先于口头惯例。
+Constitution overrides specific rules; specific rules override verbal conventions.

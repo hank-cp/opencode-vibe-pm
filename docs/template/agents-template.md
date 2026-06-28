@@ -1,38 +1,38 @@
-# ${项目名称}
+# ${Project Name}
 
-## 概述
+## Overview
 
-### 主要功能描述
+### Main Features
 
-## 交互要求
-- **Thinking** 思考过程用{speaking language}表述
-- **Reply** 回答也要用{speaking language}
+## Interaction Requirements
+- **Thinking**: Express reasoning in {speaking language}
+- **Reply**: Reply in {speaking language}
 
-## 技术栈
+## Tech Stack
 
-* **{language}**: $optional note}
-* **{framework}**: {usage} 
+* **{language}**: {optional note}
+* **{framework}**: {usage}
 
-## 开发环境说明
+## Development Environment
 
-### 本地开发环境
+### Local Setup
 
-* {local development environment, like database}
+* {local development environment, e.g., database}
 
-### 开发命令
+### Development Commands
 
 * {compile command}
 * {build command}
 * {run command}
 
-## 开发设计原则
+## Development Design Principles
 
-### 最高原则
+### Supreme Principle
 
-### 设计原则
+### Design Principles
 
-### 开发原则
+### Development Principles
 
 ### ANTI-PATTERNS
 
-### 注意事项
+### Notes
