@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+#MISE description="Install dependencies and set up project"
+bun install

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Watch source files and rebuild on change"
+#MISE watch=["src/**/*"]
+
+bun run scripts/build-tui.ts

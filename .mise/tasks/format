@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+#MISE description="Format source code"
+
+prettier --write "src/**/*.ts" "src/**/*.tsx"

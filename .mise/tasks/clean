@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+#MISE description="Clean build output"
+
+rm -rf dist

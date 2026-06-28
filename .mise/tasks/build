@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Build the project for production"
+#MISE depends=["setup"]
+#MISE sources=["src/**/*", "scripts/**/*"]
+#MISE outputs=["dist/index.js", "dist/tui/index.js"]
+
+tsc --emitDeclarationOnly && bun run scripts/build-tui.ts
