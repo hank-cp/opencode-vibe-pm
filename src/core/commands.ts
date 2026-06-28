@@ -256,10 +256,16 @@ function createTaskCurrentStepTool(memory: MemorySystem): ToolDefinition {
 
 // ─── pm-config 实现 ───
 
-async function buildInitInstructions(projectDir: string): Promise<string> {
+async function buildInitInstructions(projectDir: string, selectedLanguage?: string): Promise<string> {
   const config = loadConfig(projectDir);
-  const i18n = await getControlPromptTemplate(config.language);
   const packs = discoverLanguagePacks();
+
+  if (selectedLanguage) {
+    const i18n = getControlPromptTemplate(selectedLanguage);
+    return i18n.buildInitRemainingSteps(packs);
+  }
+
+  const i18n = getControlPromptTemplate(config.language);
   return i18n.buildInitInstructions(packs);
 }
 
@@ -273,9 +279,10 @@ function createConfigTool(ctx: IPluginContext): ToolDefinition {
         .describe("Sub-command: view, edit, write-dcp, setup-dcp, or init. Defaults to view."),
       key: tool.schema.string().optional().describe("Config key to edit (for edit sub-command)"),
       value: tool.schema.string().optional().describe("JSON value to set (for edit sub-command)"),
+      language: tool.schema.string().optional().describe("Selected interactive language locale (for init sub-command). When provided, init skips language selection and returns remaining steps in this language."),
     },
     async execute(
-      args: { subCommand?: string; key?: string; value?: string },
+      args: { subCommand?: string; key?: string; value?: string; language?: string },
       _toolCtx: ToolContext,
     ): Promise<string> {
       const sub = args.subCommand ?? "view";
@@ -309,7 +316,7 @@ function createConfigTool(ctx: IPluginContext): ToolDefinition {
         }
 
         if (sub === "init") {
-          return await buildInitInstructions(ctx.projectDir);
+          return await buildInitInstructions(ctx.projectDir, args.language);
         }
 
         return `[vibe-pm] ❌ 未知子命令: "${sub}"`;
@@ -391,7 +398,7 @@ function createInstallFlowTool(
           const config = loadConfig(ctx.projectDir);
           const languages = resolveLanguages(args.programmingLanguages, config);
 
-          const i18n = await getControlPromptTemplate(config.language);
+          const i18n = getControlPromptTemplate(config.language);
           const result = installTemplate(ctx.projectDir, args.templateId, {
             programmingLanguages: languages,
             overwrite: args.overwrite,
@@ -424,7 +431,7 @@ function createInstallFlowTool(
         } catch (err) {
           const msg = err instanceof Error ? err.message : "未知错误";
           const config = loadConfig(ctx.projectDir);
-          const i18n = await getControlPromptTemplate(config.language);
+          const i18n = getControlPromptTemplate(config.language);
           return i18n.tool.installFailure(msg);
         }
       }

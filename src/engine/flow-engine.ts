@@ -24,8 +24,8 @@ export class FlowEngine {
     this.projectDir = projectDir;
   }
 
-  async initLocale(locale: string): Promise<void> {
-    this.promptTemplate = await getControlPromptTemplate(locale);
+  initLocale(locale: string): void {
+    this.promptTemplate = getControlPromptTemplate(locale);
     logger.info(`FlowEngine.initLocale: locale=${locale} resolved=${this.promptTemplate.locale}`);
   }
 

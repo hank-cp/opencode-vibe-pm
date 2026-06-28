@@ -1,16 +1,20 @@
 /**
  * I18N 语言包加载器
  *
- * 语言包发现基于 prompts-{locale}.ts 文件名推导。
- * 提示词模板通过动态 import() 加载，未匹配回退 en-US。
+ * 提示词模板通过静态 import + 映射表实现，确保 Bundler（Bun.build）能正确打包。
+ * 新增语言：在此文件添加静态 import 和映射条目即可。
  */
 
-import * as fs from "node:fs";
-import * as path from "node:path";
-import { fileURLToPath } from "node:url";
+import enUS from "./prompts-en-US.js";
+import zhCN from "./prompts-zh-CN.js";
 import type { LanguagePack, Locale, PromptsI18n } from "./types.js";
 
-// ─── 已知语言的标签映射 ───
+// ─── 内置语言包映射 ───
+
+const PROMPT_MAP: Record<string, PromptsI18n> = {
+  "en-US": enUS,
+  "zh-CN": zhCN,
+};
 
 const LOCALE_LABELS: Record<string, string> = {
   "en-US": "English",
@@ -20,33 +24,22 @@ const LOCALE_LABELS: Record<string, string> = {
 // ─── 缓存 ───
 
 let _packsCache: LanguagePack[] | null = null;
-const _promptCache = new Map<string, PromptsI18n>();
 
 // ─── discoverLanguagePacks ───
 
 /**
- * 扫描 i18n 目录下 prompts-{locale}.ts 文件，推导可用语言列表。
+ * 返回内置语言包列表，从 PROMPT_MAP 推导。
  * 结果内部缓存，多次调用返回同一引用。
  */
 export function discoverLanguagePacks(): LanguagePack[] {
   if (_packsCache) return _packsCache;
 
-  const dir = path.dirname(fileURLToPath(import.meta.url));
   const packs: LanguagePack[] = [];
-
-  try {
-    const entries = fs.readdirSync(dir);
-    for (const entry of entries) {
-      const match = entry.match(/^prompts-(.+)\.ts$/);
-      if (!match) continue;
-      const locale = match[1];
-      packs.push({
-        locale,
-        label: LOCALE_LABELS[locale] ?? locale,
-      });
-    }
-  } catch {
-    // 目录不可读，返回空列表
+  for (const locale of Object.keys(PROMPT_MAP)) {
+    packs.push({
+      locale,
+      label: LOCALE_LABELS[locale] ?? locale,
+    });
   }
 
   _packsCache = packs;
@@ -57,30 +50,17 @@ export function discoverLanguagePacks(): LanguagePack[] {
 
 /**
  * 按 locale 获取 ControlPromptTemplate，未命中回退 en-US。
- * 加载结果内部缓存。
+ * 通过静态映射表查找，无需动态 import。
  */
-export async function getControlPromptTemplate(locale: Locale): Promise<PromptsI18n> {
-  // 缓存命中
-  const cached = _promptCache.get(locale);
-  if (cached) return cached;
-
-  try {
-    const mod = await import(`./prompts-${locale}.ts`);
-    const template = mod.default as PromptsI18n;
-    _promptCache.set(locale, template);
-    return template;
-  } catch {
-    // 回退 en-US
-    if (locale !== "en-US") {
-      return getControlPromptTemplate("en-US");
-    }
-    // en-US 基底文件也加载失败——严重错误
+export function getControlPromptTemplate(locale: Locale): PromptsI18n {
+  const template = PROMPT_MAP[locale] ?? PROMPT_MAP["en-US"];
+  if (!template) {
     throw new Error(`Failed to load base prompt template for locale "${locale}"`);
   }
+  return template;
 }
 
 /** 清除所有缓存（用于测试） */
 export function clearI18nCache(): void {
   _packsCache = null;
-  _promptCache.clear();
 }

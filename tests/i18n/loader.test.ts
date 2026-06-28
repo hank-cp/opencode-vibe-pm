@@ -48,8 +48,8 @@ describe("discoverLanguagePacks", () => {
 });
 
 describe("getControlPromptTemplate", () => {
-  it("returns zh-CN template with Chinese content", async () => {
-    const tpl = await getControlPromptTemplate("zh-CN");
+  it("returns zh-CN template with Chinese content", () => {
+    const tpl = getControlPromptTemplate("zh-CN");
     const prompt = tpl.buildControlPrompt("bug-fix");
     expect(prompt).toContain("<protect>");
     expect(prompt).toContain("流程执行规则");
@@ -57,8 +57,8 @@ describe("getControlPromptTemplate", () => {
     expect(prompt).toContain("步骤门禁");
   });
 
-  it("returns en-US template with English content", async () => {
-    const tpl = await getControlPromptTemplate("en-US");
+  it("returns en-US template with English content", () => {
+    const tpl = getControlPromptTemplate("en-US");
     const prompt = tpl.buildControlPrompt("bug-fix");
     expect(prompt).toContain("<protect>");
     expect(prompt).toContain("Flow Execution Rules");
@@ -66,25 +66,25 @@ describe("getControlPromptTemplate", () => {
     expect(prompt).toContain("Step Gates");
   });
 
-  it("includes flow reference in prompt", async () => {
-    const tpl = await getControlPromptTemplate("en-US");
+  it("includes flow reference in prompt", () => {
+    const tpl = getControlPromptTemplate("en-US");
     const prompt = tpl.buildControlPrompt("spec-driven-dev");
     expect(prompt).toContain("flow-spec-driven-dev.md");
   });
 
-  it("falls back to en-US for unknown locale", async () => {
-    const tpl = await getControlPromptTemplate("ja-JP");
+  it("falls back to en-US for unknown locale", () => {
+    const tpl = getControlPromptTemplate("ja-JP");
     expect(tpl.locale).toBe("en-US");
   });
 
-  it("buildFlowWarningPrompt returns English warning", async () => {
-    const tpl = await getControlPromptTemplate("en-US");
+  it("buildFlowWarningPrompt returns English warning", () => {
+    const tpl = getControlPromptTemplate("en-US");
     const warning = tpl.buildFlowWarningPrompt();
     expect(warning).toContain("Flow Violation Detected");
   });
 
-  it("buildFlowWarningPrompt returns Chinese warning", async () => {
-    const tpl = await getControlPromptTemplate("zh-CN");
+  it("buildFlowWarningPrompt returns Chinese warning", () => {
+    const tpl = getControlPromptTemplate("zh-CN");
     const warning = tpl.buildFlowWarningPrompt();
     expect(warning).toContain("流程违规检测");
   });

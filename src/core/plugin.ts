@@ -29,7 +29,7 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
   if (!validLocales.has(config.language)) {
     logger.warn(`config.language "${config.language}" not found in available packs, fallback to "en-US"`);
   }
-  await engine.initLocale(locale);
+  engine.initLocale(locale);
 
 
   return {

@@ -21,6 +21,7 @@ export interface PromptsI18n {
     [key: string]: unknown;
   };
   buildInitInstructions: (packs: LanguagePack[]) => string;
+  buildInitRemainingSteps: (packs: LanguagePack[]) => string;
 }
 
 export interface ControlPromptTemplate {

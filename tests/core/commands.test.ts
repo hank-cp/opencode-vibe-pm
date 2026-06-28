@@ -231,7 +231,7 @@ describe("registerTools", () => {
     expect(parsed.error).toContain("Session ID");
   });
 
-  it("pm_config_init_returns_json: init 子命令返回有效 JSON 指令", async () => {
+  it("pm_config_init_returns_json: init 子命令返回有效 JSON 指令（第一阶段：仅语言选择）", async () => {
     const engine = createMockEngine();
     const memory = await createTempMemory();
     const tools = registerTools(mockCtx, engine, memory);
@@ -239,11 +239,36 @@ describe("registerTools", () => {
     const result = await tools.pm_config.execute({ subCommand: "init" }, mockToolCtx);
     const parsed = JSON.parse(typeof result === 'string' ? result : result.output);
     expect(parsed.flow).toBe("pm-config-init");
-    expect(parsed.steps).toHaveLength(7);
+    expect(parsed.steps).toHaveLength(1);
+    expect(parsed.steps[0].id).toBe("language");
+    expect(parsed.steps[0].nextAction).toContain("pm_config init");
+  });
+
+  it("pm_config_init_with_language_returns_remaining_steps: 带 language 参数返回后续步骤", async () => {
+    const engine = createMockEngine();
+    const memory = await createTempMemory();
+    const tools = registerTools(mockCtx, engine, memory);
+
+    const result = await tools.pm_config.execute({ subCommand: "init", language: "en-US" }, mockToolCtx);
+    const parsed = JSON.parse(typeof result === 'string' ? result : result.output);
+    expect(parsed.flow).toBe("pm-config-init");
+    expect(parsed.steps).toHaveLength(6);
     expect(parsed.steps.map((s: { id: string }) => s.id)).toEqual([
-      "scope", "language", "gitignore", "agents", "dictionary",
+      "scope", "gitignore", "agents", "dictionary",
       "integrations-dcp", "done",
     ]);
+  });
+
+  it("pm_config_init_with_language_returns_localized_steps: 带 zh-CN 参数返回中文步骤", async () => {
+    const engine = createMockEngine();
+    const memory = await createTempMemory();
+    const tools = registerTools(mockCtx, engine, memory);
+
+    const result = await tools.pm_config.execute({ subCommand: "init", language: "zh-CN" }, mockToolCtx);
+    const parsed = JSON.parse(typeof result === 'string' ? result : result.output);
+    const scopeStep = parsed.steps.find((s: { id: string }) => s.id === "scope");
+    expect(scopeStep).toBeDefined();
+    expect(scopeStep.title).toBe("配置范围");
   });
 
   it("pm_config_init_agents_instruction_has_scenario_separation: agents 步骤 instruction 区分「场景 A」「场景 B」且禁止默认轻量更新", async () => {
@@ -251,7 +276,7 @@ describe("registerTools", () => {
     const memory = await createTempMemory();
     const tools = registerTools(mockCtx, engine, memory);
 
-    const result = await tools.pm_config.execute({ subCommand: "init" }, mockToolCtx);
+    const result = await tools.pm_config.execute({ subCommand: "init", language: "en-US" }, mockToolCtx);
     const parsed = JSON.parse(typeof result === 'string' ? result : result.output);
 
     const agentsStep = parsed.steps.find((s: { id: string }) => s.id === "agents");
