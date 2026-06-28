@@ -312,7 +312,7 @@ describe('registerTools', () => {
     expect(instruction).toContain('FORBIDDEN');
     expect(instruction).toContain('Full Rewrite');
     expect(instruction).toContain('inform user');
-    expect(instruction).toContain('node_modules/vibe-pm/dist/docs/template/agents-template.md');
+    expect(instruction).toContain('docs/template/agents-template.md');
     expect(agentsStep.templateFile).toBe('agents-template.md');
   });
 

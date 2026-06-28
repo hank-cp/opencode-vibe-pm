@@ -1,6 +1,10 @@
 {
-  "name": "vibe-pm",
+  "name": "@laxture/vibe-pm",
   "version": "0.1.0",
+  "license": "Apache-2.0",
+  "repository": "https://github.com/hank-cp/opencode-vibe-pm",
+  "keywords": ["opencode", "plugin", "llm", "task", "flow", "vibe-coding"],
+  "author": "@laxture/hank-cp",
   "type": "module",
   "description": "OpenCode plugin that ensure llm processes tasks follow the given flow",
   "main": "./dist/index.js",
@@ -23,7 +27,7 @@
     "access": "public",
     "provenance": true
   },
-  "files": ["dist"],
+  "files": ["dist", "LICENSE", "README.md", "README.zh-CN.md"],
   "scripts": {
     "build": "tsc --emitDeclarationOnly && bun run scripts/build-tui.ts",
     "test": "bun test",
@@ -34,7 +38,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
-    "@opencode-ai/plugin": "^1.17.4",
     "@opentui/core": "^0.3.4",
     "@opentui/keymap": "^0.3.4",
     "@opentui/solid": "^0.3.4",
@@ -53,5 +56,8 @@
     "solid-js": "^1.9.13",
     "tiktoken": "^1.0.22",
     "zod": "^3.23.0"
+  },
+  "peerDependencies": {
+    "@opencode-ai/plugin": "^1.17.4"
   }
 }

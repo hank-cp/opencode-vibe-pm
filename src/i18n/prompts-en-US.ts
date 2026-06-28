@@ -275,7 +275,9 @@ Generate or update AGENTS.md. Why update?
 Follow strictly:
 1. Locate template at these paths (search in order):
   - docs/template/agents-template.md
-  - node_modules/vibe-pm/dist/docs/template/agents-template.md
+  - .opencode/node_modules/@laxture/vibe-pm/dist/docs/template/agents-template.md
+  - ~/.opencode/node_modules/@laxture/vibe-pm/dist/docs/template/agents-template.md
+  - ~/.cache/opencode/packages/@laxture/vibe-pm@latest/node_modules/@laxture/vibe-pm/dist/docs/template/agents-template.md
   - Fallback: use glob "**/agents-template.md" to find the file
 2. Scenario A — template found:
   a) AGENTS.md does not exist → generate using template. Placeholder rules:

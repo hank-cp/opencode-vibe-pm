@@ -1,0 +1,11 @@
+src/
+tests/
+scripts/
+docs/
+.eslintrc*
+.prettierrc*
+tsconfig.json
+bunfig.toml
+mise.toml
+.vibe-pm/
+.gitignore

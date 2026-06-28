@@ -278,7 +278,8 @@ ${tableRows}
 严格按以下优先级规则执行：
 1. 确认模板，按以下路径顺序查找：
   - docs/template/agents-template.md（项目本地）
-  - node_modules/vibe-pm/dist/docs/template/agents-template.md（npm 安装的插件内置）
+  - ~/.opencode/node_modules/@laxture/vibe-pm/dist/docs/template/agents-template.md（npm 安装的插件内置）
+  - ~/.cache/opencode/packages/@laxture/vibe-pm@latest/node_modules/@laxture/vibe-pm/dist/docs/template/agents-template.md（npm 安装的插件内置）
   - 兜底：使用 glob "**/agents-template.md" 全局搜索该文件
 2. 场景 A — 模板存在：
   a) AGENTS.md 不存在 → 按模板格式生成。占位符填充规则：
