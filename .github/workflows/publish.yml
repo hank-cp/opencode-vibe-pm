@@ -1,7 +1,12 @@
 name: Publish to npm
+#on:
+#  push:
+#    tags: ['v*']
 on:
+  workflow_dispatch:
   push:
-    tags: ['v*']
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -19,7 +24,7 @@ jobs:
           cache: npm
       - uses: actions/setup-node@v4
         with:
-          node-version: '22.x'
+          node-version: '24'
           cache: npm
           registry-url: https://registry.npmjs.org
 
