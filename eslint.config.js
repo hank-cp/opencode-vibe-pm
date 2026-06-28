@@ -16,6 +16,12 @@ export default tseslint.config(
         process: 'readonly',
         Buffer: 'readonly',
         Bun: 'readonly',
+        setTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        AbortController: 'readonly',
+        URL: 'readonly',
+        NodeJS: 'readonly',
       },
     },
     plugins: {
@@ -28,7 +34,9 @@ export default tseslint.config(
       ...prettier.rules,
       'prettier/prettier': 'error',
       '@typescript-eslint/no-explicit-any': 'warn',
-      'no-console': 'error',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      'no-console': ['error', { allow: ['warn', 'error'] }],
     },
   }
 );

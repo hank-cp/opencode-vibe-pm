@@ -5,10 +5,8 @@
 /** 尝试为已有活跃任务的 session 创建第二个 Task 时抛出 */
 export class DuplicateTaskError extends Error {
   constructor(sessionId: string) {
-    super(
-      `Cannot create Task: session "${sessionId}" already has an active task.`,
-    );
-    this.name = "DuplicateTaskError";
+    super(`Cannot create Task: session "${sessionId}" already has an active task.`);
+    this.name = 'DuplicateTaskError';
   }
 }
 
@@ -16,6 +14,6 @@ export class DuplicateTaskError extends Error {
 export class MemorySystemError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "MemorySystemError";
+    this.name = 'MemorySystemError';
   }
 }

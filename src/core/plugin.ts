@@ -1,20 +1,30 @@
-import * as path from "node:path";
-import {ensureDefaultConfig, loadConfig} from "./config.js";
-import {registerCommands, registerFlowCommands, registerFlowTools, registerTools} from "./commands.js";
-import {initLogger, logger} from "./logger.js";
-import {MemorySystem} from "../memory";
-import {FlowEngine} from "../engine";
-import type {ApiTelemetry, ModelInfo, TokenCount} from "../token";
-import {TokenCounter} from "../token";
-import type {Config, Hooks, IPluginContext, Plugin, PluginInput} from "./types.js";
-import type {UserMessage, AssistantMessage} from "@opencode-ai/sdk";
-import {discoverLanguagePacks} from "../i18n";
+import * as path from 'node:path';
+import { ensureDefaultConfig, loadConfig } from './config.js';
+import {
+  registerCommands,
+  registerFlowCommands,
+  registerFlowTools,
+  registerTools,
+} from './commands.js';
+import { initLogger, logger } from './logger.js';
+import { MemorySystem } from '../memory';
+import { FlowEngine } from '../engine';
+import type { ApiTelemetry, ModelInfo, TokenCount } from '../token';
+import { TokenCounter } from '../token';
+import type { Config, Hooks, IPluginContext, Plugin, PluginInput } from './types.js';
+import type { UserMessage, AssistantMessage } from '@opencode-ai/sdk';
+import { discoverLanguagePacks } from '../i18n';
 
 export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => {
   ensureDefaultConfig(ctx.directory);
   const config = loadConfig(ctx.directory);
   const dataDir = path.resolve(ctx.directory, config.dataDir);
-  const pluginCtx: IPluginContext = { config, projectDir: ctx.directory, dataDir, client: ctx.client };
+  const pluginCtx: IPluginContext = {
+    config,
+    projectDir: ctx.directory,
+    dataDir,
+    client: ctx.client,
+  };
   initLogger(ctx.client);
   logger.info(`vibe-pm initializing in ${ctx.directory}`);
 
@@ -25,12 +35,13 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
 
   const packs = discoverLanguagePacks();
   const validLocales = new Set(packs.map((p) => p.locale));
-  const locale = validLocales.has(config.language) ? config.language : "en-US";
+  const locale = validLocales.has(config.language) ? config.language : 'en-US';
   if (!validLocales.has(config.language)) {
-    logger.warn(`config.language "${config.language}" not found in available packs, fallback to "en-US"`);
+    logger.warn(
+      `config.language "${config.language}" not found in available packs, fallback to "en-US"`
+    );
   }
   engine.initLocale(locale);
-
 
   return {
     config: async (c: Config) => {
@@ -38,15 +49,19 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
       registerFlowCommands(c, ctx.directory);
     },
     tool: (() => {
-      const tools = Object.assign(registerTools(pluginCtx, engine, memory),
-                           registerFlowTools(pluginCtx, engine));
+      const tools = Object.assign(
+        registerTools(pluginCtx, engine, memory),
+        registerFlowTools(pluginCtx, engine)
+      );
       logger.info(`registering tools: ${Object.keys(tools)}`);
       return tools;
     })(),
 
-    "experimental.chat.messages.transform": async (_input, output) => {
+    'experimental.chat.messages.transform': async (_input, output) => {
       const msg0 = output.messages[0];
-      const userMsgInfo0 = output.messages.map(m => m.info).find(info => 'model' in info) as UserMessage;
+      const userMsgInfo0 = output.messages
+        .map((m) => m.info)
+        .find((info) => 'model' in info) as UserMessage;
       const info0 = msg0?.info;
       const sid = info0?.sessionID;
       const sessionResult = await ctx.client.session.get({
@@ -56,8 +71,8 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
       if (!session || !sid) return;
 
       const modelInfo: ModelInfo = {
-        providerID: userMsgInfo0?.model?.providerID ?? "",
-        modelID: userMsgInfo0?.model?.modelID ?? "",
+        providerID: userMsgInfo0?.model?.providerID ?? '',
+        modelID: userMsgInfo0?.model?.modelID ?? '',
       };
       let tokenCounter: TokenCounter | null = null;
       try {
@@ -69,16 +84,32 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
       // TODO debug code, need continuous observation
       const flowSessions = new Set<string>();
       for (const msg of output.messages) {
-        flowSessions.add(msg.info.sessionID ?? "");
+        flowSessions.add(msg.info.sessionID ?? '');
       }
-      logger.info(`messages.transform hook entered: sid=${sid}, parentSid=${session?.parentID}, modelId=${modelInfo.modelID}, providerId=${modelInfo.providerID}`);
+      logger.info(
+        `messages.transform hook entered: sid=${sid}, parentSid=${session?.parentID}, modelId=${modelInfo.modelID}, providerId=${modelInfo.providerID}`
+      );
       logger.info(`sessionIds in flow: ${flowSessions.size}`);
 
       const task = await memory.getActiveTask(sid);
 
       // ═══ LOOP: accumulate token counts + detect outOfControl ═══
-      const totalTokens: TokenCount = { text: 0, user: 0, assistant: 0, flowControl: 0, tool: 0, reasoning: 0 };
-      const stepTokens: TokenCount = { text: 0, user: 0, assistant: 0, flowControl: 0, tool: 0, reasoning: 0 };
+      const totalTokens: TokenCount = {
+        text: 0,
+        user: 0,
+        assistant: 0,
+        flowControl: 0,
+        tool: 0,
+        reasoning: 0,
+      };
+      const stepTokens: TokenCount = {
+        text: 0,
+        user: 0,
+        assistant: 0,
+        flowControl: 0,
+        tool: 0,
+        reasoning: 0,
+      };
       let outOfControl = false;
       let apiTelemetry: ApiTelemetry | undefined;
 
@@ -104,13 +135,13 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
             stepTokens.reasoning += result.reasoning;
           }
 
-          if (info.role === "assistant") {
+          if (info.role === 'assistant') {
             apiTelemetry = (info as AssistantMessage).tokens;
 
             if (task && !outOfControl) {
               const stepCalled = (task.stepTransitions?.length ?? 0) > 0;
               const hasTodo = msg.parts.some(
-                (p) => p.type === "tool" && (p as { name?: string }).name === "todowrite",
+                (p) => p.type === 'tool' && (p as { name?: string }).name === 'todowrite'
               );
               if (hasTodo && !stepCalled) {
                 outOfControl = true;
@@ -121,30 +152,45 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
         }
 
         if (session.parentID) {
-          memory.recordSubagentTokens(sid, session.parentID, totalTokens, apiTelemetry).catch((e: unknown) => {
-            logger.error(`recordSubagentTokens failed: ${e}`);
-          });
+          memory
+            .recordSubagentTokens(sid, session.parentID, totalTokens, apiTelemetry)
+            .catch((e: unknown) => {
+              logger.error(`recordSubagentTokens failed: ${e}`);
+            });
         } else {
           memory.recordSessionTokens(sid, totalTokens, apiTelemetry).catch((e: unknown) => {
             logger.error(`recordSessionTokens failed: ${e}`);
           });
 
           if (task) {
-            memory.recordStepTokens(sid, task.flow, task.currentStep, task.currentStepName, stepTokens).catch((e: unknown) => {
-              logger.error(`recordStepTokens failed: ${e}`);
-            });
+            memory
+              .recordStepTokens(sid, task.flow, task.currentStep, task.currentStepName, stepTokens)
+              .catch((e: unknown) => {
+                logger.error(`recordStepTokens failed: ${e}`);
+              });
           }
         }
       }
 
       // ═══ INJECT: flow control + warning (on first user message) ═══
       if (task) {
-        const userMsg = output.messages.find((m) => (m.info as { role?: string }).role === "user");
+        const userMsg = output.messages.find((m) => (m.info as { role?: string }).role === 'user');
         if (userMsg) {
           const umInfo = userMsg.info as { id?: string; sessionID?: string };
-          engine.injectFlowControlPrompt(sid, task.flow, userMsg.parts, umInfo.id ?? "", umInfo.sessionID ?? "");
+          engine.injectFlowControlPrompt(
+            sid,
+            task.flow,
+            userMsg.parts,
+            umInfo.id ?? '',
+            umInfo.sessionID ?? ''
+          );
           if (outOfControl) {
-            engine.injectFlowWarningPrompt(sid, userMsg.parts, umInfo.id ?? "", umInfo.sessionID ?? "");
+            engine.injectFlowWarningPrompt(
+              sid,
+              userMsg.parts,
+              umInfo.id ?? '',
+              umInfo.sessionID ?? ''
+            );
           }
         }
       }
@@ -158,7 +204,7 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
     },
 
     event: async ({ event }) => {
-      if (event.type === "session.created") {
+      if (event.type === 'session.created') {
         engine.clearCommandFlowCache();
         const sessionId = (event as { sessionID?: string }).sessionID;
         if (sessionId) {

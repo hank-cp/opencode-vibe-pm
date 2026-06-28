@@ -4,9 +4,9 @@
  * 从 IMemorySystem 加载当前或上一任务的状态信息。
  */
 
-import type { IMemorySystem } from "../../memory/types.js";
-import type { TaskStatusData } from "../types.js";
-import { formatElapsed } from "../types.js";
+import type { IMemorySystem } from '../../memory/types.js';
+import type { TaskStatusData } from '../types.js';
+import { formatElapsed } from '../types.js';
 
 /**
  * 加载指定 session 的任务状态数据。
@@ -18,13 +18,13 @@ import { formatElapsed } from "../types.js";
  */
 export async function loadTaskStatus(
   memory: IMemorySystem,
-  sessionId: string,
+  sessionId: string
 ): Promise<TaskStatusData> {
   const active = await memory.getActiveTask(sessionId);
 
   if (active) {
     return {
-      type: "active",
+      type: 'active',
       flow: active.flow,
       currentStep: active.currentStep,
       currentStepName: active.currentStepName,
@@ -37,7 +37,7 @@ export async function loadTaskStatus(
 
   if (last) {
     return {
-      type: "last",
+      type: 'last',
       flow: last.flow,
       currentStep: last.currentStep,
       currentStepName: last.currentStepName,
@@ -47,5 +47,5 @@ export async function loadTaskStatus(
     };
   }
 
-  return { type: "empty" };
+  return { type: 'empty' };
 }

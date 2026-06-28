@@ -2,24 +2,24 @@
  * Template Manager 测试
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import * as fs from "node:fs";
-import * as path from "node:path";
-import * as os from "node:os";
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
 import {
   scanTemplates,
   installTemplate,
   uninstallFlow,
   listInstalledFlows,
   TemplateConflictError,
-} from "../../src/template/index.js";
+} from '../../src/template/index.js';
 
 function createTestProject() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-pm-test-tmpl-"));
-  const docsDir = path.join(dir, "docs");
-  fs.mkdirSync(path.join(docsDir, "template"), { recursive: true });
-  fs.mkdirSync(path.join(docsDir, "flow"), { recursive: true });
-  fs.mkdirSync(path.join(docsDir, "regulation"), { recursive: true });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vibe-pm-test-tmpl-'));
+  const docsDir = path.join(dir, 'docs');
+  fs.mkdirSync(path.join(docsDir, 'template'), { recursive: true });
+  fs.mkdirSync(path.join(docsDir, 'flow'), { recursive: true });
+  fs.mkdirSync(path.join(docsDir, 'regulation'), { recursive: true });
   return dir;
 }
 
@@ -27,30 +27,26 @@ function writeTemplateBundle(
   projectDir: string,
   id: string,
   name: string,
-  category: string = "development",
+  category: string = 'development'
 ) {
-  const bundleDir = path.join(projectDir, "docs", "template", id);
+  const bundleDir = path.join(projectDir, 'docs', 'template', id);
   fs.mkdirSync(bundleDir, { recursive: true });
   fs.writeFileSync(
-    path.join(bundleDir, "flow.md"),
-    `# ${name}\n\n**Template ID**: \`${id}\`\n**Category**: ${category}\n**Description**: Test template ${id}\n**Version**: 1.0.0\n\n---\n\n## 适用场景\n\n测试。\n\n## 状态机\n\n\`\`\`mermaid\nstateDiagram-v2\n    [*] --> S1\n    S1 --> [*]\n\`\`\`\n\n## 任务步骤\n\n### S1: 测试步骤\n\n**目标**：测试。\n**执行 Agent**：Assistant\n\n1. 测试\n\n**完成后**：结束\n`,
+    path.join(bundleDir, 'flow.md'),
+    `# ${name}\n\n**Template ID**: \`${id}\`\n**Category**: ${category}\n**Description**: Test template ${id}\n**Version**: 1.0.0\n\n---\n\n## 适用场景\n\n测试。\n\n## 状态机\n\n\`\`\`mermaid\nstateDiagram-v2\n    [*] --> S1\n    S1 --> [*]\n\`\`\`\n\n## 任务步骤\n\n### S1: 测试步骤\n\n**目标**：测试。\n**执行 Agent**：Assistant\n\n1. 测试\n\n**完成后**：结束\n`
   );
 }
 
-function writeTemplateWithRegulations(
-  projectDir: string,
-  id: string,
-  regFiles: string[],
-) {
+function writeTemplateWithRegulations(projectDir: string, id: string, regFiles: string[]) {
   writeTemplateBundle(projectDir, id, `Template ${id}`);
-  const regDir = path.join(projectDir, "docs", "template", id, "regulations");
+  const regDir = path.join(projectDir, 'docs', 'template', id, 'regulations');
   fs.mkdirSync(regDir, { recursive: true });
   for (const f of regFiles) {
     fs.writeFileSync(path.join(regDir, f), `# ${f}\n\nTest regulation.`);
   }
 }
 
-describe("Template Manager", () => {
+describe('Template Manager', () => {
   let tmpDir: string;
 
   beforeEach(() => {
@@ -61,258 +57,260 @@ describe("Template Manager", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("scan_finds_all_templates: 扫描所有模板目录", () => {
-    writeTemplateBundle(tmpDir, "t1", "Template 1");
-    writeTemplateBundle(tmpDir, "t2", "Template 2");
-    writeTemplateBundle(tmpDir, "t3", "Template 3");
+  it('scan_finds_all_templates: 扫描所有模板目录', () => {
+    writeTemplateBundle(tmpDir, 't1', 'Template 1');
+    writeTemplateBundle(tmpDir, 't2', 'Template 2');
+    writeTemplateBundle(tmpDir, 't3', 'Template 3');
 
     const templates = scanTemplates(tmpDir);
     expect(templates).toHaveLength(3);
-    expect(templates.map((t) => t.id).sort()).toEqual(["t1", "t2", "t3"]);
+    expect(templates.map((t) => t.id).sort()).toEqual(['t1', 't2', 't3']);
   });
 
-  it("scan_parses_meta: 解析模板元信息", () => {
-    writeTemplateBundle(tmpDir, "test-tmpl", "测试模板", "research");
+  it('scan_parses_meta: 解析模板元信息', () => {
+    writeTemplateBundle(tmpDir, 'test-tmpl', '测试模板', 'research');
 
     const templates = scanTemplates(tmpDir);
     expect(templates).toHaveLength(1);
     const t = templates[0];
-    expect(t.id).toBe("test-tmpl");
-    expect(t.name).toBe("测试模板");
-    expect(t.category).toBe("research");
-    expect(t.version).toBe("1.0.0");
+    expect(t.id).toBe('test-tmpl');
+    expect(t.name).toBe('测试模板');
+    expect(t.category).toBe('research');
+    expect(t.version).toBe('1.0.0');
   });
 
-  it("scan_skips_non_template_dirs: 忽略无 flow.md 的目录", () => {
-    const docsDir = path.join(tmpDir, "docs", "template");
-    fs.mkdirSync(path.join(docsDir, "empty-dir"));
-    writeTemplateBundle(tmpDir, "real", "Real Template");
+  it('scan_skips_non_template_dirs: 忽略无 flow.md 的目录', () => {
+    const docsDir = path.join(tmpDir, 'docs', 'template');
+    fs.mkdirSync(path.join(docsDir, 'empty-dir'));
+    writeTemplateBundle(tmpDir, 'real', 'Real Template');
 
     const templates = scanTemplates(tmpDir);
     expect(templates).toHaveLength(1);
-    expect(templates[0].id).toBe("real");
+    expect(templates[0].id).toBe('real');
   });
 
-  it("install_copies_to_flow_dir: 安装模板到 flow 目录", async () => {
-    writeTemplateBundle(tmpDir, "my-flow", "My Flow");
+  it('install_copies_to_flow_dir: 安装模板到 flow 目录', async () => {
+    writeTemplateBundle(tmpDir, 'my-flow', 'My Flow');
 
-    await installTemplate(tmpDir, "my-flow");
+    await installTemplate(tmpDir, 'my-flow');
 
-    const flowPath = path.join(tmpDir, "docs", "flow", "flow-my-flow.md");
+    const flowPath = path.join(tmpDir, 'docs', 'flow', 'flow-my-flow.md');
     expect(fs.existsSync(flowPath)).toBe(true);
 
-    const content = fs.readFileSync(flowPath, "utf-8");
-    expect(content).toContain("My Flow");
-    expect(content).toContain("Template ID");
+    const content = fs.readFileSync(flowPath, 'utf-8');
+    expect(content).toContain('My Flow');
+    expect(content).toContain('Template ID');
   });
 
-  it("install_copies_regulations: 安装时复制配套 Regulation", async () => {
-    writeTemplateWithRegulations(tmpDir, "with-regs", ["custom-check.md"]);
+  it('install_copies_regulations: 安装时复制配套 Regulation', async () => {
+    writeTemplateWithRegulations(tmpDir, 'with-regs', ['custom-check.md']);
 
-    await installTemplate(tmpDir, "with-regs");
+    await installTemplate(tmpDir, 'with-regs');
 
-    const regPath = path.join(tmpDir, "docs", "regulation", "custom-check.md");
+    const regPath = path.join(tmpDir, 'docs', 'regulation', 'custom-check.md');
     expect(fs.existsSync(regPath)).toBe(true);
-    expect(fs.readFileSync(regPath, "utf-8")).toContain("Test regulation");
+    expect(fs.readFileSync(regPath, 'utf-8')).toContain('Test regulation');
   });
 
-  it("install_overwrite_error: 已存在且未传 overwrite 时抛错", async () => {
-    writeTemplateBundle(tmpDir, "dup", "Duplicate");
-    await installTemplate(tmpDir, "dup");
+  it('install_overwrite_error: 已存在且未传 overwrite 时抛错', async () => {
+    writeTemplateBundle(tmpDir, 'dup', 'Duplicate');
+    await installTemplate(tmpDir, 'dup');
 
-    expect(() => installTemplate(tmpDir, "dup")).toThrow(
-      TemplateConflictError,
-    );
+    expect(() => installTemplate(tmpDir, 'dup')).toThrow(TemplateConflictError);
   });
 
-  it("install_overwrite_force: 传 overwrite=true 时覆盖成功", async () => {
-    writeTemplateBundle(tmpDir, "dup2", "Original");
-    await installTemplate(tmpDir, "dup2");
+  it('install_overwrite_force: 传 overwrite=true 时覆盖成功', async () => {
+    writeTemplateBundle(tmpDir, 'dup2', 'Original');
+    await installTemplate(tmpDir, 'dup2');
 
     // 修改模板内容，验证覆盖
-    const flowPath = path.join(tmpDir, "docs", "template", "dup2", "flow.md");
-    fs.writeFileSync(flowPath, "# Updated Flow\n\n**Template ID**: `dup2`\n\nUpdated content.", "utf-8");
+    const flowPath = path.join(tmpDir, 'docs', 'template', 'dup2', 'flow.md');
+    fs.writeFileSync(
+      flowPath,
+      '# Updated Flow\n\n**Template ID**: `dup2`\n\nUpdated content.',
+      'utf-8'
+    );
 
-    expect(() => installTemplate(tmpDir, "dup2", { overwrite: true })).not.toThrow();
-    const installed = path.join(tmpDir, "docs", "flow", "flow-dup2.md");
-    expect(fs.readFileSync(installed, "utf-8")).toContain("Updated content.");
+    expect(() => installTemplate(tmpDir, 'dup2', { overwrite: true })).not.toThrow();
+    const installed = path.join(tmpDir, 'docs', 'flow', 'flow-dup2.md');
+    expect(fs.readFileSync(installed, 'utf-8')).toContain('Updated content.');
   });
 
-  it("uninstall_removes_file: 卸载删除目标文件", async () => {
-    writeTemplateBundle(tmpDir, "rm-me", "Remove Me");
-    writeTemplateBundle(tmpDir, "keep", "Keep Me");
-    await installTemplate(tmpDir, "rm-me");
-    await installTemplate(tmpDir, "keep");
+  it('uninstall_removes_file: 卸载删除目标文件', async () => {
+    writeTemplateBundle(tmpDir, 'rm-me', 'Remove Me');
+    writeTemplateBundle(tmpDir, 'keep', 'Keep Me');
+    await installTemplate(tmpDir, 'rm-me');
+    await installTemplate(tmpDir, 'keep');
 
-    uninstallFlow(tmpDir, "rm-me");
+    uninstallFlow(tmpDir, 'rm-me');
 
     const flows = listInstalledFlows(tmpDir);
     expect(flows).toHaveLength(1);
-    expect(flows[0]).toBe("keep");
+    expect(flows[0]).toBe('keep');
   });
 
-  it("list_installed_flows: 列出已安装流程", async () => {
-    writeTemplateBundle(tmpDir, "f1", "Flow 1");
-    writeTemplateBundle(tmpDir, "f2", "Flow 2");
-    await installTemplate(tmpDir, "f1");
-    await installTemplate(tmpDir, "f2");
+  it('list_installed_flows: 列出已安装流程', async () => {
+    writeTemplateBundle(tmpDir, 'f1', 'Flow 1');
+    writeTemplateBundle(tmpDir, 'f2', 'Flow 2');
+    await installTemplate(tmpDir, 'f1');
+    await installTemplate(tmpDir, 'f2');
 
     const flows = listInstalledFlows(tmpDir);
     expect(flows).toHaveLength(2);
-    expect(flows).toContain("f1");
-    expect(flows).toContain("f2");
+    expect(flows).toContain('f1');
+    expect(flows).toContain('f2');
   });
 
-  it("install_does_not_overwrite_existing_regulation: 已存在的 Regulation 不覆盖", async () => {
-    writeTemplateWithRegulations(tmpDir, "r1", ["shared.md"]);
+  it('install_does_not_overwrite_existing_regulation: 已存在的 Regulation 不覆盖', async () => {
+    writeTemplateWithRegulations(tmpDir, 'r1', ['shared.md']);
     // 在 regulation 目录预置同名文件
-    const existingPath = path.join(tmpDir, "docs", "regulation", "shared.md");
-    fs.writeFileSync(existingPath, "existing content");
+    const existingPath = path.join(tmpDir, 'docs', 'regulation', 'shared.md');
+    fs.writeFileSync(existingPath, 'existing content');
 
-    await installTemplate(tmpDir, "r1");
+    await installTemplate(tmpDir, 'r1');
 
     // 不应覆盖已有文件
-    expect(fs.readFileSync(existingPath, "utf-8")).toBe("existing content");
+    expect(fs.readFileSync(existingPath, 'utf-8')).toBe('existing content');
   });
 
-  describe("Coding Style 语言选择", () => {
+  describe('Coding Style 语言选择', () => {
     function createCodingStyleTemplates(projectDir: string) {
-      const styleDir = path.join(projectDir, "docs", "template", "_coding_style");
+      const styleDir = path.join(projectDir, 'docs', 'template', '_coding_style');
       fs.mkdirSync(styleDir, { recursive: true });
-      fs.writeFileSync(path.join(styleDir, "typescript.md"), "# TypeScript");
-      fs.writeFileSync(path.join(styleDir, "python.md"), "# Python");
-      fs.writeFileSync(path.join(styleDir, "general.md"), "# General");
+      fs.writeFileSync(path.join(styleDir, 'typescript.md'), '# TypeScript');
+      fs.writeFileSync(path.join(styleDir, 'python.md'), '# Python');
+      fs.writeFileSync(path.join(styleDir, 'general.md'), '# General');
     }
 
-    it("installTemplate 传递 programmingLanguages → 只复制指定语言", async () => {
-      writeTemplateBundle(tmpDir, "lang-test", "Lang Test");
+    it('installTemplate 传递 programmingLanguages → 只复制指定语言', async () => {
+      writeTemplateBundle(tmpDir, 'lang-test', 'Lang Test');
       createCodingStyleTemplates(tmpDir);
 
-      const languages = ["TypeScript", "Python"];
-      await installTemplate(tmpDir, "lang-test", { programmingLanguages: languages });
+      const languages = ['TypeScript', 'Python'];
+      await installTemplate(tmpDir, 'lang-test', { programmingLanguages: languages });
 
-      const codingDir = path.join(tmpDir, "docs", "regulation", "coding_style");
-      expect(fs.existsSync(path.join(codingDir, "typescript.md"))).toBe(true);
-      expect(fs.existsSync(path.join(codingDir, "python.md"))).toBe(true);
-      expect(fs.existsSync(path.join(codingDir, "general.md"))).toBe(true);
+      const codingDir = path.join(tmpDir, 'docs', 'regulation', 'coding_style');
+      expect(fs.existsSync(path.join(codingDir, 'typescript.md'))).toBe(true);
+      expect(fs.existsSync(path.join(codingDir, 'python.md'))).toBe(true);
+      expect(fs.existsSync(path.join(codingDir, 'general.md'))).toBe(true);
     });
 
-    it("installTemplate 不传 programmingLanguages → General 兜底", async () => {
-      writeTemplateBundle(tmpDir, "lang-fallback", "Lang Fallback");
+    it('installTemplate 不传 programmingLanguages → General 兜底', async () => {
+      writeTemplateBundle(tmpDir, 'lang-fallback', 'Lang Fallback');
       createCodingStyleTemplates(tmpDir);
 
-      await installTemplate(tmpDir, "lang-fallback");
+      await installTemplate(tmpDir, 'lang-fallback');
 
-      const codingDir = path.join(tmpDir, "docs", "regulation", "coding_style");
-      expect(fs.existsSync(path.join(codingDir, "general.md"))).toBe(true);
-      expect(fs.existsSync(path.join(codingDir, "typescript.md"))).toBe(false);
+      const codingDir = path.join(tmpDir, 'docs', 'regulation', 'coding_style');
+      expect(fs.existsSync(path.join(codingDir, 'general.md'))).toBe(true);
+      expect(fs.existsSync(path.join(codingDir, 'typescript.md'))).toBe(false);
     });
   });
 
-  describe("DCP 配置文件路径解析", () => {
-    const dcpDir = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-pm-test-dcp-"));
+  describe('DCP 配置文件路径解析', () => {
+    const dcpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vibe-pm-test-dcp-'));
 
     afterEach(() => {
       fs.rmSync(dcpDir, { recursive: true, force: true });
     });
 
     function setupDcpProject(dir: string) {
-      const docsDir = path.join(dir, "docs");
-      fs.mkdirSync(path.join(docsDir, "template"), { recursive: true });
-      fs.mkdirSync(path.join(docsDir, "flow"), { recursive: true });
-      fs.mkdirSync(path.join(docsDir, "regulation"), { recursive: true });
-      const opencodeDir = path.join(dir, ".opencode");
+      const docsDir = path.join(dir, 'docs');
+      fs.mkdirSync(path.join(docsDir, 'template'), { recursive: true });
+      fs.mkdirSync(path.join(docsDir, 'flow'), { recursive: true });
+      fs.mkdirSync(path.join(docsDir, 'regulation'), { recursive: true });
+      const opencodeDir = path.join(dir, '.opencode');
       fs.mkdirSync(opencodeDir, { recursive: true });
       fs.writeFileSync(
-        path.join(opencodeDir, "package.json"),
+        path.join(opencodeDir, 'package.json'),
         JSON.stringify({
-          dependencies: { "opencode-dynamic-context-pruning": "^1.0.0" },
-        }),
+          dependencies: { 'opencode-dynamic-context-pruning': '^1.0.0' },
+        })
       );
-      writeTemplateBundle(dir, "dcp-test", "DCP Test");
+      writeTemplateBundle(dir, 'dcp-test', 'DCP Test');
     }
 
-    it("dcp.jsonc 已存在时使用 dcp.jsonc", () => {
+    it('dcp.jsonc 已存在时使用 dcp.jsonc', () => {
       setupDcpProject(dcpDir);
-      const jsoncPath = path.join(dcpDir, ".opencode", "dcp.jsonc");
+      const jsoncPath = path.join(dcpDir, '.opencode', 'dcp.jsonc');
       fs.writeFileSync(jsoncPath, JSON.stringify({ existing: true }));
 
-      installTemplate(dcpDir, "dcp-test");
+      installTemplate(dcpDir, 'dcp-test');
 
-      const content = JSON.parse(fs.readFileSync(jsoncPath, "utf-8"));
+      const content = JSON.parse(fs.readFileSync(jsoncPath, 'utf-8'));
       expect(content.existing).toBe(true);
       expect(content.compress.protectTags).toBe(true);
     });
 
-    it("仅 dcp.json 存在时使用 dcp.json", () => {
+    it('仅 dcp.json 存在时使用 dcp.json', () => {
       setupDcpProject(dcpDir);
-      const jsonPath = path.join(dcpDir, ".opencode", "dcp.json");
-      const jsoncPath = path.join(dcpDir, ".opencode", "dcp.jsonc");
+      const jsonPath = path.join(dcpDir, '.opencode', 'dcp.json');
+      const jsoncPath = path.join(dcpDir, '.opencode', 'dcp.jsonc');
       fs.writeFileSync(jsonPath, JSON.stringify({ existing: true }));
 
-      installTemplate(dcpDir, "dcp-test");
+      installTemplate(dcpDir, 'dcp-test');
 
       // dcp.json 应被更新
-      const content = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
+      const content = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
       expect(content.existing).toBe(true);
       expect(content.compress.protectTags).toBe(true);
       // dcp.jsonc 不应被创建
       expect(fs.existsSync(jsoncPath)).toBe(false);
     });
 
-    it("两者都不存在时创建 dcp.jsonc", () => {
+    it('两者都不存在时创建 dcp.jsonc', () => {
       setupDcpProject(dcpDir);
-      const jsoncPath = path.join(dcpDir, ".opencode", "dcp.jsonc");
+      const jsoncPath = path.join(dcpDir, '.opencode', 'dcp.jsonc');
 
-      installTemplate(dcpDir, "dcp-test");
+      installTemplate(dcpDir, 'dcp-test');
 
       expect(fs.existsSync(jsoncPath)).toBe(true);
-      const content = JSON.parse(fs.readFileSync(jsoncPath, "utf-8"));
+      const content = JSON.parse(fs.readFileSync(jsoncPath, 'utf-8'));
       expect(content.compress.protectTags).toBe(true);
     });
   });
 
-  describe("回退路径", () => {
-    it("scanTemplates_fallback_to_plugin: 项目无模板时回退到插件内置模板", () => {
-      const noTemplateDir = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-pm-test-nodocs-"));
+  describe('回退路径', () => {
+    it('scanTemplates_fallback_to_plugin: 项目无模板时回退到插件内置模板', () => {
+      const noTemplateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vibe-pm-test-nodocs-'));
       try {
         // 该项目没有任何 docs/ 目录
         const templates = scanTemplates(noTemplateDir);
         // 应该从插件内置模板中找到（开发仓库的 docs/template/ 存在）
         expect(templates.length).toBeGreaterThan(0);
         const ids = templates.map((t) => t.id);
-        expect(ids).toContain("bug-fix");
-        expect(ids).toContain("research");
+        expect(ids).toContain('bug-fix');
+        expect(ids).toContain('research');
       } finally {
         fs.rmSync(noTemplateDir, { recursive: true, force: true });
       }
     });
 
-    it("scanTemplates_prioritizes_project: 项目有模板时优先使用项目模板", () => {
+    it('scanTemplates_prioritizes_project: 项目有模板时优先使用项目模板', () => {
       const dir = createTestProject();
       try {
-        writeTemplateBundle(dir, "custom-flow", "Custom Flow");
+        writeTemplateBundle(dir, 'custom-flow', 'Custom Flow');
         const templates = scanTemplates(dir);
         const ids = templates.map((t) => t.id);
-        expect(ids).toContain("custom-flow");
+        expect(ids).toContain('custom-flow');
         // 项目模板被找到，说明优先级正确
       } finally {
         fs.rmSync(dir, { recursive: true, force: true });
       }
     });
 
-    it("installTemplate_fallback_regulation: 项目无模板时从插件内置复制 regulation", async () => {
+    it('installTemplate_fallback_regulation: 项目无模板时从插件内置复制 regulation', async () => {
       // 项目没有 docs/template/，regulation 应通过回退从插件内置模板安装
-      const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vibe-pm-test-fbreg-"));
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vibe-pm-test-fbreg-'));
       try {
-        const docsDir = path.join(dir, "docs");
-        fs.mkdirSync(path.join(docsDir, "flow"), { recursive: true });
-        fs.mkdirSync(path.join(docsDir, "regulation"), { recursive: true });
+        const docsDir = path.join(dir, 'docs');
+        fs.mkdirSync(path.join(docsDir, 'flow'), { recursive: true });
+        fs.mkdirSync(path.join(docsDir, 'regulation'), { recursive: true });
 
-        await installTemplate(dir, "bug-fix");
+        await installTemplate(dir, 'bug-fix');
 
-        expect(fs.existsSync(path.join(docsDir, "regulation", "constitution.md"))).toBe(true);
-        expect(fs.existsSync(path.join(docsDir, "regulation", "dictionary.md"))).toBe(true);
+        expect(fs.existsSync(path.join(docsDir, 'regulation', 'constitution.md'))).toBe(true);
+        expect(fs.existsSync(path.join(docsDir, 'regulation', 'dictionary.md'))).toBe(true);
       } finally {
         fs.rmSync(dir, { recursive: true, force: true });
       }

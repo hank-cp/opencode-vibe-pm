@@ -3,11 +3,11 @@
  *
  * 基于 SQLite (bun:sqlite) 管理 Task / Discussion / StepTokenMetrics 三类结构化记忆。
  */
-import {Database, Statement} from "bun:sqlite";
-import * as crypto from "node:crypto";
-import * as fs from "node:fs";
-import * as path from "node:path";
-import {logger} from "../core";
+import { Database, Statement } from 'bun:sqlite';
+import * as crypto from 'node:crypto';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { logger } from '../core';
 import type {
   CreateDiscussionInput,
   CreateTaskInput,
@@ -19,9 +19,9 @@ import type {
   StepTransition,
   SubagentTokenMetrics,
   Task,
-} from "./types.js";
-import {DuplicateTaskError} from "./errors.js";
-import {ApiTelemetry, TokenCount} from "../token";
+} from './types.js';
+import { DuplicateTaskError } from './errors.js';
+import { ApiTelemetry, TokenCount } from '../token';
 
 // ─── 内部辅助 ───
 
@@ -31,8 +31,10 @@ function generateId(): string {
 
 /** 解析 JSON 列，容错返回默认值 */
 function parseJSON<T>(raw: unknown, fallback: T): T {
-  if (typeof raw === "string") {
-    try { return JSON.parse(raw) as T; } catch {
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
       logger.debug(`parseJSON: failed to parse JSON, using fallback`);
     }
   }
@@ -108,7 +110,7 @@ export class MemorySystem implements IMemorySystem {
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
     this.db = new Database(dbPath, { create: true });
-    this.db.run("PRAGMA journal_mode = WAL");
+    this.db.run('PRAGMA journal_mode = WAL');
 
     // ─── DDL ───
     for (const stmt of `
@@ -205,36 +207,54 @@ export class MemorySystem implements IMemorySystem {
 
     // Migration: add user_request column (idempotent, fails silently if column exists)
     try {
-      this.db.run("ALTER TABLE tasks ADD COLUMN user_request TEXT");
-      this.db.run("CREATE INDEX IF NOT EXISTS idx_tasks_session_id_user_request ON tasks(session_id, user_request)");
-    } catch { /* column/index already exists */ }
+      this.db.run('ALTER TABLE tasks ADD COLUMN user_request TEXT');
+      this.db.run(
+        'CREATE INDEX IF NOT EXISTS idx_tasks_session_id_user_request ON tasks(session_id, user_request)'
+      );
+    } catch {
+      /* column/index already exists */
+    }
 
     // ─── Prepared Statements ───
     this.stmtInsertTask = this.db.prepare(`
       INSERT INTO tasks (id, session_id, flow, current_step, current_step_name, started_at, ended_at, closed, summary, user_request, step_transitions)
       VALUES ($id, $sessionId, $flow, $currentStep, $currentStepName, $startAt, $endAt, $closed, $summary, $userRequest, $stepTransitions)
     `);
-    this.stmtGetTaskBySession = this.db.prepare("SELECT * FROM tasks WHERE session_id = ? LIMIT 1");
-    this.stmtGetActiveTaskBySession = this.db.prepare("SELECT * FROM tasks WHERE session_id = ? AND closed = 0 LIMIT 1");
-    this.stmtUpdateTaskStep = this.db.prepare("UPDATE tasks SET current_step = ?, current_step_name = ? WHERE id = ?");
-    this.stmtCloseTask = this.db.prepare("UPDATE tasks SET closed = 1, ended_at = ? WHERE id = ?");
-    this.stmtListActiveTasks = this.db.prepare("SELECT * FROM tasks WHERE closed = 0");
-    this.stmtGetTaskById = this.db.prepare("SELECT * FROM tasks WHERE id = ? LIMIT 1");
-    this.stmtUpdateTaskTransitions = this.db.prepare("UPDATE tasks SET step_transitions = ? WHERE id = ?");
-    this.stmtGetClosedTasksBySession = this.db.prepare("SELECT * FROM tasks WHERE session_id = ? AND closed = 1");
+    this.stmtGetTaskBySession = this.db.prepare('SELECT * FROM tasks WHERE session_id = ? LIMIT 1');
+    this.stmtGetActiveTaskBySession = this.db.prepare(
+      'SELECT * FROM tasks WHERE session_id = ? AND closed = 0 LIMIT 1'
+    );
+    this.stmtUpdateTaskStep = this.db.prepare(
+      'UPDATE tasks SET current_step = ?, current_step_name = ? WHERE id = ?'
+    );
+    this.stmtCloseTask = this.db.prepare('UPDATE tasks SET closed = 1, ended_at = ? WHERE id = ?');
+    this.stmtListActiveTasks = this.db.prepare('SELECT * FROM tasks WHERE closed = 0');
+    this.stmtGetTaskById = this.db.prepare('SELECT * FROM tasks WHERE id = ? LIMIT 1');
+    this.stmtUpdateTaskTransitions = this.db.prepare(
+      'UPDATE tasks SET step_transitions = ? WHERE id = ?'
+    );
+    this.stmtGetClosedTasksBySession = this.db.prepare(
+      'SELECT * FROM tasks WHERE session_id = ? AND closed = 1'
+    );
     this.stmtCheckDupUserRequest = this.db.prepare(
-      "SELECT COUNT(*) AS cnt FROM tasks WHERE session_id = ? AND user_request = ? AND user_request IS NOT NULL AND closed = 0"
+      'SELECT COUNT(*) AS cnt FROM tasks WHERE session_id = ? AND user_request = ? AND user_request IS NOT NULL AND closed = 0'
     );
 
     this.stmtInsertDiscussion = this.db.prepare(`
       INSERT INTO discussions (id, from_session_id, priority, importance, severity, issue, reason, solution, decision, task_summary, created_at, resolved_at)
       VALUES ($id, $fromSessionId, $priority, $importance, $severity, $issue, $reason, $solution, $decision, $taskSummary, $createdAt, $resolvedAt)
     `);
-    this.stmtGetDiscussionsBySession = this.db.prepare("SELECT * FROM discussions WHERE from_session_id = ?");
-    this.stmtGetAllDiscussions = this.db.prepare("SELECT * FROM discussions");
-    this.stmtResolveDiscussion = this.db.prepare("UPDATE discussions SET decision = ?, resolved_at = ? WHERE id = ?");
+    this.stmtGetDiscussionsBySession = this.db.prepare(
+      'SELECT * FROM discussions WHERE from_session_id = ?'
+    );
+    this.stmtGetAllDiscussions = this.db.prepare('SELECT * FROM discussions');
+    this.stmtResolveDiscussion = this.db.prepare(
+      'UPDATE discussions SET decision = ?, resolved_at = ? WHERE id = ?'
+    );
 
-    this.stmtGetMetricsBySessionStep = this.db.prepare("SELECT * FROM step_token_metrics WHERE session_id = ? AND step = ? LIMIT 1");
+    this.stmtGetMetricsBySessionStep = this.db.prepare(
+      'SELECT * FROM step_token_metrics WHERE session_id = ? AND step = ? LIMIT 1'
+    );
     this.stmtUpdateMetrics = this.db.prepare(`
       UPDATE step_token_metrics SET tokens_consumed = ?, tokens_by_source = ?, step_in_count = ?
       WHERE id = ?
@@ -247,14 +267,18 @@ export class MemorySystem implements IMemorySystem {
       INSERT OR REPLACE INTO step_token_metrics (id, session_id, flow, step, step_name, step_in_count, tokens_consumed, tokens_by_source, task_summary)
       VALUES ($id, $sessionId, $flow, $step, $stepName, $stepInCount, $tokensConsumed, $tokensBySource, $taskSummary)
     `);
-    this.stmtGetMetricsBySession = this.db.prepare("SELECT * FROM step_token_metrics WHERE session_id = ?");
-    this.stmtGetMetricsByFlow = this.db.prepare("SELECT * FROM step_token_metrics WHERE flow = ?");
+    this.stmtGetMetricsBySession = this.db.prepare(
+      'SELECT * FROM step_token_metrics WHERE session_id = ?'
+    );
+    this.stmtGetMetricsByFlow = this.db.prepare('SELECT * FROM step_token_metrics WHERE flow = ?');
 
     this.stmtInitSessionTokens = this.db.prepare(`
        INSERT OR IGNORE INTO session_tokens (session_id, text, "user", assistant, flow_control, tool, reasoning, api_input, api_output, api_reasoning, api_cache_read, api_cache_write, scale_factor, started_at, updated_at)
       VALUES ($sessionId, $text, $user, $assistant, $flowControl, $tool, $reasoning, $apiInput, $apiOutput, $apiReasoning, $apiCacheRead, $apiCacheWrite, $scaleFactor, $startedAt, $updatedAt)
     `);
-    this.stmtGetSessionTokens = this.db.prepare("SELECT * FROM session_tokens WHERE session_id = ?");
+    this.stmtGetSessionTokens = this.db.prepare(
+      'SELECT * FROM session_tokens WHERE session_id = ?'
+    );
     this.stmtUpsertSessionTokens = this.db.prepare(`
        INSERT OR REPLACE INTO session_tokens (session_id, text, "user", assistant, flow_control, tool, reasoning, api_input, api_output, api_reasoning, api_cache_read, api_cache_write, scale_factor, started_at, updated_at)
        VALUES ($sessionId, $text, $user, $assistant, $flowControl, $tool, $reasoning, $apiInput, $apiOutput, $apiReasoning, $apiCacheRead, $apiCacheWrite, $scaleFactor, $startedAt, $updatedAt)
@@ -263,7 +287,9 @@ export class MemorySystem implements IMemorySystem {
       INSERT OR REPLACE INTO subagent_tokens (session_id, parent_session_id, "user", assistant, api_input, api_output, api_reasoning, api_cache_read, api_cache_write)
       VALUES ($sessionId, $parentSessionId, $user, $assistant, $apiInput, $apiOutput, $apiReasoning, $apiCacheRead, $apiCacheWrite)
     `);
-    this.stmtGetSubagentTokens = this.db.prepare("SELECT * FROM subagent_tokens WHERE parent_session_id = ?");
+    this.stmtGetSubagentTokens = this.db.prepare(
+      'SELECT * FROM subagent_tokens WHERE parent_session_id = ?'
+    );
   }
 
   // ═══════════════════════════════════════════
@@ -282,20 +308,23 @@ export class MemorySystem implements IMemorySystem {
       closed: false,
     };
 
-    this.stmtInsertTask.run(prefixKeys({
-      ...task,
-      endAt: null,
-      userRequest: task.userRequest ?? null,
-      stepTransitions: null,
-      closed: 0,
-    }));
+    this.stmtInsertTask.run(
+      prefixKeys({
+        ...task,
+        endAt: null,
+        userRequest: task.userRequest ?? null,
+        stepTransitions: null,
+        closed: 0,
+      })
+    );
 
     return task;
   }
 
   async checkDuplicateUserRequest(sessionId: string, userRequest: string): Promise<boolean> {
     if (!userRequest) return false;
-    const row = this.stmtCheckDupUserRequest.get(sessionId, userRequest) as { cnt: number } | undefined;
+    const row = this.stmtCheckDupUserRequest.get(sessionId, userRequest) as
+      { cnt: number } | undefined;
     return (row?.cnt ?? 0) > 0;
   }
 
@@ -305,7 +334,8 @@ export class MemorySystem implements IMemorySystem {
   }
 
   async getActiveTask(sessionId: string): Promise<Task | null> {
-    const row = this.stmtGetActiveTaskBySession.get(sessionId) as Record<string, unknown> | undefined;
+    const row = this.stmtGetActiveTaskBySession.get(sessionId) as
+      Record<string, unknown> | undefined;
     return row ? this.rowToTask(row) : null;
   }
 
@@ -330,7 +360,7 @@ export class MemorySystem implements IMemorySystem {
     const row = this.stmtGetTaskById.get(id) as Record<string, unknown> | undefined;
     if (!row) throw new Error(`Task not found: ${id}`);
 
-    const existingTransitions = parseJSON<StepTransition[]>(row["step_transitions"], []);
+    const existingTransitions = parseJSON<StepTransition[]>(row['step_transitions'], []);
     const transitions = [...existingTransitions, transition];
     this.stmtUpdateTaskTransitions.run(JSON.stringify(transitions), id);
   }
@@ -340,7 +370,7 @@ export class MemorySystem implements IMemorySystem {
   // ═══════════════════════════════════════════
 
   async createDiscussion(input: CreateDiscussionInput): Promise<Discussion> {
-    let taskSummary = input.taskSummary ?? "";
+    let taskSummary = input.taskSummary ?? '';
     if (!taskSummary) {
       const task = await this.getTask(input.fromSessionId);
       if (task) taskSummary = task.summary;
@@ -359,11 +389,13 @@ export class MemorySystem implements IMemorySystem {
       createdAt: new Date().toISOString(),
     };
 
-    this.stmtInsertDiscussion.run(prefixKeys({
-      ...discussion,
-      decision: null,
-      resolvedAt: null,
-    }));
+    this.stmtInsertDiscussion.run(
+      prefixKeys({
+        ...discussion,
+        decision: null,
+        resolvedAt: null,
+      })
+    );
 
     return discussion;
   }
@@ -375,16 +407,17 @@ export class MemorySystem implements IMemorySystem {
 
   async getUnresolvedDiscussions(): Promise<Discussion[]> {
     const rows = this.stmtGetAllDiscussions.all() as Record<string, unknown>[];
-    return rows
-      .map((r) => this.rowToDiscussion(r))
-      .filter((d) => !d.decision);
+    return rows.map((r) => this.rowToDiscussion(r)).filter((d) => !d.decision);
   }
 
   async resolveDiscussion(id: string, decision: string): Promise<void> {
     this.stmtResolveDiscussion.run(decision, new Date().toISOString(), id);
   }
 
-  async listDiscussions(filter?: { priority?: string; unresolved?: boolean }): Promise<Discussion[]> {
+  async listDiscussions(filter?: {
+    priority?: string;
+    unresolved?: boolean;
+  }): Promise<Discussion[]> {
     const rows = this.stmtGetAllDiscussions.all() as Record<string, unknown>[];
     let all = rows.map((r) => this.rowToDiscussion(r));
 
@@ -423,34 +456,45 @@ export class MemorySystem implements IMemorySystem {
     }
 
     const newTotal = tokenCount.text + tokenCount.user + tokenCount.assistant;
-    const existing = this.stmtGetMetricsBySessionStep.get(sessionId, step) as Record<string, unknown> | undefined;
+    const existing = this.stmtGetMetricsBySessionStep.get(sessionId, step) as
+      Record<string, unknown> | undefined;
 
     if (existing) {
-      const existingTokens = parseJSON<Record<string, number>>(existing["tokens_by_source"], {});
+      const existingTokens = parseJSON<Record<string, number>>(existing['tokens_by_source'], {});
       const merged: Record<string, number> = { ...existingTokens };
       for (const [source, tokens] of Object.entries(tokensBySource)) {
         merged[source] = (merged[source] ?? 0) + tokens;
       }
-      this.stmtUpsertMetrics.run(prefixKeys({
-        id: existing["id"] as string,
-        sessionId, flow, step, stepName,
-        stepInCount: existing["step_in_count"] as number ?? 1,
-        tokensConsumed: (existing["tokens_consumed"] as number ?? 0) + newTotal,
-        tokensBySource: JSON.stringify(merged),
-        taskSummary: (existing["task_summary"] as string) ?? "",
-      }));
+      this.stmtUpsertMetrics.run(
+        prefixKeys({
+          id: existing['id'] as string,
+          sessionId,
+          flow,
+          step,
+          stepName,
+          stepInCount: (existing['step_in_count'] as number) ?? 1,
+          tokensConsumed: ((existing['tokens_consumed'] as number) ?? 0) + newTotal,
+          tokensBySource: JSON.stringify(merged),
+          taskSummary: (existing['task_summary'] as string) ?? '',
+        })
+      );
     } else {
-      let taskSummary = "";
+      let taskSummary = '';
       const task = await this.getTask(sessionId);
       if (task) taskSummary = task.summary;
-      this.stmtUpsertMetrics.run(prefixKeys({
-        id: generateId(),
-        sessionId, flow, step, stepName,
-        stepInCount: 1,
-        tokensConsumed: newTotal,
-        tokensBySource: JSON.stringify(tokensBySource),
-        taskSummary,
-      }));
+      this.stmtUpsertMetrics.run(
+        prefixKeys({
+          id: generateId(),
+          sessionId,
+          flow,
+          step,
+          stepName,
+          stepInCount: 1,
+          tokensConsumed: newTotal,
+          tokensBySource: JSON.stringify(tokensBySource),
+          taskSummary,
+        })
+      );
     }
   }
 
@@ -459,45 +503,55 @@ export class MemorySystem implements IMemorySystem {
     flow: string,
     step: string,
     stepName: string,
-    taskSummary: string,
+    taskSummary: string
   ): Promise<void> {
-    const existing = this.stmtGetMetricsBySessionStep.get(sessionId, step) as Record<string, unknown> | undefined;
+    const existing = this.stmtGetMetricsBySessionStep.get(sessionId, step) as
+      Record<string, unknown> | undefined;
 
     if (existing) {
       this.stmtUpdateMetrics.run(
-        existing["tokens_consumed"],
-        existing["tokens_by_source"],
-        (existing["step_in_count"] as number) + 1,
-        existing["id"],
+        existing['tokens_consumed'],
+        existing['tokens_by_source'],
+        (existing['step_in_count'] as number) + 1,
+        existing['id']
       );
-      logger.info(`incrementStepCount: step=${step} count=${(existing["step_in_count"] as number) + 1}`);
+      logger.info(
+        `incrementStepCount: step=${step} count=${(existing['step_in_count'] as number) + 1}`
+      );
     } else {
-      this.stmtInsertMetrics.run(prefixKeys({
-        id: generateId(),
-        sessionId,
-        flow,
-        step,
-        stepName,
-        stepInCount: 1,
-        tokensConsumed: 0,
-        tokensBySource: JSON.stringify({ System: 0, FlowControl: 0, User: 0, Assistant: 0, Tool: 0, Reasoning: 0 }),
-        taskSummary,
-      }));
+      this.stmtInsertMetrics.run(
+        prefixKeys({
+          id: generateId(),
+          sessionId,
+          flow,
+          step,
+          stepName,
+          stepInCount: 1,
+          tokensConsumed: 0,
+          tokensBySource: JSON.stringify({
+            System: 0,
+            FlowControl: 0,
+            User: 0,
+            Assistant: 0,
+            Tool: 0,
+            Reasoning: 0,
+          }),
+          taskSummary,
+        })
+      );
     }
   }
 
-  async recordStepExit(
-    sessionId: string,
-    step: string,
-  ): Promise<void> {
-    const existing = this.stmtGetMetricsBySessionStep.get(sessionId, step) as Record<string, unknown> | undefined;
+  async recordStepExit(sessionId: string, step: string): Promise<void> {
+    const existing = this.stmtGetMetricsBySessionStep.get(sessionId, step) as
+      Record<string, unknown> | undefined;
 
     if (existing) {
       this.stmtUpdateMetrics.run(
-        existing["tokens_consumed"],
-        existing["tokens_by_source"],
-        existing["step_in_count"],
-        existing["id"],
+        existing['tokens_consumed'],
+        existing['tokens_by_source'],
+        existing['step_in_count'],
+        existing['id']
       );
     }
   }
@@ -518,51 +572,65 @@ export class MemorySystem implements IMemorySystem {
 
   async initSessionTokens(sessionId: string): Promise<void> {
     const now = new Date().toISOString();
-    this.stmtInitSessionTokens.run(prefixKeys({
-      sessionId,
-      text: 0,
-      user: 0,
-      assistant: 0,
-      flowControl: 0,
-      tool: 0,
-      reasoning: 0,
-      apiInput: 0,
-      apiOutput: 0,
-      apiReasoning: 0,
-      apiCacheRead: 0,
-      apiCacheWrite: 0,
-      scaleFactor: 1.0,
-      startedAt: now,
-      updatedAt: now,
-    }));
+    this.stmtInitSessionTokens.run(
+      prefixKeys({
+        sessionId,
+        text: 0,
+        user: 0,
+        assistant: 0,
+        flowControl: 0,
+        tool: 0,
+        reasoning: 0,
+        apiInput: 0,
+        apiOutput: 0,
+        apiReasoning: 0,
+        apiCacheRead: 0,
+        apiCacheWrite: 0,
+        scaleFactor: 1.0,
+        startedAt: now,
+        updatedAt: now,
+      })
+    );
   }
 
-  async recordSessionTokens(sessionId: string, tokenCount: TokenCount, apiTelemetry?: ApiTelemetry): Promise<void> {
+  async recordSessionTokens(
+    sessionId: string,
+    tokenCount: TokenCount,
+    apiTelemetry?: ApiTelemetry
+  ): Promise<void> {
     const now = new Date().toISOString();
 
     let scaleFactor = 1.0;
     if (apiTelemetry) {
       const denominator = tokenCount.text + tokenCount.user + tokenCount.assistant;
-      scaleFactor = denominator === 0 ? 1.0 : (apiTelemetry.input + (apiTelemetry.cache?.read ?? 0) + (apiTelemetry.cache?.write ?? 0)) / denominator;
+      scaleFactor =
+        denominator === 0
+          ? 1.0
+          : (apiTelemetry.input +
+              (apiTelemetry.cache?.read ?? 0) +
+              (apiTelemetry.cache?.write ?? 0)) /
+            denominator;
     }
 
-    this.stmtUpsertSessionTokens.run(prefixKeys({
-      sessionId,
-      text: tokenCount.text,
-      user: tokenCount.user,
-      assistant: tokenCount.assistant,
-      flowControl: tokenCount.flowControl,
-      tool: tokenCount.tool,
-      reasoning: tokenCount.reasoning,
-      apiInput: apiTelemetry?.input ?? 0,
-      apiOutput: apiTelemetry?.output ?? 0,
-      apiReasoning: apiTelemetry?.reasoning ?? 0,
-      apiCacheRead: apiTelemetry?.cache?.read ?? 0,
-      apiCacheWrite: apiTelemetry?.cache?.write ?? 0,
-      scaleFactor,
-      startedAt: now,
-      updatedAt: now,
-    }));
+    this.stmtUpsertSessionTokens.run(
+      prefixKeys({
+        sessionId,
+        text: tokenCount.text,
+        user: tokenCount.user,
+        assistant: tokenCount.assistant,
+        flowControl: tokenCount.flowControl,
+        tool: tokenCount.tool,
+        reasoning: tokenCount.reasoning,
+        apiInput: apiTelemetry?.input ?? 0,
+        apiOutput: apiTelemetry?.output ?? 0,
+        apiReasoning: apiTelemetry?.reasoning ?? 0,
+        apiCacheRead: apiTelemetry?.cache?.read ?? 0,
+        apiCacheWrite: apiTelemetry?.cache?.write ?? 0,
+        scaleFactor,
+        startedAt: now,
+        updatedAt: now,
+      })
+    );
   }
 
   async getSessionTokens(sessionId: string): Promise<SessionTokenMetrics | null> {
@@ -577,7 +645,7 @@ export class MemorySystem implements IMemorySystem {
   async getLastClosedTask(sessionId: string): Promise<Task | null> {
     const rows = this.stmtGetClosedTasksBySession.all(sessionId) as Record<string, unknown>[];
     const tasks = rows.map((r) => this.rowToTask(r));
-    tasks.sort((a, b) => (b.endAt ?? "").localeCompare(a.endAt ?? ""));
+    tasks.sort((a, b) => (b.endAt ?? '').localeCompare(a.endAt ?? ''));
     return tasks[0] ?? null;
   }
 
@@ -595,18 +663,25 @@ export class MemorySystem implements IMemorySystem {
   // Subagent Tokens CRUD
   // ═══════════════════════════════════════════
 
-  async recordSubagentTokens(sessionId: string, parentSessionId: string, tokenCount: TokenCount, apiTelemetry?: ApiTelemetry): Promise<void> {
-    this.stmtUpsertSubagentTokens.run(prefixKeys({
-      sessionId,
-      parentSessionId,
-      user: tokenCount.user,
-      assistant: tokenCount.assistant,
-      apiInput: apiTelemetry?.input ?? 0,
-      apiOutput: apiTelemetry?.output ?? 0,
-      apiReasoning: apiTelemetry?.reasoning ?? 0,
-      apiCacheRead: apiTelemetry?.cache?.read ?? 0,
-      apiCacheWrite: apiTelemetry?.cache?.write ?? 0,
-    }));
+  async recordSubagentTokens(
+    sessionId: string,
+    parentSessionId: string,
+    tokenCount: TokenCount,
+    apiTelemetry?: ApiTelemetry
+  ): Promise<void> {
+    this.stmtUpsertSubagentTokens.run(
+      prefixKeys({
+        sessionId,
+        parentSessionId,
+        user: tokenCount.user,
+        assistant: tokenCount.assistant,
+        apiInput: apiTelemetry?.input ?? 0,
+        apiOutput: apiTelemetry?.output ?? 0,
+        apiReasoning: apiTelemetry?.reasoning ?? 0,
+        apiCacheRead: apiTelemetry?.cache?.read ?? 0,
+        apiCacheWrite: apiTelemetry?.cache?.write ?? 0,
+      })
+    );
   }
 
   async getSubagentTokens(parentSessionId: string): Promise<SubagentTokenMetrics[]> {
@@ -620,85 +695,86 @@ export class MemorySystem implements IMemorySystem {
 
   private rowToTask(row: Record<string, unknown>): Task {
     return {
-      id: row["id"] as string,
-      sessionId: row["session_id"] as string,
-      flow: row["flow"] as string,
-      currentStep: row["current_step"] as string,
-      currentStepName: row["current_step_name"] as string,
-      startAt: row["started_at"] as string,
-      endAt: (row["ended_at"] as string) ?? undefined,
-      closed: !!row["closed"],
-      summary: row["summary"] as string,
-      userRequest: (row["user_request"] as string) ?? undefined,
-      stepTransitions: parseJSON<StepTransition[]>(row["step_transitions"], []) as StepTransition[] | undefined,
+      id: row['id'] as string,
+      sessionId: row['session_id'] as string,
+      flow: row['flow'] as string,
+      currentStep: row['current_step'] as string,
+      currentStepName: row['current_step_name'] as string,
+      startAt: row['started_at'] as string,
+      endAt: (row['ended_at'] as string) ?? undefined,
+      closed: !!row['closed'],
+      summary: row['summary'] as string,
+      userRequest: (row['user_request'] as string) ?? undefined,
+      stepTransitions: parseJSON<StepTransition[]>(row['step_transitions'], []) as
+        StepTransition[] | undefined,
     };
   }
 
   private rowToDiscussion(row: Record<string, unknown>): Discussion {
     return {
-      id: row["id"] as string,
-      fromSessionId: row["from_session_id"] as string,
-      priority: row["priority"] as Discussion["priority"],
-      importance: row["importance"] as Discussion["importance"],
-      severity: row["severity"] as Discussion["severity"],
-      issue: row["issue"] as string,
-      reason: row["reason"] as string,
-      solution: row["solution"] as string,
-      decision: (row["decision"] as string) ?? undefined,
-      taskSummary: row["task_summary"] as string,
-      createdAt: row["created_at"] as string,
-      resolvedAt: (row["resolved_at"] as string) ?? undefined,
+      id: row['id'] as string,
+      fromSessionId: row['from_session_id'] as string,
+      priority: row['priority'] as Discussion['priority'],
+      importance: row['importance'] as Discussion['importance'],
+      severity: row['severity'] as Discussion['severity'],
+      issue: row['issue'] as string,
+      reason: row['reason'] as string,
+      solution: row['solution'] as string,
+      decision: (row['decision'] as string) ?? undefined,
+      taskSummary: row['task_summary'] as string,
+      createdAt: row['created_at'] as string,
+      resolvedAt: (row['resolved_at'] as string) ?? undefined,
     };
   }
 
   private rowToStepTokenMetrics(row: Record<string, unknown>): StepTokenMetrics {
     return {
-      id: row["id"] as string,
-      sessionId: row["session_id"] as string,
-      flow: row["flow"] as string,
-      step: row["step"] as string,
-      stepName: row["step_name"] as string,
-      stepInCount: row["step_in_count"] as number,
-      tokensConsumed: row["tokens_consumed"] as number,
+      id: row['id'] as string,
+      sessionId: row['session_id'] as string,
+      flow: row['flow'] as string,
+      step: row['step'] as string,
+      stepName: row['step_name'] as string,
+      stepInCount: row['step_in_count'] as number,
+      tokensConsumed: row['tokens_consumed'] as number,
       tokensBySource: parseJSON<Record<string, number>>(
-        row["tokens_by_source"],
-        {} as Record<string, number>,
+        row['tokens_by_source'],
+        {} as Record<string, number>
       ),
-      taskSummary: row["task_summary"] as string,
+      taskSummary: row['task_summary'] as string,
     };
   }
 
   private rowToSessionTokenMetrics(row: Record<string, unknown>): SessionTokenMetrics {
     return {
-      sessionId: row["session_id"] as string,
-      user: row["user"] as number,
-      assistant: row["assistant"] as number,
-      flowControl: row["flow_control"] as number,
-      text: row["text"] as number,
-      tool: row["tool"] as number,
-      reasoning: row["reasoning"] as number,
-      apiInput: row["api_input"] as number,
-      apiOutput: row["api_output"] as number,
-      apiReasoning: row["api_reasoning"] as number,
-      apiCacheRead: row["api_cache_read"] as number,
-      apiCacheWrite: row["api_cache_write"] as number,
-      scaleFactor: row["scale_factor"] as number,
-      startedAt: row["started_at"] as string,
-      updatedAt: row["updated_at"] as string,
+      sessionId: row['session_id'] as string,
+      user: row['user'] as number,
+      assistant: row['assistant'] as number,
+      flowControl: row['flow_control'] as number,
+      text: row['text'] as number,
+      tool: row['tool'] as number,
+      reasoning: row['reasoning'] as number,
+      apiInput: row['api_input'] as number,
+      apiOutput: row['api_output'] as number,
+      apiReasoning: row['api_reasoning'] as number,
+      apiCacheRead: row['api_cache_read'] as number,
+      apiCacheWrite: row['api_cache_write'] as number,
+      scaleFactor: row['scale_factor'] as number,
+      startedAt: row['started_at'] as string,
+      updatedAt: row['updated_at'] as string,
     };
   }
 
   private rowToSubagentTokenMetrics(row: Record<string, unknown>): SubagentTokenMetrics {
     return {
-      sessionId: row["session_id"] as string,
-      parentSessionId: row["parent_session_id"] as string,
-      user: row["user"] as number,
-      assistant: row["assistant"] as number,
-      apiInput: row["api_input"] as number,
-      apiOutput: row["api_output"] as number,
-      apiReasoning: row["api_reasoning"] as number,
-      apiCacheRead: row["api_cache_read"] as number,
-      apiCacheWrite: row["api_cache_write"] as number,
+      sessionId: row['session_id'] as string,
+      parentSessionId: row['parent_session_id'] as string,
+      user: row['user'] as number,
+      assistant: row['assistant'] as number,
+      apiInput: row['api_input'] as number,
+      apiOutput: row['api_output'] as number,
+      apiReasoning: row['api_reasoning'] as number,
+      apiCacheRead: row['api_cache_read'] as number,
+      apiCacheWrite: row['api_cache_write'] as number,
     };
   }
 }

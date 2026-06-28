@@ -1,6 +1,6 @@
-import { mock } from "bun:test";
+import { mock } from 'bun:test';
 
-mock.module("@opentui/core", () => {
+mock.module('@opentui/core', () => {
   const mockRGBA = {
     fromInts: (r: number, g: number, b: number) => ({
       r,
@@ -23,7 +23,7 @@ mock.module("@opentui/core", () => {
   return { RGBA: mockRGBA };
 });
 
-mock.module("@opentui/solid", () => ({
+mock.module('@opentui/solid', () => ({
   useKeyboard: () => {},
   render: () => {},
   extend: () => {},

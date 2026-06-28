@@ -1,15 +1,15 @@
 /**
  * 中文 I18N — 单一导出，包含所有提示词、消息、工具字符串
  */
-import type { LanguagePack } from "./types.js";
+import type { LanguagePack } from './types.js';
 
 const zhCN = {
-  locale: "zh-CN",
+  locale: 'zh-CN',
 
   // ─── ControlPrompt (原 ControlPromptTemplate) ───
 
   buildControlPrompt(flowName?: string): string {
-    const flowRef = flowName ? `\`docs/flow/flow-${flowName}.md\`` : "docs/flow/";
+    const flowRef = flowName ? `\`docs/flow/flow-${flowName}.md\`` : 'docs/flow/';
     return `<protect>
 # 🚨 流程执行规则
 
@@ -99,41 +99,44 @@ const zhCN = {
 
   buildFlowWarningPrompt(): string {
     return [
-      "⚠️ **流程违规检测**：当前 Session 存在活跃任务，但你可能跳过了规定的流程步骤。",
-      "请自查：是否已按 `<protect>` 规则先调用 `pm_task_set_step` 进入正确的流程步骤？",
-    ].join("\n");
+      '⚠️ **流程违规检测**：当前 Session 存在活跃任务，但你可能跳过了规定的流程步骤。',
+      '请自查：是否已按 `<protect>` 规则先调用 `pm_task_set_step` 进入正确的流程步骤？',
+    ].join('\n');
   },
 
   isControlPromptPart(text: string): boolean {
-    return text.includes("<protect>");
+    return text.includes('<protect>');
   },
 
   isWarningPromptPart(text: string): boolean {
-    return text.includes("流程违规检测");
+    return text.includes('流程违规检测');
   },
 
   // ─── 工具消息 ───
 
   tool: {
-    unknownError: "未知错误",
-    noSessionId: "无法获取当前 Session ID",
-    noSessionIdShort: "无法获取当前 Session ID",
-    setStepNoTask: "步骤设置成功但无法获取任务状态",
+    unknownError: '未知错误',
+    noSessionId: '无法获取当前 Session ID',
+    noSessionIdShort: '无法获取当前 Session ID',
+    setStepNoTask: '步骤设置成功但无法获取任务状态',
     unknownSubCommand: (sub: string) => `[vibe-pm] ❌ 未知子命令: "${sub}"。支持: view, edit, init`,
-    editNeedKey: "[vibe-pm] ❌ edit 子命令需要提供 key 参数",
-    editNeedValue: "[vibe-pm] ❌ edit 子命令需要提供 value 参数",
+    editNeedKey: '[vibe-pm] ❌ edit 子命令需要提供 key 参数',
+    editNeedValue: '[vibe-pm] ❌ edit 子命令需要提供 value 参数',
     configUpdated: (key: string, value: string) => `[vibe-pm] ✅ 配置已更新: ${key} = ${value}`,
-    dcpWritten: "[vibe-pm] ✅ DCP 配置已写入",
+    dcpWritten: '[vibe-pm] ✅ DCP 配置已写入',
     operationFailed: (msg: string) => `[vibe-pm] ❌ 操作失败：${msg}`,
-    installSuccess: (id: string) => `[vibe-pm] ✅ 流程 "${id}" 已成功安装。\n\n已安装到：\n- docs/flow/flow-${id}.md\n\n⚠️ 请重启 OpenCode 后使用 \`/pm-${id}\` 命令启动任务。`,
+    installSuccess: (id: string) =>
+      `[vibe-pm] ✅ 流程 "${id}" 已成功安装。\n\n已安装到：\n- docs/flow/flow-${id}.md\n\n⚠️ 请重启 OpenCode 后使用 \`/pm-${id}\` 命令启动任务。`,
     installFailure: (msg: string) => `[vibe-pm] ❌ 安装失败：${msg}`,
-    installStartHint: "请使用以下工具翻译安装的模板文件（Read → 翻译 → Write）：",
-    translateDictNote: "dictionary.md 特殊处理：保留英文术语列，将中文说明列翻译为目标语言。",
-    noTemplatesFound: "[vibe-pm] 未在 docs/template/ 下找到任何模板。请确认模板目录结构正确。",
-    templateList: (lines: string) => `[vibe-pm] 可用的模板列表：\n\n${lines}\n\n要安装一个流程，请运行：\n\`\`\`\n/pm-install-flow templateId: <模板ID>\n\`\`\``,
-    uninstallSuccess: (name: string) => `[vibe-pm] 流程 "${name}" 已移除。\n\n⚠️ 请重启 OpenCode 使变更生效。`,
+    installStartHint: '请使用以下工具翻译安装的模板文件（Read → 翻译 → Write）：',
+    translateDictNote: 'dictionary.md 特殊处理：保留英文术语列，将中文说明列翻译为目标语言。',
+    noTemplatesFound: '[vibe-pm] 未在 docs/template/ 下找到任何模板。请确认模板目录结构正确。',
+    templateList: (lines: string) =>
+      `[vibe-pm] 可用的模板列表：\n\n${lines}\n\n要安装一个流程，请运行：\n\`\`\`\n/pm-install-flow templateId: <模板ID>\n\`\`\``,
+    uninstallSuccess: (name: string) =>
+      `[vibe-pm] 流程 "${name}" 已移除。\n\n⚠️ 请重启 OpenCode 使变更生效。`,
     uninstallFailure: (msg: string) => `[vibe-pm] 卸载失败：${msg}`,
-    flowStartNoSession: "无法获取当前 Session ID。",
+    flowStartNoSession: '无法获取当前 Session ID。',
   },
 
   // ─── 初始化向导 ───
@@ -143,67 +146,77 @@ const zhCN = {
     const languageOnAnswer: Record<string, { language: string }> = {};
     for (const p of packs) languageOnAnswer[p.label] = { language: p.locale };
     return JSON.stringify({
-      flow: "pm-config-init",
-      description: "vibe-pm 初始化向导 — 按步骤引导配置项目",
-      steps: [{
-          id: "language",
-          title: "交互语言",
-          type: "question",
-          instruction: "询问用户选择交互语言。禁止自行提供 language 参数——必须先调用 question 工具。用户选择后，用所选语言调用 pm_config init language=<locale> 获取后续步骤。",
+      flow: 'pm-config-init',
+      description: 'vibe-pm 初始化向导 — 按步骤引导配置项目',
+      steps: [
+        {
+          id: 'language',
+          title: '交互语言',
+          type: 'question',
+          instruction:
+            '询问用户选择交互语言。禁止自行提供 language 参数——必须先调用 question 工具。用户选择后，用所选语言调用 pm_config init language=<locale> 获取后续步骤。',
           params: {
-            header: "Language / 语言",
-            question: "选择 vibe-pm 交互语言 / Choose vib-pm interactive language:",
-            options: languageOptions
+            header: 'Language / 语言',
+            question: '选择 vibe-pm 交互语言 / Choose vib-pm interactive language:',
+            options: languageOptions,
           },
           onAnswer: languageOnAnswer,
-          nextAction: "调用 pm_config init subCommand=init language=<locale>"
-      }],
+          nextAction: '调用 pm_config init subCommand=init language=<locale>',
+        },
+      ],
     });
   },
 
-  buildInitRemainingSteps(packs: LanguagePack[]): string {
+  buildInitRemainingSteps(_packs: LanguagePack[]): string {
     return JSON.stringify({
-      flow: "pm-config-init",
-      description: "vibe-pm 初始化向导 — 剩余配置步骤",
+      flow: 'pm-config-init',
+      description: 'vibe-pm 初始化向导 — 剩余配置步骤',
       steps: [
         {
-          id: "scope",
-          title: "配置范围",
-          type: "question",
-          instruction: "询问用户 vibe-pm 配置写入位置。opencode 和集成插件配置始终写入项目级。",
+          id: 'scope',
+          title: '配置范围',
+          type: 'question',
+          instruction: '询问用户 vibe-pm 配置写入位置。opencode 和集成插件配置始终写入项目级。',
           params: {
-            header: "配置范围",
-            question: "vibe-pm 配置写入哪里？（opencode 和集成插件配置始终项目级 `.opencode/`）",
-            options: [{label: "项目级", description: "写入项目目录 `.vibe-pm/config.json`"}, {
-              label: "全局",
-              description: "写入 `~/.config/vibe-pm/config.json`"
-            }]
+            header: '配置范围',
+            question: 'vibe-pm 配置写入哪里？（opencode 和集成插件配置始终项目级 `.opencode/`）',
+            options: [
+              { label: '项目级', description: '写入项目目录 `.vibe-pm/config.json`' },
+              {
+                label: '全局',
+                description: '写入 `~/.config/vibe-pm/config.json`',
+              },
+            ],
           },
           onAnswer: {
-            "项目级": {configPath: ".vibe-pm/config.json", scope: "project"},
-            "全局": {configPath: "~/.config/vibe-pm/config.json", scope: "global"}
-          }
-        },
-        {
-          id: "gitignore",
-          title: ".gitignore",
-          type: "question",
-          instruction: "依次询问是否追加条目到 .gitignore。条目已存在则跳过。使用 bash 追加。",
-          params: {
-            header: ".gitignore 配置",
-            question: "哪些目录需要加入 .gitignore？",
-            multiple: true,
-            options: [{label: ".opencode/", description: "OpenCode 配置目录"}, {
-              label: ".vibe-pm/",
-              description: "vibe-pm 配置数据目录"
-            }, {label: ".omo/", description: "oh-my-openagent 计划/配置目录"}]
+            项目级: { configPath: '.vibe-pm/config.json', scope: 'project' },
+            全局: { configPath: '~/.config/vibe-pm/config.json', scope: 'global' },
           },
-          skipIfExists: true
         },
         {
-          id: "agents",
-          title: "AGENTS.md",
-          type: "question",
+          id: 'gitignore',
+          title: '.gitignore',
+          type: 'question',
+          instruction: '依次询问是否追加条目到 .gitignore。条目已存在则跳过。使用 bash 追加。',
+          params: {
+            header: '.gitignore 配置',
+            question: '哪些目录需要加入 .gitignore？',
+            multiple: true,
+            options: [
+              { label: '.opencode/', description: 'OpenCode 配置目录' },
+              {
+                label: '.vibe-pm/',
+                description: 'vibe-pm 配置数据目录',
+              },
+              { label: '.omo/', description: 'oh-my-openagent 计划/配置目录' },
+            ],
+          },
+          skipIfExists: true,
+        },
+        {
+          id: 'agents',
+          title: 'AGENTS.md',
+          type: 'question',
           instruction: `
 生成或更新 AGENTS.md。为什么要更新？
 - 统一交互语言（Thinking/Reply 语言），保证 AI 输出语言一致
@@ -231,20 +244,24 @@ const zhCN = {
     - 选项 1「是，引用」：在 AGENTS.md 顶部添加 Constitution 引用块。在流程任务中，constitution 约束自动生效
     - 选项 2「否，不引用」：告知用户：不引用时，仅流程任务内会读取 constitution.md；非流程任务中 constitution 的规则约束不会自动生效`,
           checkExists: true,
-          templateFile: "agents-template.md",
+          templateFile: 'agents-template.md',
           params: {
-            header: "AGENTS.md",
-            question: "是否生成 AGENTS.md？使用内置模板，你只需填写项目概述和主要功能描述。技术栈和开发环境由我自动推断。",
-            options: [{label: "是，生成", description: "使用模板生成（统一语言+减少噪音）"}, {
-              label: "否，跳过",
-              description: "不生成 AGENTS.md"
-            }]
-          }
+            header: 'AGENTS.md',
+            question:
+              '是否生成 AGENTS.md？使用内置模板，你只需填写项目概述和主要功能描述。技术栈和开发环境由我自动推断。',
+            options: [
+              { label: '是，生成', description: '使用模板生成（统一语言+减少噪音）' },
+              {
+                label: '否，跳过',
+                description: '不生成 AGENTS.md',
+              },
+            ],
+          },
         },
         {
-          id: "dictionary",
-          title: "术语字典",
-          type: "question",
+          id: 'dictionary',
+          title: '术语字典',
+          type: 'question',
           instruction: `
 创建项目术语字典 docs/regulation/dictionary.md（如不存在）。
 1. 如果文件已存在，跳过此步骤
@@ -253,76 +270,93 @@ const zhCN = {
 4. 根据当前项目，分析生成 20 条左右的初始术语记录（中英对照）
 5. 在最后的结束总结中提示用户要积极维护字典文档`,
           checkExists: true,
-          templateFile: "dictionary-template.md",
+          templateFile: 'dictionary-template.md',
           params: {
-            header: "术语字典",
-            question: "是否创建项目术语字典 (docs/regulation/dictionary.md)？将根据项目生成初始术语记录。",
-            options: [{label: "是，创建", description: "创建字典并生成初始术语"}, {
-              label: "否，跳过",
-              description: "不创建字典"
-            }]
-          }
+            header: '术语字典',
+            question:
+              '是否创建项目术语字典 (docs/regulation/dictionary.md)？将根据项目生成初始术语记录。',
+            options: [
+              { label: '是，创建', description: '创建字典并生成初始术语' },
+              {
+                label: '否，跳过',
+                description: '不创建字典',
+              },
+            ],
+          },
         },
         {
-          id: "integrations-dcp",
-          title: "集成: DCP 插件",
-          type: "question",
+          id: 'integrations-dcp',
+          title: '集成: DCP 插件',
+          type: 'question',
           instruction: `
 配置 DCP (Dynamic Context Pruning) 插件。
 1. 用 bash 检查全局和项目级 opencode 配置中是否已有 DCP 依赖：~/.config/opencode/opencode.json 和 ./.opencode/opencode.json（或 package.json）
 2. 若已安装 → 跳过本步骤，继续执行下一个步骤
 3. 若未安装 → 询问用户。安装方式：写入 .opencode/opencode.json 的 dependencies`,
-          checkInstalled: "opencode-dynamic-context-pruning",
-          checkPaths: ["~/.config/opencode/opencode.json", ".opencode/opencode.json"],
+          checkInstalled: 'opencode-dynamic-context-pruning',
+          checkPaths: ['~/.config/opencode/opencode.json', '.opencode/opencode.json'],
           params: {
-            header: "DCP 插件",
-            question: "是否安装 DCP (Dynamic Context Pruning) 插件？将自动写入 .opencode/opencode.json dependencies。",
-            options: [{label: "是", description: "安装 DCP 插件"}, {label: "否", description: "跳过"}]
-          }
+            header: 'DCP 插件',
+            question:
+              '是否安装 DCP (Dynamic Context Pruning) 插件？将自动写入 .opencode/opencode.json dependencies。',
+            options: [
+              { label: '是', description: '安装 DCP 插件' },
+              { label: '否', description: '跳过' },
+            ],
+          },
         },
         {
-          id: "integrations-vision",
-          title: "集成: Vision Agent",
-          type: "question",
+          id: 'integrations-vision',
+          title: '集成: Vision Agent',
+          type: 'question',
           instruction: `
 配置 Vision Agent（多模态读图子 Agent）。
 1. 提供多模态 model 供用户选择：opencode-go/kimi-k2.7-code, opencode/qwen3.6-plus-free, opencode/mimo-v2.5-free
 2. 用户选择 model 后，将 agent 配置写入 .opencode/agents/vision-helper.md
 3. 如果 agent 配置已存在，跳过此步骤`,
-          checkInstalled: "vision-helper",
+          checkInstalled: 'vision-helper',
           params: {
-            header: "Vision Agent",
-            question: "是否配置 Vision Agent（多模态读图子 Agent）？将扫描已连接 model 供选择，并写入 agent 配置。",
-            options: [{label: "是", description: "配置 Vision Agent"}, {label: "否", description: "跳过"}]
-          }
+            header: 'Vision Agent',
+            question:
+              '是否配置 Vision Agent（多模态读图子 Agent）？将扫描已连接 model 供选择，并写入 agent 配置。',
+            options: [
+              { label: '是', description: '配置 Vision Agent' },
+              { label: '否', description: '跳过' },
+            ],
+          },
         },
         {
-          id: "integrations-code-review",
-          title: "集成: Code Review Skill",
-          type: "question",
+          id: 'integrations-code-review',
+          title: '集成: Code Review Skill',
+          type: 'question',
           instruction: `
 安装 Code Review Skill。
 1. 检查是否已安装：查找 ~/.agents/skills/code-review-skill/SKILL.md、~/.claude/skills/code-review-skill/SKILL.md
 2. 若未安装，询问用户是否安装。安装方式：
    git clone https://github.com/awesome-skills/code-review-skill ~/.agents/skills/code-review-skill
 3. 安装后告知用户重启 OpenCode 后可使用 /code-review-skill 命令`,
-          checkInstalled: "code-review-skill",
+          checkInstalled: 'code-review-skill',
           params: {
-            header: "Code Review Skill",
-            question: "是否安装 Code Review Skill？提供全面的代码审查能力。(https://github.com/awesome-skills/code-review-skill)",
-            options: [{label: "是，安装", description: "克隆到 ~/.agents/skills/code-review-skill"}, {label: "否，跳过", description: "不安装"}]
-          }
+            header: 'Code Review Skill',
+            question:
+              '是否安装 Code Review Skill？提供全面的代码审查能力。(https://github.com/awesome-skills/code-review-skill)',
+            options: [
+              { label: '是，安装', description: '克隆到 ~/.agents/skills/code-review-skill' },
+              { label: '否，跳过', description: '不安装' },
+            ],
+          },
         },
         {
-          id: "done",
-          title: "完成",
-          type: "question",
-          instruction: "提示用户通过 /pm-install-flow 安装流程模板。",
+          id: 'done',
+          title: '完成',
+          type: 'question',
+          instruction: '提示用户通过 /pm-install-flow 安装流程模板。',
           params: {
-            header: "安装流程模板",
-            question: "初始化基本完成！请使用 `/pm-install-flow` 安装需要的流程模板（如 spec-driven-dev、bug-fix 等）。",
-            options: [{label: "知道了", description: "结束初始化"}]
-          }
+            header: '安装流程模板',
+            question:
+              '初始化基本完成！请使用 `/pm-install-flow` 安装需要的流程模板（如 spec-driven-dev、bug-fix 等）。',
+            options: [{ label: '知道了', description: '结束初始化' }],
+          },
         },
       ],
     });

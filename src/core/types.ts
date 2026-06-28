@@ -8,8 +8,8 @@
 // ─── SDK Re-exports ───
 
 /** 模块可以贡献的钩子子集，类型来自 SDK */
-import type {ToolDefinition} from "@opencode-ai/plugin";
-import type {OpencodeClient} from "@opencode-ai/sdk";
+import type { ToolDefinition } from '@opencode-ai/plugin';
+import type { OpencodeClient } from '@opencode-ai/sdk';
 
 export type {
   Plugin,
@@ -18,8 +18,8 @@ export type {
   Config,
   ToolContext,
   ToolDefinition,
-} from "@opencode-ai/plugin";
-export { tool } from "@opencode-ai/plugin";
+} from '@opencode-ai/plugin';
+export { tool } from '@opencode-ai/plugin';
 
 // ─── PluginConfig ───
 
@@ -58,4 +58,4 @@ export interface ILogger {
   error(...args: unknown[]): void;
 }
 
-export type ToolDefinitionWithKey = ToolDefinition & { toolKey: string; };
+export type ToolDefinitionWithKey = ToolDefinition & { toolKey: string };

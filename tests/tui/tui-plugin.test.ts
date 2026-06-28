@@ -4,23 +4,19 @@
  * 测试 createTuiPlugin 工厂函数和非 TUI 环境降级行为。
  */
 
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect } from 'bun:test';
 
-describe("createTuiPlugin", () => {
-  it("returns a function with tui signature", async () => {
-    const { createTuiPlugin } = await import(
-      "../../src/tui/tui-plugin.jsx"
-    );
+describe('createTuiPlugin', () => {
+  it('returns a function with tui signature', async () => {
+    const { createTuiPlugin } = await import('../../src/tui/tui-plugin.jsx');
     const plugin = createTuiPlugin();
-    expect(typeof plugin).toBe("function");
+    expect(typeof plugin).toBe('function');
     // TuiPlugin signature: (api, options?, meta?) => Promise<void>
     expect(plugin.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("does not throw in non-TUI environment", async () => {
-    const { createTuiPlugin } = await import(
-      "../../src/tui/tui-plugin.jsx"
-    );
+  it('does not throw in non-TUI environment', async () => {
+    const { createTuiPlugin } = await import('../../src/tui/tui-plugin.jsx');
     const plugin = createTuiPlugin();
 
     // Simulate a minimal TuiPluginApi that throws on slots.register
@@ -31,7 +27,7 @@ describe("createTuiPlugin", () => {
       },
       slots: {
         register: () => {
-          throw new Error("No TUI renderer available");
+          throw new Error('No TUI renderer available');
         },
       },
       theme: {
@@ -51,15 +47,15 @@ describe("createTuiPlugin", () => {
   });
 });
 
-describe("TUI types", () => {
-  it("SOURCE_COLORS has all 4 token sources", async () => {
-    const { SOURCE_COLORS } = await import("../../src/tui/types.js");
+describe('TUI types', () => {
+  it('SOURCE_COLORS has all 4 token sources', async () => {
+    const { SOURCE_COLORS } = await import('../../src/tui/types.js');
     const keys = Object.keys(SOURCE_COLORS);
-    expect(keys).toContain("FlowControl");
-    expect(keys).toContain("Text");
-    expect(keys).toContain("Tool");
-    expect(keys).toContain("Reasoning");
-    expect(keys).toContain("SubAgent");
+    expect(keys).toContain('FlowControl');
+    expect(keys).toContain('Text');
+    expect(keys).toContain('Tool');
+    expect(keys).toContain('Reasoning');
+    expect(keys).toContain('SubAgent');
     expect(keys.length).toBe(5);
   });
 });

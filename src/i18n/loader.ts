@@ -5,20 +5,20 @@
  * 新增语言：在此文件添加静态 import 和映射条目即可。
  */
 
-import enUS from "./prompts-en-US.js";
-import zhCN from "./prompts-zh-CN.js";
-import type { LanguagePack, Locale, PromptsI18n } from "./types.js";
+import enUS from './prompts-en-US.js';
+import zhCN from './prompts-zh-CN.js';
+import type { LanguagePack, Locale, PromptsI18n } from './types.js';
 
 // ─── 内置语言包映射 ───
 
 const PROMPT_MAP: Record<string, PromptsI18n> = {
-  "en-US": enUS,
-  "zh-CN": zhCN,
+  'en-US': enUS,
+  'zh-CN': zhCN,
 };
 
 const LOCALE_LABELS: Record<string, string> = {
-  "en-US": "English",
-  "zh-CN": "中文",
+  'en-US': 'English',
+  'zh-CN': '中文',
 };
 
 // ─── 缓存 ───
@@ -53,7 +53,7 @@ export function discoverLanguagePacks(): LanguagePack[] {
  * 通过静态映射表查找，无需动态 import。
  */
 export function getControlPromptTemplate(locale: Locale): PromptsI18n {
-  const template = PROMPT_MAP[locale] ?? PROMPT_MAP["en-US"];
+  const template = PROMPT_MAP[locale] ?? PROMPT_MAP['en-US'];
   if (!template) {
     throw new Error(`Failed to load base prompt template for locale "${locale}"`);
   }

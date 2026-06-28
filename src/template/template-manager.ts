@@ -5,30 +5,28 @@
  * 零外部依赖，按约定路径读写文件系统。
  */
 
-import * as fs from "node:fs";
-import * as path from "node:path";
-import type { TemplateMeta } from "./types.js";
-import { writeDcpConfig } from "../integration/index.js";
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import type { TemplateMeta } from './types.js';
+import { writeDcpConfig } from '../integration/index.js';
 
 // ─── 约定路径 ───
 
-const TEMPLATE_DIR = "template";
-const FLOW_DIR = "flow";
-const REGULATION_DIR = "regulation";
-const CODING_STYLE_OUTPUT = "coding_style.md";
-const CONSTITUTION_TEMPLATE = "constitution-template.md";
-const CONSTITUTION_OUTPUT = "constitution.md";
-const DICTIONARY_TEMPLATE = "dictionary-template.md";
-const DICTIONARY_OUTPUT = "dictionary.md";
+const TEMPLATE_DIR = 'template';
+const FLOW_DIR = 'flow';
+const REGULATION_DIR = 'regulation';
+const CODING_STYLE_OUTPUT = 'coding_style.md';
+const CONSTITUTION_TEMPLATE = 'constitution-template.md';
+const CONSTITUTION_OUTPUT = 'constitution.md';
+const DICTIONARY_TEMPLATE = 'dictionary-template.md';
+const DICTIONARY_OUTPUT = 'dictionary.md';
 
 // ─── 错误 ───
 
 export class TemplateConflictError extends Error {
   constructor(flowName: string) {
-    super(
-      `Flow "${flowName}" already exists in /docs/flow/. Use --force to overwrite.`,
-    );
-    this.name = "TemplateConflictError";
+    super(`Flow "${flowName}" already exists in /docs/flow/. Use --force to overwrite.`);
+    this.name = 'TemplateConflictError';
   }
 }
 
@@ -36,9 +34,9 @@ export class TemplateConflictError extends Error {
 
 function getPluginTemplateDir(): string | null {
   const candidates = [
-    path.join(import.meta.dirname, "docs", TEMPLATE_DIR),
-    path.join(import.meta.dirname, "..", "docs", TEMPLATE_DIR),
-    path.join(import.meta.dirname, "..", "..", "docs", TEMPLATE_DIR),
+    path.join(import.meta.dirname, 'docs', TEMPLATE_DIR),
+    path.join(import.meta.dirname, '..', 'docs', TEMPLATE_DIR),
+    path.join(import.meta.dirname, '..', '..', 'docs', TEMPLATE_DIR),
   ];
   for (const cand of candidates) {
     if (fs.existsSync(cand)) return cand;
@@ -47,7 +45,7 @@ function getPluginTemplateDir(): string | null {
 }
 
 function getDocsDir(projectDir: string): string {
-  return path.join(projectDir, "docs");
+  return path.join(projectDir, 'docs');
 }
 
 function getTemplateDir(projectDir: string): string | null {
@@ -69,43 +67,44 @@ function parseTemplateMeta(raw: string, bundleDir: string): TemplateMeta | null 
   return {
     id: idMatch[1].trim(),
     name: nameMatch[1].trim(),
-    category: catMatch?.[1]?.trim() ?? "",
-    description: descMatch?.[1]?.trim() ?? "",
-    version: verMatch?.[1]?.trim() ?? "1.0.0",
-    command: cmdMatch?.[1]?.trim() ?? "",
-    flowPath: path.join(bundleDir, "flow.md"),
+    category: catMatch?.[1]?.trim() ?? '',
+    description: descMatch?.[1]?.trim() ?? '',
+    version: verMatch?.[1]?.trim() ?? '1.0.0',
+    command: cmdMatch?.[1]?.trim() ?? '',
+    flowPath: path.join(bundleDir, 'flow.md'),
     bundleDir,
   };
 }
 
 // ─── 编码风格模板安装 ───
 
-const CODING_STYLE_TEMPLATE_SUBDIR = path.join(TEMPLATE_DIR, "_coding_style");
-const CODING_STYLE_REG_SUBDIR = "coding_style";
+const CODING_STYLE_TEMPLATE_SUBDIR = path.join(TEMPLATE_DIR, '_coding_style');
+const CODING_STYLE_REG_SUBDIR = 'coding_style';
 
 function installCodingStyleFromTemplate(
   docsDir: string,
   regDir: string,
-  programmingLanguages?: string[],
+  programmingLanguages?: string[]
 ): string[] {
   const result: string[] = [];
   let templateStyleDir = path.join(docsDir, CODING_STYLE_TEMPLATE_SUBDIR);
   if (!fs.existsSync(templateStyleDir)) {
     const pluginDir = getPluginTemplateDir();
     if (!pluginDir) return result;
-    templateStyleDir = path.join(pluginDir, "_coding_style");
+    templateStyleDir = path.join(pluginDir, '_coding_style');
     if (!fs.existsSync(templateStyleDir)) return result;
   }
 
   const regStyleDir = path.join(regDir, CODING_STYLE_REG_SUBDIR);
   fs.mkdirSync(regStyleDir, { recursive: true });
 
-  const languages = (programmingLanguages && programmingLanguages.length > 0)
-    ? [...programmingLanguages]
-    : ["General"];
+  const languages =
+    programmingLanguages && programmingLanguages.length > 0
+      ? [...programmingLanguages]
+      : ['General'];
 
-  if (!languages.some((l) => l.toLowerCase() === "general")) {
-    languages.push("General");
+  if (!languages.some((l) => l.toLowerCase() === 'general')) {
+    languages.push('General');
   }
 
   for (const lang of languages) {
@@ -120,7 +119,7 @@ function installCodingStyleFromTemplate(
   const indexDest = path.join(regDir, CODING_STYLE_OUTPUT);
   if (!fs.existsSync(indexDest)) {
     const indexContent = generateCodingStyleIndex(languages);
-    fs.writeFileSync(indexDest, indexContent, "utf-8");
+    fs.writeFileSync(indexDest, indexContent, 'utf-8');
     result.push(indexDest);
   }
 
@@ -129,29 +128,29 @@ function installCodingStyleFromTemplate(
 
 function generateCodingStyleIndex(languages: string[]): string {
   const langEntries = [
-    { name: "TypeScript", file: "typescript.md" },
-    { name: "Python", file: "python.md" },
-    { name: "Go", file: "go.md" },
-    { name: "Rust", file: "rust.md" },
-    { name: "Java", file: "java.md" },
-    { name: "通用", file: "general.md" },
+    { name: 'TypeScript', file: 'typescript.md' },
+    { name: 'Python', file: 'python.md' },
+    { name: 'Go', file: 'go.md' },
+    { name: 'Rust', file: 'rust.md' },
+    { name: 'Java', file: 'java.md' },
+    { name: '通用', file: 'general.md' },
   ];
 
   const lowerLanguages = languages.map((l) => l.toLowerCase());
   const filteredEntries = langEntries.filter((l) =>
-    lowerLanguages.includes(l.file.replace(".md", "")),
+    lowerLanguages.includes(l.file.replace('.md', ''))
   );
 
   const tableRows = filteredEntries
     .map((l) => `| ${l.name} | [${l.file}](./coding_style/${l.file}) |`)
-    .join("\n");
+    .join('\n');
 
   return `# 编码风格
 
 > ⚠️ **重要 — 务必读取**：以下各语言的编码风格文件是本项目的强制规范。
 > 在编写或修改任何代码之前，**必须**先读取当前语言对应的具体文件。
 >
-> 当前项目检测到的语言：${languages.join("、")}
+> 当前项目检测到的语言：${languages.join('、')}
 
 ## 通用规则
 
@@ -184,10 +183,10 @@ export function scanTemplates(projectDir: string): TemplateMeta[] {
     if (!entry.isDirectory()) continue;
 
     const bundleDir = path.join(templateDir, entry.name);
-    const flowPath = path.join(bundleDir, "flow.md");
+    const flowPath = path.join(bundleDir, 'flow.md');
     if (!fs.existsSync(flowPath)) continue;
 
-    const raw = fs.readFileSync(flowPath, "utf-8");
+    const raw = fs.readFileSync(flowPath, 'utf-8');
     const meta = parseTemplateMeta(raw, bundleDir);
     if (meta) templates.push(meta);
   }
@@ -209,7 +208,7 @@ export function installTemplate(
     programmingLanguages?: string[];
     overwrite?: boolean;
     locale?: string;
-  },
+  }
 ): InstallResult {
   const templates = scanTemplates(projectDir);
   const meta = templates.find((t) => t.id === templateId);
@@ -228,14 +227,14 @@ export function installTemplate(
   const destFlow = path.join(flowDir, `flow-${meta.id}.md`);
   if (fs.existsSync(destFlow) && !options?.overwrite) {
     throw new TemplateConflictError(
-      `"${templateId}" 已存在。如需覆盖安装，请使用 overwrite 参数。`,
+      `"${templateId}" 已存在。如需覆盖安装，请使用 overwrite 参数。`
     );
   }
   fs.copyFileSync(meta.flowPath, destFlow);
 
-  const bundleRegDir = path.join(meta.bundleDir, "regulations");
+  const bundleRegDir = path.join(meta.bundleDir, 'regulations');
   if (fs.existsSync(bundleRegDir)) {
-    for (const regFile of fs.readdirSync(bundleRegDir).filter((f) => f.endsWith(".md"))) {
+    for (const regFile of fs.readdirSync(bundleRegDir).filter((f) => f.endsWith('.md'))) {
       const dest = path.join(regDir, regFile);
       if (!fs.existsSync(dest)) {
         fs.copyFileSync(path.join(bundleRegDir, regFile), dest);
@@ -244,12 +243,26 @@ export function installTemplate(
     }
   }
 
-  const constResult = installRegulationFromTemplate(docsDir, regDir, CONSTITUTION_TEMPLATE, CONSTITUTION_OUTPUT);
+  const constResult = installRegulationFromTemplate(
+    docsDir,
+    regDir,
+    CONSTITUTION_TEMPLATE,
+    CONSTITUTION_OUTPUT
+  );
   if (constResult) regulationPaths.push(constResult);
 
-  const dictResult = installRegulationFromTemplate(docsDir, regDir, DICTIONARY_TEMPLATE, DICTIONARY_OUTPUT);
+  const dictResult = installRegulationFromTemplate(
+    docsDir,
+    regDir,
+    DICTIONARY_TEMPLATE,
+    DICTIONARY_OUTPUT
+  );
 
-  const codingStylePaths = installCodingStyleFromTemplate(docsDir, regDir, options?.programmingLanguages);
+  const codingStylePaths = installCodingStyleFromTemplate(
+    docsDir,
+    regDir,
+    options?.programmingLanguages
+  );
 
   writeDcpConfig(projectDir);
 
@@ -267,7 +280,7 @@ function installRegulationFromTemplate(
   docsDir: string,
   regDir: string,
   templateName: string,
-  outputName: string,
+  outputName: string
 ): string | null {
   const dest = path.join(regDir, outputName);
   if (fs.existsSync(dest)) return null;
@@ -288,7 +301,7 @@ export function uninstallFlow(projectDir: string, flowName: string): void {
   const flowDir = path.join(getDocsDir(projectDir), FLOW_DIR);
 
   const candidates = [
-      path.join(flowDir, `flow-${flowName}.md`),
+    path.join(flowDir, `flow-${flowName}.md`),
     path.join(flowDir, `${flowName}.md`),
   ];
 
@@ -312,6 +325,6 @@ export function listInstalledFlows(projectDir: string): string[] {
 
   return fs
     .readdirSync(flowDir)
-    .filter((f) => f.endsWith(".md"))
-      .map((f) => f.replace(/^flow-[_]?/, "").replace(/\.md$/, ""));
+    .filter((f) => f.endsWith('.md'))
+    .map((f) => f.replace(/^flow-[_]?/, '').replace(/\.md$/, ''));
 }

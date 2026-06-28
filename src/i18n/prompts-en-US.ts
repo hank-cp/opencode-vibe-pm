@@ -1,10 +1,10 @@
-import type { LanguagePack } from "./types.js";
+import type { LanguagePack } from './types.js';
 
 const enUS = {
-  locale: "en-US",
+  locale: 'en-US',
 
   buildControlPrompt(flowName?: string): string {
-    const flowRef = flowName ? `\`docs/flow/flow-${flowName}.md\`` : "docs/flow/";
+    const flowRef = flowName ? `\`docs/flow/flow-${flowName}.md\`` : 'docs/flow/';
     return `<protect>
 # 🚨 Flow Execution Rules
 
@@ -94,39 +94,45 @@ Any of the following = FLOW EXECUTION FAILURE:
 
   buildFlowWarningPrompt(): string {
     return [
-      "⚠️ **Flow Violation Detected**: This session has an active task, but you may have skipped required flow steps.",
-      "Self-check: Did you call `pm_task_set_step` to enter the correct flow step per `<protect>` rules?",
-    ].join("\n");
+      '⚠️ **Flow Violation Detected**: This session has an active task, but you may have skipped required flow steps.',
+      'Self-check: Did you call `pm_task_set_step` to enter the correct flow step per `<protect>` rules?',
+    ].join('\n');
   },
 
   isControlPromptPart(text: string): boolean {
-    return text.includes("<protect>");
+    return text.includes('<protect>');
   },
 
   isWarningPromptPart(text: string): boolean {
-    return text.includes("Flow Violation Detected");
+    return text.includes('Flow Violation Detected');
   },
 
   tool: {
-    unknownError: "Unknown error",
-    noSessionId: "Cannot get current Session ID",
-    setStepNoTask: "Step set successfully but unable to get task status",
-    unknownSubCommand: (sub: string) => `[vibe-pm] ❌ Unknown sub-command: "${sub}". Supported: view, edit, init`,
-    editNeedKey: "[vibe-pm] ❌ edit requires key parameter",
-    editNeedValue: "[vibe-pm] ❌ edit requires value parameter",
+    unknownError: 'Unknown error',
+    noSessionId: 'Cannot get current Session ID',
+    setStepNoTask: 'Step set successfully but unable to get task status',
+    unknownSubCommand: (sub: string) =>
+      `[vibe-pm] ❌ Unknown sub-command: "${sub}". Supported: view, edit, init`,
+    editNeedKey: '[vibe-pm] ❌ edit requires key parameter',
+    editNeedValue: '[vibe-pm] ❌ edit requires value parameter',
     configUpdated: (key: string, value: string) => `[vibe-pm] ✅ Config updated: ${key} = ${value}`,
-    dcpWritten: "[vibe-pm] ✅ DCP config written",
+    dcpWritten: '[vibe-pm] ✅ DCP config written',
     operationFailed: (msg: string) => `[vibe-pm] ❌ Operation failed: ${msg}`,
-    installSuccess: (id: string) => `[vibe-pm] ✅ Flow "${id}" installed.\n\nInstalled to:\n- docs/flow/flow-${id}.md\n\n⚠️ Restart OpenCode then use \`/pm-${id}\`.`,
+    installSuccess: (id: string) =>
+      `[vibe-pm] ✅ Flow "${id}" installed.\n\nInstalled to:\n- docs/flow/flow-${id}.md\n\n⚠️ Restart OpenCode then use \`/pm-${id}\`.`,
     installFailure: (msg: string) => `[vibe-pm] ❌ Install failed: ${msg}`,
-    installStartHint: "Please translate template files (Read → Translate → Write):",
-    translateDictNote: "dictionary.md: Keep English terms, translate descriptions to target language.",
-    noTemplatesFound: "[vibe-pm] No templates found under docs/template/. Check template directory.",
-    templateList: (lines: string) => `[vibe-pm] Available templates:\n\n${lines}\n\nTo install: \`\`\`\n/pm-install-flow templateId: <ID>\n\`\`\``,
-    uninstallSuccess: (name: string) => `[vibe-pm] ✅ Flow "${name}" removed.\n\n⚠️ Restart OpenCode for changes to take effect.`,
+    installStartHint: 'Please translate template files (Read → Translate → Write):',
+    translateDictNote:
+      'dictionary.md: Keep English terms, translate descriptions to target language.',
+    noTemplatesFound:
+      '[vibe-pm] No templates found under docs/template/. Check template directory.',
+    templateList: (lines: string) =>
+      `[vibe-pm] Available templates:\n\n${lines}\n\nTo install: \`\`\`\n/pm-install-flow templateId: <ID>\n\`\`\``,
+    uninstallSuccess: (name: string) =>
+      `[vibe-pm] ✅ Flow "${name}" removed.\n\n⚠️ Restart OpenCode for changes to take effect.`,
     uninstallFailure: (msg: string) => `[vibe-pm] ❌ Uninstall failed: ${msg}`,
-    noSessionIdShort: "Cannot get current Session ID",
-    flowStartNoSession: "Cannot get current Session ID.",
+    noSessionIdShort: 'Cannot get current Session ID',
+    flowStartNoSession: 'Cannot get current Session ID.',
   },
 
   buildInitInstructions(packs: LanguagePack[]): string {
@@ -134,67 +140,80 @@ Any of the following = FLOW EXECUTION FAILURE:
     const languageOnAnswer: Record<string, { language: string }> = {};
     for (const p of packs) languageOnAnswer[p.label] = { language: p.locale };
     return JSON.stringify({
-      flow: "pm-config-init",
-      description: "vib-pm initialization wizard — guided project setup",
-      steps: [{
-        id: "language",
-        title: "Language",
-        type: "question",
-        instruction: "Ask user to choose interactive language. DO NOT auto-provide language parameter — use question tool first. After user answers, call pm_config init with language=<locale> to get remaining steps in the chosen language.",
-        params: {
-          header: "Language / 语言",
-          question: "Choose vib-pm interactive language / 选择交互语言:",
-          options: languageOptions
+      flow: 'pm-config-init',
+      description: 'vib-pm initialization wizard — guided project setup',
+      steps: [
+        {
+          id: 'language',
+          title: 'Language',
+          type: 'question',
+          instruction:
+            'Ask user to choose interactive language. DO NOT auto-provide language parameter — use question tool first. After user answers, call pm_config init with language=<locale> to get remaining steps in the chosen language.',
+          params: {
+            header: 'Language / 语言',
+            question: 'Choose vib-pm interactive language / 选择交互语言:',
+            options: languageOptions,
+          },
+          onAnswer: languageOnAnswer,
+          nextAction: 'call pm_config init subCommand=init language=<locale>',
         },
-        onAnswer: languageOnAnswer,
-        nextAction: "call pm_config init subCommand=init language=<locale>"
-      }],
+      ],
     });
   },
 
-  buildInitRemainingSteps(packs: LanguagePack[]): string {
+  buildInitRemainingSteps(_packs: LanguagePack[]): string {
     return JSON.stringify({
-      flow: "pm-config-init",
-      description: "vib-pm initialization wizard — remaining setup steps",
+      flow: 'pm-config-init',
+      description: 'vib-pm initialization wizard — remaining setup steps',
       steps: [
         {
-          id: "scope",
-          title: "Config Scope",
-          type: "question",
-          instruction: "Ask user where to write vib-pm config. OpenCode and integration plugin configs are always project-level.",
+          id: 'scope',
+          title: 'Config Scope',
+          type: 'question',
+          instruction:
+            'Ask user where to write vib-pm config. OpenCode and integration plugin configs are always project-level.',
           params: {
-            header: "Scope",
-            question: "Where to write vib-pm config? (OpenCode & integration plugins always project-level `.opencode/`)",
-            options: [{label: "Project", description: "Write to `.vibe-pm/config.json`"}, {
-              label: "Global",
-              description: "Write to `~/.config/vibe-pm/config.json`"
-            }]
+            header: 'Scope',
+            question:
+              'Where to write vib-pm config? (OpenCode & integration plugins always project-level `.opencode/`)',
+            options: [
+              { label: 'Project', description: 'Write to `.vibe-pm/config.json`' },
+              {
+                label: 'Global',
+                description: 'Write to `~/.config/vibe-pm/config.json`',
+              },
+            ],
           },
           onAnswer: {
-            "Project": {configPath: ".vibe-pm/config.json", scope: "project"},
-            "Global": {configPath: "~/.config/vibe-pm/config.json", scope: "global"}
-          }
-        },
-        {
-          id: "gitignore",
-          title: ".gitignore",
-          type: "question",
-          instruction: "Ask whether to append entries to .gitignore. Skip if already exists. Use bash.",
-          params: {
-            header: ".gitignore",
-            question: "Which directories to add to .gitignore?",
-            multiple: true,
-            options: [{label: ".opencode/", description: "OpenCode config"}, {
-              label: ".vibe-pm/",
-              description: "vib-pm data dir"
-            }, {label: ".omo/", description: "oh-my-openagent plans/config"}]
+            Project: { configPath: '.vibe-pm/config.json', scope: 'project' },
+            Global: { configPath: '~/.config/vibe-pm/config.json', scope: 'global' },
           },
-          skipIfExists: true
         },
         {
-          id: "agents",
-          title: "AGENTS.md",
-          type: "question",
+          id: 'gitignore',
+          title: '.gitignore',
+          type: 'question',
+          instruction:
+            'Ask whether to append entries to .gitignore. Skip if already exists. Use bash.',
+          params: {
+            header: '.gitignore',
+            question: 'Which directories to add to .gitignore?',
+            multiple: true,
+            options: [
+              { label: '.opencode/', description: 'OpenCode config' },
+              {
+                label: '.vibe-pm/',
+                description: 'vib-pm data dir',
+              },
+              { label: '.omo/', description: 'oh-my-openagent plans/config' },
+            ],
+          },
+          skipIfExists: true,
+        },
+        {
+          id: 'agents',
+          title: 'AGENTS.md',
+          type: 'question',
           instruction: `
 Generate or update AGENTS.md. Why update?
 - Unify interaction language (Thinking/Reply language) for consistent AI output
@@ -222,20 +241,27 @@ Follow strictly:
     - Option 1 "Yes, reference": add Constitution reference block at the top of AGENTS.md. Constitution constraints auto-apply in flow tasks
     - Option 2 "No, skip": inform user: without referencing, constitution.md is only read during flow tasks; its constraints do NOT auto-apply in non-flow tasks`,
           checkExists: true,
-          templateFile: "agents-template.md",
+          templateFile: 'agents-template.md',
           params: {
-            header: "AGENTS.md",
-            question: "Generate AGENTS.md? Template requires only overview & features. Tech stack auto-detected.",
-            options: [{label: "Yes, generate", description: "Use template (unified language + noise reduction)"}, {
-              label: "No, skip",
-              description: "Skip"
-            }]
-          }
+            header: 'AGENTS.md',
+            question:
+              'Generate AGENTS.md? Template requires only overview & features. Tech stack auto-detected.',
+            options: [
+              {
+                label: 'Yes, generate',
+                description: 'Use template (unified language + noise reduction)',
+              },
+              {
+                label: 'No, skip',
+                description: 'Skip',
+              },
+            ],
+          },
         },
         {
-          id: "dictionary",
-          title: "Term Dictionary",
-          type: "question",
+          id: 'dictionary',
+          title: 'Term Dictionary',
+          type: 'question',
           instruction: `
 Create project term dictionary docs/regulation/dictionary.md (if not exists).
 1. Skip if exists
@@ -244,76 +270,92 @@ Create project term dictionary docs/regulation/dictionary.md (if not exists).
 4. Generate ~20 initial terms (zh↔en)
 5. Remind user to maintain`,
           checkExists: true,
-          templateFile: "dictionary-template.md",
+          templateFile: 'dictionary-template.md',
           params: {
-            header: "Dictionary",
-            question: "Create term dictionary? Will generate initial terms from project analysis.",
-            options: [{label: "Yes, create", description: "Create with initial terms"}, {
-              label: "No, skip",
-              description: "Skip"
-            }]
-          }
+            header: 'Dictionary',
+            question: 'Create term dictionary? Will generate initial terms from project analysis.',
+            options: [
+              { label: 'Yes, create', description: 'Create with initial terms' },
+              {
+                label: 'No, skip',
+                description: 'Skip',
+              },
+            ],
+          },
         },
         {
-          id: "integrations-dcp",
-          title: "Integration: DCP",
-          type: "question",
+          id: 'integrations-dcp',
+          title: 'Integration: DCP',
+          type: 'question',
           instruction: `
 Configure DCP plugin.
 1. Check global & project configs for DCP dependency
 2. If installed → skip this step, continue to next step
 3. If missing → ask user. Write to .opencode/opencode.json`,
-          checkInstalled: "opencode-dynamic-context-pruning",
-          checkPaths: ["~/.config/opencode/opencode.json", ".opencode/opencode.json"],
+          checkInstalled: 'opencode-dynamic-context-pruning',
+          checkPaths: ['~/.config/opencode/opencode.json', '.opencode/opencode.json'],
           params: {
-            header: "DCP Plugin",
-            question: "Install DCP (Dynamic Context Pruning) plugin? Writes to .opencode/opencode.json.",
-            options: [{label: "Yes", description: "Install"}, {label: "No", description: "Skip"}]
-          }
+            header: 'DCP Plugin',
+            question:
+              'Install DCP (Dynamic Context Pruning) plugin? Writes to .opencode/opencode.json.',
+            options: [
+              { label: 'Yes', description: 'Install' },
+              { label: 'No', description: 'Skip' },
+            ],
+          },
         },
         {
-          id: "integrations-vision",
-          title: "Integration: Vision Agent",
-          type: "question",
+          id: 'integrations-vision',
+          title: 'Integration: Vision Agent',
+          type: 'question',
           instruction: `
 Configure Vision Agent (multimodal image-reading subagent).
 1. Offer multimodal models for user selection: opencode-go/kimi-k2.7-code, opencode/qwen3.6-plus-free, opencode/mimo-v2.5-free
 2. After user selects model, write agent config to .opencode/agents/vision-helper.md
 3. Skip if agent config already exists`,
-          checkInstalled: "vision-helper",
+          checkInstalled: 'vision-helper',
           params: {
-            header: "Vision Agent",
-            question: "Configure Vision Agent (multimodal image-reading subagent)? Scans connected models for selection and writes agent config.",
-            options: [{label: "Yes", description: "Configure Vision Agent"}, {label: "No", description: "Skip"}]
-          }
+            header: 'Vision Agent',
+            question:
+              'Configure Vision Agent (multimodal image-reading subagent)? Scans connected models for selection and writes agent config.',
+            options: [
+              { label: 'Yes', description: 'Configure Vision Agent' },
+              { label: 'No', description: 'Skip' },
+            ],
+          },
         },
         {
-          id: "integrations-code-review",
-          title: "Integration: Code Review Skill",
-          type: "question",
+          id: 'integrations-code-review',
+          title: 'Integration: Code Review Skill',
+          type: 'question',
           instruction: `
 Install Code Review Skill.
 1. Check if installed: look for ~/.agents/skills/code-review-skill/SKILL.md, ~/.claude/skills/code-review-skill/SKILL.md
 2. If missing, ask user. Install via:
    git clone https://github.com/awesome-skills/code-review-skill ~/.agents/skills/code-review-skill
 3. Inform user to restart OpenCode and use /code-review-skill`,
-          checkInstalled: "code-review-skill",
+          checkInstalled: 'code-review-skill',
           params: {
-            header: "Code Review Skill",
-            question: "Install Code Review Skill? Provides comprehensive code review capabilities. (https://github.com/awesome-skills/code-review-skill)",
-            options: [{label: "Yes, install", description: "Clone to ~/.agents/skills/code-review-skill"}, {label: "No, skip", description: "Skip"}]
-          }
+            header: 'Code Review Skill',
+            question:
+              'Install Code Review Skill? Provides comprehensive code review capabilities. (https://github.com/awesome-skills/code-review-skill)',
+            options: [
+              { label: 'Yes, install', description: 'Clone to ~/.agents/skills/code-review-skill' },
+              { label: 'No, skip', description: 'Skip' },
+            ],
+          },
         },
         {
-          id: "done",
-          title: "Done",
-          type: "question",
-          instruction: "Tell user to install flow templates via /pm-install-flow.",
+          id: 'done',
+          title: 'Done',
+          type: 'question',
+          instruction: 'Tell user to install flow templates via /pm-install-flow.',
           params: {
-            header: "Install Flow Templates",
-            question: "Setup is almost complete! Use `/pm-install-flow` to install flow templates (e.g. spec-driven-dev, bug-fix).",
-            options: [{label: "Got it", description: "Finish setup"}]
-          }
+            header: 'Install Flow Templates',
+            question:
+              'Setup is almost complete! Use `/pm-install-flow` to install flow templates (e.g. spec-driven-dev, bug-fix).',
+            options: [{ label: 'Got it', description: 'Finish setup' }],
+          },
         },
       ],
     });

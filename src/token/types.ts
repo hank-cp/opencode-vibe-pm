@@ -1,7 +1,7 @@
 /**
  * Token 计数模块类型定义
  */
-import type {Message, Part} from "@opencode-ai/sdk";
+import type { Message, Part } from '@opencode-ai/sdk';
 
 /** 按 6 来源分类的 Token 计数 */
 export interface TokenCount {

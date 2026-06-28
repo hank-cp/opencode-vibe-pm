@@ -2,25 +2,18 @@
  * Command 文件生成与清理测试
  */
 
-import { describe, it, expect, afterEach } from "bun:test";
-import * as fs from "node:fs";
-import * as path from "node:path";
-import * as os from "node:os";
-import {
-  scanTemplates,
-  installTemplate,
-  uninstallFlow,
-  TemplateConflictError,
-} from "../../src/template/index.js";
+import { describe, it, expect, afterEach } from 'bun:test';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import { scanTemplates, installTemplate, uninstallFlow } from '../../src/template/index.js';
 
 function createTestProject() {
-  const dir = fs.mkdtempSync(
-    path.join(os.tmpdir(), "vibe-pm-test-cmd-"),
-  );
-  const docsDir = path.join(dir, "docs");
-  fs.mkdirSync(path.join(docsDir, "template"), { recursive: true });
-  fs.mkdirSync(path.join(docsDir, "flow"), { recursive: true });
-  fs.mkdirSync(path.join(docsDir, "regulation"), { recursive: true });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vibe-pm-test-cmd-'));
+  const docsDir = path.join(dir, 'docs');
+  fs.mkdirSync(path.join(docsDir, 'template'), { recursive: true });
+  fs.mkdirSync(path.join(docsDir, 'flow'), { recursive: true });
+  fs.mkdirSync(path.join(docsDir, 'regulation'), { recursive: true });
   return dir;
 }
 
@@ -29,9 +22,9 @@ function writeTemplateWithCommand(
   id: string,
   name: string,
   command: string,
-  opts?: { inputReqs?: boolean },
+  opts?: { inputReqs?: boolean }
 ) {
-  const bundleDir = path.join(projectDir, "docs", "template", id);
+  const bundleDir = path.join(projectDir, 'docs', 'template', id);
   fs.mkdirSync(bundleDir, { recursive: true });
 
   let content =
@@ -59,15 +52,11 @@ function writeTemplateWithCommand(
     `## 任务步骤\n\n` +
     `### S1: 测试步骤\n\n**目标**：测试。\n**执行 Agent**：Assistant\n\n1. 测试\n\n**完成后**：结束\n`;
 
-  fs.writeFileSync(path.join(bundleDir, "flow.md"), content);
+  fs.writeFileSync(path.join(bundleDir, 'flow.md'), content);
 }
 
-function writeTemplateWithoutCommand(
-  projectDir: string,
-  id: string,
-  name: string,
-) {
-  const bundleDir = path.join(projectDir, "docs", "template", id);
+function writeTemplateWithoutCommand(projectDir: string, id: string, name: string) {
+  const bundleDir = path.join(projectDir, 'docs', 'template', id);
   fs.mkdirSync(bundleDir, { recursive: true });
 
   const content =
@@ -80,10 +69,10 @@ function writeTemplateWithoutCommand(
     `## 适用场景\n\n无命令模板。\n\n` +
     `## 任务步骤\n\n### S1: 测试\n\n**目标**：测试。\n**执行 Agent**：Assistant\n\n1. 测试\n\n**完成后**：结束\n`;
 
-  fs.writeFileSync(path.join(bundleDir, "flow.md"), content);
+  fs.writeFileSync(path.join(bundleDir, 'flow.md'), content);
 }
 
-describe("Command File Generation", () => {
+describe('Command File Generation', () => {
   let testDir: string;
 
   afterEach(() => {
@@ -92,89 +81,75 @@ describe("Command File Generation", () => {
     }
   });
 
-  it("parse_meta_includes_command: TemplateMeta 包含 command 字段", () => {
+  it('parse_meta_includes_command: TemplateMeta 包含 command 字段', () => {
     testDir = createTestProject();
-    writeTemplateWithCommand(testDir, "test-cmd", "测试命令", "/pm-test-cmd");
+    writeTemplateWithCommand(testDir, 'test-cmd', '测试命令', '/pm-test-cmd');
 
     const templates = scanTemplates(testDir);
     expect(templates).toHaveLength(1);
-    expect(templates[0].command).toBe("/pm-test-cmd");
-    expect(templates[0].id).toBe("test-cmd");
-    expect(templates[0].name).toBe("测试命令");
+    expect(templates[0].command).toBe('/pm-test-cmd');
+    expect(templates[0].id).toBe('test-cmd');
+    expect(templates[0].name).toBe('测试命令');
   });
 
-  it("parse_meta_no_command: 无 Command 字段时 command 为空字符串", () => {
+  it('parse_meta_no_command: 无 Command 字段时 command 为空字符串', () => {
     testDir = createTestProject();
-    writeTemplateWithoutCommand(testDir, "no-cmd", "无命令");
+    writeTemplateWithoutCommand(testDir, 'no-cmd', '无命令');
 
     const templates = scanTemplates(testDir);
     expect(templates).toHaveLength(1);
-    expect(templates[0].command).toBe("");
+    expect(templates[0].command).toBe('');
   });
 
-  it("install_does_not_generate_command_file: installTemplate 不再创建 command 文件", () => {
+  it('install_does_not_generate_command_file: installTemplate 不再创建 command 文件', () => {
     testDir = createTestProject();
-    writeTemplateWithCommand(testDir, "test-cmd", "测试命令", "/pm-test-cmd", {
+    writeTemplateWithCommand(testDir, 'test-cmd', '测试命令', '/pm-test-cmd', {
       inputReqs: true,
     });
 
-    installTemplate(testDir, "test-cmd");
+    installTemplate(testDir, 'test-cmd');
 
-    const cmdPath = path.join(
-      testDir,
-      ".opencode",
-      "commands",
-      "pm-test-cmd.md",
-    );
+    const cmdPath = path.join(testDir, '.opencode', 'commands', 'pm-test-cmd.md');
     expect(fs.existsSync(cmdPath)).toBe(false);
   });
 
-  it("install_without_command_skips_file: 无 Command 字段时不生成文件", () => {
+  it('install_without_command_skips_file: 无 Command 字段时不生成文件', () => {
     testDir = createTestProject();
-    writeTemplateWithoutCommand(testDir, "no-cmd", "无命令");
+    writeTemplateWithoutCommand(testDir, 'no-cmd', '无命令');
 
-    installTemplate(testDir, "no-cmd");
+    installTemplate(testDir, 'no-cmd');
 
-    const cmdDir = path.join(testDir, ".opencode", "commands");
+    const cmdDir = path.join(testDir, '.opencode', 'commands');
     expect(fs.existsSync(cmdDir)).toBe(false);
   });
 
-  it("uninstall_no_longer_touches_command_file: uninstallFlow 不再操作 command 文件", () => {
+  it('uninstall_no_longer_touches_command_file: uninstallFlow 不再操作 command 文件', () => {
     testDir = createTestProject();
-    writeTemplateWithCommand(
-      testDir,
-      "test-cmd",
-      "测试命令",
-      "/pm-test-cmd",
-    );
+    writeTemplateWithCommand(testDir, 'test-cmd', '测试命令', '/pm-test-cmd');
 
-    installTemplate(testDir, "test-cmd");
+    installTemplate(testDir, 'test-cmd');
 
     // Verify no command file was generated by install
-    const cmdPath = path.join(testDir, ".opencode", "commands", "pm-test-cmd.md");
+    const cmdPath = path.join(testDir, '.opencode', 'commands', 'pm-test-cmd.md');
     expect(fs.existsSync(cmdPath)).toBe(false);
 
     // Uninstall should not error about missing command file
-    expect(() => uninstallFlow(testDir, "test-cmd")).not.toThrow();
+    expect(() => uninstallFlow(testDir, 'test-cmd')).not.toThrow();
 
     // Flow file removed
-    const flowPath = path.join(testDir, "docs", "flow", "flow-test-cmd.md");
+    const flowPath = path.join(testDir, 'docs', 'flow', 'flow-test-cmd.md');
     expect(fs.existsSync(flowPath)).toBe(false);
   });
 
-  it("install_no_command_file_structure: 不再生成命令文件内容", () => {
+  it('install_no_command_file_structure: 不再生成命令文件内容', () => {
     testDir = createTestProject();
-    writeTemplateWithCommand(
-      testDir,
-      "struct-test",
-      "结构测试",
-      "/pm-struct-test",
-      { inputReqs: true },
-    );
+    writeTemplateWithCommand(testDir, 'struct-test', '结构测试', '/pm-struct-test', {
+      inputReqs: true,
+    });
 
-    installTemplate(testDir, "struct-test");
+    installTemplate(testDir, 'struct-test');
 
-    const cmdDir = path.join(testDir, ".opencode", "commands");
+    const cmdDir = path.join(testDir, '.opencode', 'commands');
     expect(fs.existsSync(cmdDir)).toBe(false);
   });
 });

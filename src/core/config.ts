@@ -5,16 +5,16 @@
  * 启动时自动创建默认配置文件。
  */
 
-import * as fs from "node:fs";
-import * as path from "node:path";
-import type { PluginConfig } from "./types.js";
-import { logger } from "./logger.js";
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import type { PluginConfig } from './types.js';
+import { logger } from './logger.js';
 
 // ─── DEFAULT_CONFIG ───
 
 export const DEFAULT_CONFIG: PluginConfig = {
-  language: "en-US",
-  dataDir: ".vibe-pm",
+  language: 'en-US',
+  dataDir: '.vibe-pm',
   autoAnalyze: true,
   contextInjection: {
     maxStepTokens: 0, // 0 = 不限制
@@ -27,7 +27,7 @@ export const DEFAULT_CONFIG: PluginConfig = {
 
 // ─── 公开 API ───
 
-const PROJECT_CONFIG_REL = path.join(".vibe-pm", "config.json");
+const PROJECT_CONFIG_REL = path.join('.vibe-pm', 'config.json');
 
 export function loadConfig(projectDir: string): PluginConfig {
   const configPath = path.join(projectDir, PROJECT_CONFIG_REL);
@@ -38,7 +38,7 @@ export function loadConfig(projectDir: string): PluginConfig {
   }
 
   try {
-    const raw = fs.readFileSync(configPath, "utf-8");
+    const raw = fs.readFileSync(configPath, 'utf-8');
     const parsed = JSON.parse(raw) as Partial<PluginConfig>;
     const merged = { ...DEFAULT_CONFIG, ...parsed };
 
@@ -53,24 +53,17 @@ export function loadConfig(projectDir: string): PluginConfig {
   } catch (err) {
     logger.warn(
       `Failed to parse vibe-pm/config.json, using defaults:`,
-      err instanceof Error ? err.message : err,
+      err instanceof Error ? err.message : err
     );
     return { ...DEFAULT_CONFIG };
   }
 }
 
-export function writeConfig(
-  projectDir: string,
-  config: PluginConfig,
-): void {
+export function writeConfig(projectDir: string, config: PluginConfig): void {
   const configPath = path.join(projectDir, PROJECT_CONFIG_REL);
   fs.mkdirSync(path.dirname(configPath), { recursive: true });
-  fs.writeFileSync(
-    configPath,
-    JSON.stringify(config, null, 2),
-    "utf-8",
-  );
-  logger.info("vibe-pm/config.json written");
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+  logger.info('vibe-pm/config.json written');
 }
 
 export function ensureDefaultConfig(projectDir: string): boolean {
@@ -78,6 +71,6 @@ export function ensureDefaultConfig(projectDir: string): boolean {
   if (fs.existsSync(configPath)) return false;
 
   writeConfig(projectDir, DEFAULT_CONFIG);
-  logger.info("vibe-pm/config.json created with default values");
+  logger.info('vibe-pm/config.json created with default values');
   return true;
 }

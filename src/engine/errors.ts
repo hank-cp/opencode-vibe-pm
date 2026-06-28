@@ -11,19 +11,19 @@ export class DuplicateActiveTaskError extends Error {
       currentStepName: string;
       summary: string;
       startAt: string;
-    },
+    }
   ) {
     const lines = [
-      "当前 Session 已有活跃任务:",
+      '当前 Session 已有活跃任务:',
       `- 流程: ${existingTask.flow}`,
       `- 当前步骤: ${existingTask.currentStep} - ${existingTask.currentStepName}`,
       `- 摘要: ${existingTask.summary}`,
       `- 开始时间: ${existingTask.startAt}`,
-      "",
-      "请先执行 /pm-task-close 关闭当前任务后再启动新任务。",
+      '',
+      '请先执行 /pm-task-close 关闭当前任务后再启动新任务。',
     ];
-    super(lines.join("\n"));
-    this.name = "DuplicateActiveTaskError";
+    super(lines.join('\n'));
+    this.name = 'DuplicateActiveTaskError';
   }
 }
 
@@ -31,7 +31,7 @@ export class DuplicateActiveTaskError extends Error {
 export class FlowNotFoundError extends Error {
   constructor(flowName: string) {
     super(`Flow "${flowName}" not found in /docs/flow/.`);
-    this.name = "FlowNotFoundError";
+    this.name = 'FlowNotFoundError';
   }
 }
 
@@ -39,6 +39,6 @@ export class FlowNotFoundError extends Error {
 export class FlowParseError extends Error {
   constructor(flowName: string, reason: string) {
     super(`Failed to parse Flow "${flowName}": ${reason}`);
-    this.name = "FlowParseError";
+    this.name = 'FlowParseError';
   }
 }

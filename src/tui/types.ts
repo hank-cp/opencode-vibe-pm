@@ -4,12 +4,12 @@
  * 定义 TaskStatusData、TokenData 及颜色映射常量。
  */
 
-import { RGBA } from "@opentui/core";
+import { RGBA } from '@opentui/core';
 
 // ─── Task Status ───
 
 export interface TaskStatusData {
-  type: "active" | "last" | "empty";
+  type: 'active' | 'last' | 'empty';
   flow?: string;
   currentStep?: string;
   currentStepName?: string;
@@ -53,11 +53,11 @@ export interface StepTokenEntry {
  * 暖色：User（橙）、Assistant（绿）、Tool（紫）、Reasoning（灰）
  */
 export const SOURCE_COLORS: Record<string, RGBA> = {
-  FlowControl: RGBA.fromInts(54, 176, 200),     // #36B0C8 冷青
-  Text:        RGBA.fromInts(74, 144, 217),     // #4A90D9 冷蓝
-  Tool:        RGBA.fromInts(176, 123, 237),     // #B07BED 暖紫
-  Reasoning:   RGBA.fromInts(106, 104, 255),     // #9B9B9B 暖蓝
-  SubAgent:    RGBA.fromInts(255, 173, 51),      // #FFAD33 暖橙
+  FlowControl: RGBA.fromInts(54, 176, 200), // #36B0C8 冷青
+  Text: RGBA.fromInts(74, 144, 217), // #4A90D9 冷蓝
+  Tool: RGBA.fromInts(176, 123, 237), // #B07BED 暖紫
+  Reasoning: RGBA.fromInts(106, 104, 255), // #9B9B9B 暖蓝
+  SubAgent: RGBA.fromInts(255, 173, 51), // #FFAD33 暖橙
 };
 
 // ─── Helpers ───
@@ -112,5 +112,5 @@ export function visualWidth(s: string): number {
 export function justify(left: string, right: string, width: number): string {
   const gap = width - visualWidth(left) - visualWidth(right);
   const pad = Math.max(1, gap);
-  return `${left}${" ".repeat(pad)}${right}`;
+  return `${left}${' '.repeat(pad)}${right}`;
 }

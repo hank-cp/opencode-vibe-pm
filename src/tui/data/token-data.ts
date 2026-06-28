@@ -6,8 +6,8 @@
  * 步骤级数据来自 flowMetrics 聚合。
  */
 
-import type { IMemorySystem, SessionTokenMetrics } from "../../memory/types.js";
-import type { TokenData, TokenSourceEntry } from "../types.js";
+import type { IMemorySystem, SessionTokenMetrics } from '../../memory/types.js';
+import type { TokenData, TokenSourceEntry } from '../types.js';
 
 /**
  * 应用展示公式：将 session_tokens 原始数据转换为 TUI 展示值（4 来源）。
@@ -28,10 +28,10 @@ function applyDisplayFormulas(m: SessionTokenMetrics): {
   const totalTokens = (user + assistant) * scaleFactor;
 
   const sourceBreakdown: TokenSourceEntry[] = [
-    { source: "FlowControl", tokens: Math.round(flowControl * scaleFactor) },
-    { source: "Text", tokens: Math.round(text * scaleFactor) },
-    { source: "Tool", tokens: Math.round(tool * scaleFactor) },
-    { source: "Reasoning", tokens: Math.round(reasoning * scaleFactor) },
+    { source: 'FlowControl', tokens: Math.round(flowControl * scaleFactor) },
+    { source: 'Text', tokens: Math.round(text * scaleFactor) },
+    { source: 'Tool', tokens: Math.round(tool * scaleFactor) },
+    { source: 'Reasoning', tokens: Math.round(reasoning * scaleFactor) },
   ];
 
   return { totalTokens, sourceBreakdown };
@@ -43,10 +43,7 @@ function applyDisplayFormulas(m: SessionTokenMetrics): {
  * Session 级 Token 从 session_tokens 表读取并应用展示公式。
  * 步骤级 Token 从 flowMetrics 聚合读取（不变）。
  */
-export async function loadTokenData(
-  memory: IMemorySystem,
-  sessionId: string,
-): Promise<TokenData> {
+export async function loadTokenData(memory: IMemorySystem, sessionId: string): Promise<TokenData> {
   const [sessionMetrics, stepBreakdown, subagentMetrics] = await Promise.all([
     memory.getSessionTokens(sessionId),
     memory.getStepTokenBreakdown(sessionId),
@@ -56,11 +53,12 @@ export async function loadTokenData(
   if (sessionMetrics) {
     const { totalTokens: sessionTotal, sourceBreakdown } = applyDisplayFormulas(sessionMetrics);
     const cachedTokens = sessionMetrics.apiCacheRead + sessionMetrics.apiCacheWrite;
-    const uncachedTokens = sessionMetrics.apiInput + sessionMetrics.apiOutput + sessionMetrics.apiReasoning;
+    const uncachedTokens =
+      sessionMetrics.apiInput + sessionMetrics.apiOutput + sessionMetrics.apiReasoning;
 
     const subagentTotal = subagentMetrics.reduce((sum, s) => sum + s.user + s.assistant, 0);
     if (subagentTotal > 0) {
-      sourceBreakdown.push({ source: "SubAgent", tokens: subagentTotal });
+      sourceBreakdown.push({ source: 'SubAgent', tokens: subagentTotal });
     }
 
     return {

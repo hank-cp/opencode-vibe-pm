@@ -6,16 +6,16 @@
  * createTuiPlugin() 被立即调用以生成 ready-to-use 的 TuiPlugin 函数。
  */
 
-import type { TuiPluginModule } from "@opencode-ai/plugin/tui";
-import { createTuiPlugin } from "./tui-plugin.jsx";
+import type { TuiPluginModule } from '@opencode-ai/plugin/tui';
+import { createTuiPlugin } from './tui-plugin.jsx';
 
-console.error("[vibe-pm TUI] 模块已加载");
+console.error('[vibe-pm TUI] 模块已加载');
 
 const plugin: TuiPluginModule & { id: string } = {
-  id: "vibe-pm",
+  id: 'vibe-pm',
   tui: createTuiPlugin(),
 };
 
 export default plugin;
 
-export type * from "./types.js";
+export type * from './types.js';

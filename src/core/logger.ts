@@ -5,7 +5,7 @@
  * 公共接口不变：logger.debug / info / warn / error。
  */
 
-import type { ILogger } from "./types.js";
+import type { ILogger } from './types.js';
 
 // ─── LogClient 最小接口 ───
 
@@ -14,7 +14,7 @@ interface LogClient {
     log(options: {
       body?: {
         service: string;
-        level: "debug" | "info" | "warn" | "error";
+        level: 'debug' | 'info' | 'warn' | 'error';
         message: string;
         extra?: Record<string, unknown>;
       };
@@ -51,14 +51,14 @@ function getCallerFile(): string {
 
     for (let i = 2; i < stack.length; i++) {
       const fn = stack[i]?.getFileName();
-      if (fn && !fn.includes("/logger.")) {
+      if (fn && !fn.includes('/logger.')) {
         const m = fn.match(/([^/\\]+)\.[tj]s$/);
         return m ? m[1] : fn;
       }
     }
-    return "unknown";
+    return 'unknown';
   } catch {
-    return "unknown";
+    return 'unknown';
   }
 }
 
@@ -67,11 +67,11 @@ function toExtra(data?: unknown): Record<string, unknown> | undefined {
   if (data instanceof Error) {
     return { error: data.message, stack: data.stack };
   }
-  if (typeof data === "object") {
+  if (typeof data === 'object') {
     return Object.fromEntries(
       Object.entries(data as Record<string, unknown>).filter(
-        ([, v]) => v !== undefined && v !== null,
-      ),
+        ([, v]) => v !== undefined && v !== null
+      )
     );
   }
   return { detail: String(data) };
@@ -79,21 +79,17 @@ function toExtra(data?: unknown): Record<string, unknown> | undefined {
 
 // ─── 写入 ───
 
-async function write(
-  level: string,
-  message: unknown,
-  data?: unknown,
-): Promise<void> {
+async function write(level: string, message: unknown, data?: unknown): Promise<void> {
   if (!enabled || !client) return;
 
   try {
     const service = getCallerFile();
-    const msg = "[vibe-pm] " + (typeof message === "string" ? message : String(message));
+    const msg = '[vibe-pm] ' + (typeof message === 'string' ? message : String(message));
 
     await client.app.log({
       body: {
         service,
-        level: level.toLowerCase() as "debug" | "info" | "warn" | "error",
+        level: level.toLowerCase() as 'debug' | 'info' | 'warn' | 'error',
         message: msg,
         extra: toExtra(data),
       },
@@ -107,15 +103,15 @@ async function write(
 
 export const logger: ILogger = {
   debug(...args: unknown[]) {
-    void write("DEBUG", args[0], args[1]);
+    void write('DEBUG', args[0], args[1]);
   },
   info(...args: unknown[]) {
-    void write("INFO", args[0], args[1]);
+    void write('INFO', args[0], args[1]);
   },
   warn(...args: unknown[]) {
-    void write("WARN", args[0], args[1]);
+    void write('WARN', args[0], args[1]);
   },
   error(...args: unknown[]) {
-    void write("ERROR", args[0], args[1]);
+    void write('ERROR', args[0], args[1]);
   },
 };

@@ -1,1 +1,1 @@
-export { writeDcpConfig } from "./dcp.js";
+export { writeDcpConfig } from './dcp.js';

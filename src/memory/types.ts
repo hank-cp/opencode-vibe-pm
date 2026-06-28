@@ -6,7 +6,7 @@
 
 // ─── Task ───
 
-import {ApiTelemetry, TokenCount} from "../token";
+import { ApiTelemetry, TokenCount } from '../token';
 
 /** 步骤转换记录：每次 setStep 时写入一条，按时间顺序追加 */
 export interface StepTransition {
@@ -50,7 +50,7 @@ export interface CreateTaskInput {
 export interface Discussion {
   id: string;
   fromSessionId: string;
-  priority: "high" | "medium" | "low";
+  priority: 'high' | 'medium' | 'low';
   importance: 1 | 2 | 3 | 4 | 5;
   severity: 1 | 2 | 3 | 4 | 5;
   issue: string;
@@ -64,7 +64,7 @@ export interface Discussion {
 
 export interface CreateDiscussionInput {
   fromSessionId: string;
-  priority: "high" | "medium" | "low";
+  priority: 'high' | 'medium' | 'low';
   importance: 1 | 2 | 3 | 4 | 5;
   severity: 1 | 2 | 3 | 4 | 5;
   issue: string;
@@ -102,13 +102,13 @@ export interface StepTokenBreakdown {
 export interface SessionTokenMetrics {
   sessionId: string;
   /** 基础类型 */
-  user: number;         // = User
-  assistant: number;    // = Assistant
+  user: number; // = User
+  assistant: number; // = Assistant
   /** 按用途分 */
-  flowControl: number;  // ⊆ user
-  text: number;         // = text part tokens
-  tool: number;         // ⊆ assistant
-  reasoning: number;    // ⊆ assistant
+  flowControl: number; // ⊆ user
+  text: number; // = text part tokens
+  tool: number; // ⊆ assistant
+  reasoning: number; // ⊆ assistant
   /** LLM API 遥测（仅当 LLM 返回时写入） */
   apiInput: number;
   apiOutput: number;
@@ -163,10 +163,7 @@ export interface IMemorySystem {
   getDiscussions(sessionId: string): Promise<Discussion[]>;
   getUnresolvedDiscussions(): Promise<Discussion[]>;
   resolveDiscussion(id: string, decision: string): Promise<void>;
-  listDiscussions(filter?: {
-    priority?: string;
-    unresolved?: boolean;
-  }): Promise<Discussion[]>;
+  listDiscussions(filter?: { priority?: string; unresolved?: boolean }): Promise<Discussion[]>;
 
   // StepTokenMetrics
   recordStepTokens(
@@ -181,12 +178,9 @@ export interface IMemorySystem {
     flow: string,
     step: string,
     stepName: string,
-    taskSummary: string,
+    taskSummary: string
   ): Promise<void>;
-  recordStepExit(
-    sessionId: string,
-    step: string,
-  ): Promise<void>;
+  recordStepExit(sessionId: string, step: string): Promise<void>;
   getStepTokenMetrics(sessionId: string): Promise<StepTokenMetrics[]>;
   getStepTokenMetricsByFlow(flow: string): Promise<StepTokenMetrics[]>;
 
@@ -196,11 +190,20 @@ export interface IMemorySystem {
 
   // Session Tokens
   initSessionTokens(sessionId: string): Promise<void>;
-  recordSessionTokens(sessionId: string, tokenCount: TokenCount, apiTelemetry?: ApiTelemetry): Promise<void>;
+  recordSessionTokens(
+    sessionId: string,
+    tokenCount: TokenCount,
+    apiTelemetry?: ApiTelemetry
+  ): Promise<void>;
   getSessionTokens(sessionId: string): Promise<SessionTokenMetrics | null>;
 
   // Subagent Tokens
-  recordSubagentTokens(sessionId: string, parentSessionId: string, tokenCount: TokenCount, apiTelemetry?: ApiTelemetry): Promise<void>;
+  recordSubagentTokens(
+    sessionId: string,
+    parentSessionId: string,
+    tokenCount: TokenCount,
+    apiTelemetry?: ApiTelemetry
+  ): Promise<void>;
   getSubagentTokens(parentSessionId: string): Promise<SubagentTokenMetrics[]>;
 
   // 初始化

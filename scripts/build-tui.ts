@@ -6,32 +6,32 @@
  * - TUI 插件：需 @opentui/solid/bun-plugin 转换 SolidJS JSX
  * - external @opentui/* 和 solid-js：共享 OpenTUI 运行时的渲染器实例
  */
-import solidPlugin from "@opentui/solid/bun-plugin";
-import * as fs from "node:fs";
-import * as path from "node:path";
+import solidPlugin from '@opentui/solid/bun-plugin';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 const shared = {
-  target: "bun" as const,
-  format: "esm" as const,
+  target: 'bun' as const,
+  format: 'esm' as const,
   external: [
-    "@opentui/core",
-    "@opentui/solid",
-    "@opentui/keymap",
-    "solid-js",
-    "@opencode-ai/plugin",
+    '@opentui/core',
+    '@opentui/solid',
+    '@opentui/keymap',
+    'solid-js',
+    '@opencode-ai/plugin',
   ],
 };
 
 // ─── Server Plugin ───
 const serverResult = await Bun.build({
   ...shared,
-  entrypoints: ["./src/index.ts"],
-  outdir: "./dist",
-  naming: { entry: "index.js" },
+  entrypoints: ['./src/index.ts'],
+  outdir: './dist',
+  naming: { entry: 'index.js' },
 });
 
 if (!serverResult.success) {
-  console.error("[vibe-pm] Server build failed:");
+  console.error('[vibe-pm] Server build failed:');
   for (const log of serverResult.logs) console.error(log);
   process.exit(1);
 }
@@ -41,8 +41,8 @@ for (const o of serverResult.outputs) {
 
 // ─── 复制内置模板到 dist/ ───
 {
-  const srcDir = path.resolve(import.meta.dirname, "../docs/template");
-  const destDir = path.resolve(import.meta.dirname, "../dist/docs/template");
+  const srcDir = path.resolve(import.meta.dirname, '../docs/template');
+  const destDir = path.resolve(import.meta.dirname, '../dist/docs/template');
 
   if (fs.existsSync(srcDir)) {
     fs.mkdirSync(destDir, { recursive: true });
@@ -50,7 +50,9 @@ for (const o of serverResult.outputs) {
     const count = countFiles(destDir);
     console.error(`[vibe-pm] Copied templates: ${srcDir} → ${destDir} (${count} files)`);
   } else {
-    console.error("[vibe-pm] WARNING: docs/template/ not found, plugins will not have built-in templates");
+    console.error(
+      '[vibe-pm] WARNING: docs/template/ not found, plugins will not have built-in templates'
+    );
   }
 }
 
@@ -66,14 +68,14 @@ function countFiles(dir: string): number {
 // ─── TUI Plugin ───
 const tuiResult = await Bun.build({
   ...shared,
-  entrypoints: ["./src/tui/index.ts"],
-  outdir: "./dist/tui",
+  entrypoints: ['./src/tui/index.ts'],
+  outdir: './dist/tui',
   plugins: [solidPlugin],
-  naming: { entry: "index.js" },
+  naming: { entry: 'index.js' },
 });
 
 if (!tuiResult.success) {
-  console.error("[vibe-pm] TUI build failed:");
+  console.error('[vibe-pm] TUI build failed:');
   for (const log of tuiResult.logs) console.error(log);
   process.exit(1);
 }
