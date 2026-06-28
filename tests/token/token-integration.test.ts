@@ -9,11 +9,11 @@ import { describe, it, expect, mock, beforeAll, afterAll } from 'bun:test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { MemorySystem } from '../../src/memory/memory-system.js';
-import { TokenCounter } from '../../src/token/token-counter.js';
+import { MemorySystem } from '../../src/memory';
+import { TokenCounter } from '../../src/token/token-counter';
 import type { Part, Message } from '@opencode-ai/sdk';
-import type { MessagePack } from '../../src/token/types.js';
-import type { CreateTaskInput } from '../../src/memory/types.js';
+import type { MessagePack } from '../../src/token';
+import type { CreateTaskInput } from '../../src/memory';
 
 // Mock tiktoken
 mock.module('tiktoken', () => {

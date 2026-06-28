@@ -6,7 +6,7 @@
  * Step-level data comes from flowMetrics aggregation.
  */
 
-import type { IMemorySystem, SessionTokenMetrics } from '../../memory/types.js';
+import type { IMemorySystem, SessionTokenMetrics } from '../../memory';
 import type { TokenData, TokenSourceEntry } from '../types.js';
 
 /**

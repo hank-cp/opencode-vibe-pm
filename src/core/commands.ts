@@ -77,7 +77,10 @@ export function registerCommands(opencodeConfig: Config): void {
   const commands = (opencodeConfig.command ??= {}) as Record<string, CommandDeclaration>;
   const descMap = i18n().tool.commandDesc;
   for (const cmd of COMMANDS) {
-    commands[cmd.name] = { template: cmd.template || '', description: descMap[cmd.name] ?? cmd.name };
+    commands[cmd.name] = {
+      template: cmd.template || '',
+      description: descMap[cmd.name] ?? cmd.name,
+    };
   }
 }
 
@@ -179,7 +182,8 @@ function createTaskSetStepTool(engine: FlowEngine, memory: MemorySystem): ToolDe
 function createTaskCloseTool(engine: FlowEngine): ToolDefinition {
   const cmdI18n = i18n().tool;
   return tool({
-    description: cmdI18n.commandDesc['pm-task-close'] ?? 'Close the current task and trigger analysis',
+    description:
+      cmdI18n.commandDesc['pm-task-close'] ?? 'Close the current task and trigger analysis',
     args: {},
     async execute(_args: Record<string, never>, toolCtx: ToolContext): Promise<string> {
       const sessionId = toolCtx.sessionID;
@@ -213,7 +217,8 @@ function createTaskCloseTool(engine: FlowEngine): ToolDefinition {
 function createTaskCurrentStepTool(memory: MemorySystem): ToolDefinition {
   const cmdI18n = i18n().tool;
   return tool({
-    description: cmdI18n.commandDesc['pm-task-current-step'] ??
+    description:
+      cmdI18n.commandDesc['pm-task-current-step'] ??
       'Get the current step of the active task. Returns JSON {ok:false} if no active task.',
     args: {},
     async execute(_args: Record<string, never>, toolCtx: ToolContext): Promise<string> {
@@ -386,7 +391,9 @@ function createInstallFlowTool(ctx: IPluginContext): ToolDefinition {
       overwrite: tool.schema
         .boolean()
         .optional()
-        .describe('Whether to overwrite existing flow docs (default false; prompts user to confirm when files exist).'),
+        .describe(
+          'Whether to overwrite existing flow docs (default false; prompts user to confirm when files exist).'
+        ),
     },
     async execute(
       args: { templateId?: string; programmingLanguages?: string; overwrite?: boolean },
@@ -457,7 +464,8 @@ function createInstallFlowTool(ctx: IPluginContext): ToolDefinition {
 function createUninstallFlowTool(ctx: IPluginContext): ToolDefinition {
   const cmdI18n = i18n().tool;
   return tool({
-    description: cmdI18n.commandDesc['pm-uninstall-flow'] ?? 'Remove an installed flow and its command',
+    description:
+      cmdI18n.commandDesc['pm-uninstall-flow'] ?? 'Remove an installed flow and its command',
     args: {
       flowName: tool.schema.string().describe('Flow name to remove (e.g. spec-driven-dev)'),
     },

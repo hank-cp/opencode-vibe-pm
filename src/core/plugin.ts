@@ -10,10 +10,10 @@ import { initLogger, logger } from './logger.js';
 import { MemorySystem } from '../memory';
 import { FlowEngine } from '../engine';
 import type { ApiTelemetry, ModelInfo, TokenCount } from '../token';
-import { TokenCounter } from '../token';
 import type { Config, Hooks, IPluginContext, Plugin, PluginInput } from './types.js';
-import type { UserMessage, AssistantMessage } from '@opencode-ai/sdk';
+import type { AssistantMessage, UserMessage } from '@opencode-ai/sdk';
 import { discoverLanguagePacks, setCurrentLocale } from '../i18n';
+import { TokenCounter } from '../token/token-counter';
 
 export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => {
   ensureDefaultConfig(ctx.directory);

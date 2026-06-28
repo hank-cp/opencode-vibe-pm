@@ -8,7 +8,7 @@
 
 import { createSignal, onCleanup } from 'solid-js';
 import type { TuiPlugin, TuiPluginApi } from '@opencode-ai/plugin/tui';
-import { MemorySystem } from '../memory/memory-system.js';
+import { MemorySystem } from '../memory';
 import type { TaskStatusData, TokenData } from './types.js';
 import { loadTaskStatus } from './data/task-status.js';
 import { loadTokenData } from './data/token-data.js';

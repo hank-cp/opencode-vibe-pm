@@ -219,14 +219,14 @@ describe('Template Manager', () => {
       fs.mkdirSync(path.join(docsDir, 'template'), { recursive: true });
       fs.mkdirSync(path.join(docsDir, 'flow'), { recursive: true });
       fs.mkdirSync(path.join(docsDir, 'regulation'), { recursive: true });
-    const opencodeDir = path.join(dir, '.opencode');
-    fs.mkdirSync(opencodeDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(opencodeDir, 'opencode.jsonc'),
-      JSON.stringify({ plugin: ['vibe-pm'] })
-    );
-    fs.writeFileSync(
-      path.join(opencodeDir, 'package.json'),
+      const opencodeDir = path.join(dir, '.opencode');
+      fs.mkdirSync(opencodeDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(opencodeDir, 'opencode.jsonc'),
+        JSON.stringify({ plugin: ['vibe-pm'] })
+      );
+      fs.writeFileSync(
+        path.join(opencodeDir, 'package.json'),
         JSON.stringify({
           dependencies: { 'opencode-dynamic-context-pruning': '^1.0.0' },
         })

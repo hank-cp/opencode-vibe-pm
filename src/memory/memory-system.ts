@@ -22,7 +22,7 @@ import type {
   Task,
 } from './types.js';
 import { DuplicateTaskError } from './errors.js';
-import { ApiTelemetry, TokenCount } from '../token';
+import type { ApiTelemetry, TokenCount } from '../token';
 
 // ─── Internal Helpers ───
 

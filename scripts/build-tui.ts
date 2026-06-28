@@ -19,6 +19,7 @@ const shared = {
     '@opentui/keymap',
     'solid-js',
     '@opencode-ai/plugin',
+    'tiktoken',
   ],
 };
 

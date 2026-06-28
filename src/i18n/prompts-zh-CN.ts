@@ -1,7 +1,7 @@
 /**
  * 中文 I18N — 单一导出，包含所有提示词、消息、工具字符串
  */
-import type {LanguagePack} from './types.js';
+import type { LanguagePack } from './types.js';
 
 const zhCN = {
   locale: 'zh-CN',

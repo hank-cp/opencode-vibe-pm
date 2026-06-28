@@ -7,7 +7,8 @@
 
 import { describe, it, expect, mock, beforeAll, afterAll } from 'bun:test';
 import type { Part, Message } from '@opencode-ai/sdk';
-import type { MessagePack } from '../../src/token/types.js';
+import type { MessagePack } from '../../src/token';
+import { TokenCounter } from '../../src/token/token-counter';
 
 // Mock tiktoken: encode returns length = text.length / 4 (minimum 1)
 mock.module('tiktoken', () => {
@@ -23,8 +24,6 @@ mock.module('tiktoken', () => {
     encoding_for_model: mock((_model: string) => makeEncoder()),
   };
 });
-
-import { TokenCounter } from '../../src/token/token-counter.js';
 
 // ─── Helpers ───
 

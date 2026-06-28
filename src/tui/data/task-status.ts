@@ -4,7 +4,7 @@
  * Loads status info for the current or previous task from IMemorySystem.
  */
 
-import type { IMemorySystem } from '../../memory/types.js';
+import type { IMemorySystem } from '../../memory';
 import type { TaskStatusData } from '../types.js';
 import { formatElapsed } from '../types.js';
 

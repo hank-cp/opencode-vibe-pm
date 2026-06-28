@@ -7,7 +7,7 @@
 
 // ─── Task ───
 
-import { ApiTelemetry, TokenCount } from '../token';
+import type { ApiTelemetry, TokenCount } from '../token';
 
 /** Step transition record: written once per setStep call, appended in chronological order */
 export interface StepTransition {

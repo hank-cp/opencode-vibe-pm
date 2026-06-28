@@ -10,7 +10,13 @@ export interface CodingStyleI18n {
 }
 
 export interface ErrorI18n {
-  duplicateActiveTask: (flow: string, step: string, stepName: string, summary: string, startAt: string) => string;
+  duplicateActiveTask: (
+    flow: string,
+    step: string,
+    stepName: string,
+    summary: string,
+    startAt: string
+  ) => string;
 }
 
 export interface PromptsI18n {
