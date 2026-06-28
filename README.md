@@ -9,6 +9,8 @@
 >
 > vibe-pm is a OpenCode plugin. It keeps vibe-coding on rails.
 
+[中文文档](README.zh-CN.md)
+
 ## Why vibe-pm?
 
 The problem:

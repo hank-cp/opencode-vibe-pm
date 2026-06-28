@@ -1,12 +1,7 @@
 name: Publish to npm
-#on:
-#  push:
-#    tags: ['v*']
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - main
+    tags: ['v*']
 
 permissions:
   contents: read
