@@ -1,8 +1,8 @@
 /**
- * ModelRegistry — model → backend 映射表
+ * ModelRegistry — model → backend mapping table
  *
- * 根据 providerID + modelID 选择正确的 TokenizerBackend。
- * 未知模型回退到 cl100k_base（OpenAI GPT-4 编码）。
+ * Selects the correct TokenizerBackend based on providerID + modelID.
+ * Unknown models fall back to cl100k_base (OpenAI GPT-4 encoding).
  */
 import type { ModelInfo, TokenizerBackend } from './types.js';
 import { TiktokenBackend } from './backends/tiktoken.js';
@@ -27,7 +27,7 @@ function fallback(): TokenizerBackend {
   return new TiktokenBackend(C100K);
 }
 
-/** 根据 model 信息创建对应的 tokenizer backend */
+/** Create the corresponding tokenizer backend based on model info */
 export function resolveBackend(info: ModelInfo): TokenizerBackend {
   const provider = info.providerID?.toLowerCase() ?? '';
   const model = info.modelID?.toLowerCase() ?? '';

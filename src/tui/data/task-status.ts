@@ -1,7 +1,7 @@
 /**
- * 任务状态数据加载
+ * Task status data loading
  *
- * 从 IMemorySystem 加载当前或上一任务的状态信息。
+ * Loads status info for the current or previous task from IMemorySystem.
  */
 
 import type { IMemorySystem } from '../../memory/types.js';
@@ -9,12 +9,12 @@ import type { TaskStatusData } from '../types.js';
 import { formatElapsed } from '../types.js';
 
 /**
- * 加载指定 session 的任务状态数据。
+ * Load task status data for the specified session.
  *
- * 查询逻辑：
- * 1. 先查活跃任务 → active 态
- * 2. 无活跃任务 → 查上一关闭任务 → last 态
- * 3. 均无 → empty 态
+ * Query logic:
+ * 1. Check active task first → active state
+ * 2. No active task → check last closed task → last state
+ * 3. Neither found → empty state
  */
 export async function loadTaskStatus(
   memory: IMemorySystem,

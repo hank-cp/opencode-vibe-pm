@@ -1,5 +1,5 @@
 /**
- * 任务启动测试
+ * Task Start Tests
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
@@ -49,11 +49,11 @@ describe('Task Start', () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('start_task_creates_successfully: 正常创建任务', async () => {
+  it('start_task_creates_successfully: creates task normally', async () => {
     const task = await engine.startTask({
       sessionId: 'ses_new',
       flow: 'test-flow',
-      summary: '测试任务创建',
+      summary: 'Test task creation',
       userRequest: 'test',
     });
 
@@ -62,14 +62,14 @@ describe('Task Start', () => {
     expect(task.currentStep).toBe('');
     expect(task.currentStepName).toBe('');
     expect(task.closed).toBe(false);
-    expect(task.summary).toBe('测试任务创建');
+    expect(task.summary).toBe('Test task creation');
   });
 
-  it('start_task_rejects_duplicate: 重复任务阻止', async () => {
+  it('start_task_rejects_duplicate: rejects duplicate active task', async () => {
     await engine.startTask({
       sessionId: 'ses_dup',
       flow: 'test-flow',
-      summary: '第一个任务',
+      summary: 'First task',
       userRequest: 'dup test',
     });
 
@@ -77,13 +77,13 @@ describe('Task Start', () => {
       engine.startTask({
         sessionId: 'ses_dup',
         flow: 'test-flow',
-        summary: '第二个任务',
+        summary: 'Second task',
         userRequest: 'dup test 2',
       })
     ).rejects.toThrow('already has active task');
   });
 
-  it('start_task_rejects_missing_flow: 不存在的 Flow 抛异常', async () => {
+  it('start_task_rejects_missing_flow: throws for nonexistent Flow', async () => {
     await expect(
       engine.startTask({
         sessionId: 'ses_missing',
@@ -94,30 +94,30 @@ describe('Task Start', () => {
     ).rejects.toThrow(FlowNotFoundError);
   });
 
-  it('resolve_flow_from_command: 命令解析为 flow 名', async () => {
+  it('resolve_flow_from_command: resolves command to flow name', async () => {
     const flowName = engine.resolveFlowFromCommand('pm-test');
     expect(flowName).toBe('test-flow');
   });
 
-  it('resolve_flow_from_command_with_slash: 带 / 前缀的命令也能解析', () => {
+  it('resolve_flow_from_command_with_slash: resolves command with / prefix', () => {
     const flowName = engine.resolveFlowFromCommand('/pm-test');
     expect(flowName).toBe('test-flow');
   });
 
-  it('resolve_unknown_command: 未知命令返回 null', () => {
+  it('resolve_unknown_command: returns null for unknown command', () => {
     expect(engine.resolveFlowFromCommand('pm-unknown')).toBeNull();
   });
 
-  it('resolve_unknown_command_with_slash: 带 / 前缀的未知命令返回 null', () => {
+  it('resolve_unknown_command_with_slash: returns null for unknown command with / prefix', () => {
     expect(engine.resolveFlowFromCommand('/pm-unknown')).toBeNull();
   });
 
-  it('closeTask_after_reinstantiation: 重启后 closeTask 正常工作', async () => {
+  it('closeTask_after_reinstantiation: closeTask works after re-instantiation', async () => {
     const engine2 = new FlowEngine(memory, tmpDir);
     await engine2.startTask({
       sessionId: 'ses_res_close',
       flow: 'test-flow',
-      summary: 'restart close 测试',
+      summary: 'restart close test',
       userRequest: 'restart close test',
     });
     const closed = await engine2.closeTask('ses_res_close');
@@ -126,12 +126,12 @@ describe('Task Start', () => {
     expect(closed!.flow).toBe('test-flow');
   });
 
-  it('setStep_after_reinstantiation: 重启后 setStep 正常工作', async () => {
+  it('setStep_after_reinstantiation: setStep works after re-instantiation', async () => {
     const engine2 = new FlowEngine(memory, tmpDir);
     await engine2.startTask({
       sessionId: 'ses_res_step',
       flow: 'test-flow',
-      summary: 'restart step 测试',
+      summary: 'restart step test',
       userRequest: 'restart step test',
     });
     await engine2.setStep('ses_res_step', 'S2');

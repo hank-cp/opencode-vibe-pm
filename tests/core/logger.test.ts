@@ -1,8 +1,8 @@
 /**
- * 日志工具测试
+ * Logger Utility Tests
  *
- * 测试文件: tests/core/logger.test.ts
- * Setup: 不需要文件系统，纯单元测试
+ * Test file: tests/core/logger.test.ts
+ * Setup: no file system required, pure unit tests
  */
 
 import { describe, it, expect, mock, spyOn, beforeEach } from 'bun:test';
@@ -23,7 +23,7 @@ beforeEach(() => {
 });
 
 describe('logger', () => {
-  it('logger_uninitialized_no_throw: 未初始化时调用不抛异常', () => {
+  it('logger_uninitialized_no_throw: calling uninitialized logger does not throw', () => {
     const _client = createMockClient();
     initLogger(null as unknown as ReturnType<typeof createMockClient>);
 
@@ -31,7 +31,7 @@ describe('logger', () => {
     expect(() => logger.error('test')).not.toThrow();
   });
 
-  it('logger_disabled_no_call: setLogEnabled(false) 抑制调用', async () => {
+  it('logger_disabled_no_call: setLogEnabled(false) suppresses calls', async () => {
     const client = createMockClient();
     const logSpy = spyOn(client.app, 'log');
     initLogger(client);
@@ -44,7 +44,7 @@ describe('logger', () => {
     expect(logSpy).not.toHaveBeenCalled();
   });
 
-  it('logger_re_enabled_calls: setLogEnabled(true) 恢复调用', async () => {
+  it('logger_re_enabled_calls: setLogEnabled(true) resumes calls', async () => {
     const client = createMockClient();
     const logSpy = spyOn(client.app, 'log');
     initLogger(client);
@@ -57,7 +57,7 @@ describe('logger', () => {
     expect(logSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('logger_info_calls_app_log: info 调用 app.log 传递正确参数', async () => {
+  it('logger_info_calls_app_log: info calls app.log with correct parameters', async () => {
     const client = createMockClient();
     const logSpy = spyOn(client.app, 'log');
     initLogger(client);
@@ -73,7 +73,7 @@ describe('logger', () => {
     expect(call.body.service).toBeTruthy();
   });
 
-  it('logger_debug_warn_error_levels: 各级别正确传递', async () => {
+  it('logger_debug_warn_error_levels: passes correct level for each severity', async () => {
     const client = createMockClient();
     const logSpy = spyOn(client.app, 'log');
     initLogger(client);
@@ -88,7 +88,7 @@ describe('logger', () => {
     expect(levels).toEqual(['debug', 'warn', 'error']);
   });
 
-  it('logger_error_object_as_extra: Error 对象转换为 extra', async () => {
+  it('logger_error_object_as_extra: Error object converted to extra', async () => {
     const client = createMockClient();
     const logSpy = spyOn(client.app, 'log');
     initLogger(client);
@@ -103,7 +103,7 @@ describe('logger', () => {
     expect(extra.stack).toContain('test error');
   });
 
-  it('logger_non_object_data_as_detail: 非对象 data 放入 detail', async () => {
+  it('logger_non_object_data_as_detail: non-object data placed in detail', async () => {
     const client = createMockClient();
     const logSpy = spyOn(client.app, 'log');
     initLogger(client);
@@ -115,7 +115,7 @@ describe('logger', () => {
     expect(logSpy.mock.calls[0][0].body.extra).toEqual({ detail: '42' });
   });
 
-  it('logger_no_data_no_extra: 无 data 时不传 extra', async () => {
+  it('logger_no_data_no_extra: no extra when no data provided', async () => {
     const client = createMockClient();
     const logSpy = spyOn(client.app, 'log');
     initLogger(client);
@@ -127,7 +127,7 @@ describe('logger', () => {
     expect(logSpy.mock.calls[0][0].body.extra).toBeUndefined();
   });
 
-  it('logger_non_string_message: 非字符串 message 转字符串', async () => {
+  it('logger_non_string_message: non-string message converted to string', async () => {
     const client = createMockClient();
     const logSpy = spyOn(client.app, 'log');
     initLogger(client);

@@ -1,5 +1,5 @@
 /**
- * Command 文件生成与清理测试
+ * Command File Generation and Cleanup Tests
  */
 
 import { describe, it, expect, afterEach } from 'bun:test';
@@ -81,7 +81,7 @@ describe('Command File Generation', () => {
     }
   });
 
-  it('parse_meta_includes_command: TemplateMeta 包含 command 字段', () => {
+  it('parse_meta_includes_command: TemplateMeta includes command field', () => {
     testDir = createTestProject();
     writeTemplateWithCommand(testDir, 'test-cmd', '测试命令', '/pm-test-cmd');
 
@@ -92,7 +92,7 @@ describe('Command File Generation', () => {
     expect(templates[0].name).toBe('测试命令');
   });
 
-  it('parse_meta_no_command: 无 Command 字段时 command 为空字符串', () => {
+  it('parse_meta_no_command: command is empty string when Command field is absent', () => {
     testDir = createTestProject();
     writeTemplateWithoutCommand(testDir, 'no-cmd', '无命令');
 
@@ -101,7 +101,7 @@ describe('Command File Generation', () => {
     expect(templates[0].command).toBe('');
   });
 
-  it('install_does_not_generate_command_file: installTemplate 不再创建 command 文件', () => {
+  it('install_does_not_generate_command_file: installTemplate no longer creates command file', () => {
     testDir = createTestProject();
     writeTemplateWithCommand(testDir, 'test-cmd', '测试命令', '/pm-test-cmd', {
       inputReqs: true,
@@ -113,7 +113,7 @@ describe('Command File Generation', () => {
     expect(fs.existsSync(cmdPath)).toBe(false);
   });
 
-  it('install_without_command_skips_file: 无 Command 字段时不生成文件', () => {
+  it('install_without_command_skips_file: no file generated when Command field is absent', () => {
     testDir = createTestProject();
     writeTemplateWithoutCommand(testDir, 'no-cmd', '无命令');
 
@@ -123,7 +123,7 @@ describe('Command File Generation', () => {
     expect(fs.existsSync(cmdDir)).toBe(false);
   });
 
-  it('uninstall_no_longer_touches_command_file: uninstallFlow 不再操作 command 文件', () => {
+  it('uninstall_no_longer_touches_command_file: uninstallFlow no longer operates on command file', () => {
     testDir = createTestProject();
     writeTemplateWithCommand(testDir, 'test-cmd', '测试命令', '/pm-test-cmd');
 
@@ -141,7 +141,7 @@ describe('Command File Generation', () => {
     expect(fs.existsSync(flowPath)).toBe(false);
   });
 
-  it('install_no_command_file_structure: 不再生成命令文件内容', () => {
+  it('install_no_command_file_structure: command file structure is no longer generated', () => {
     testDir = createTestProject();
     writeTemplateWithCommand(testDir, 'struct-test', '结构测试', '/pm-struct-test', {
       inputReqs: true,

@@ -1,8 +1,8 @@
 /**
- * I18N 加载器测试
+ * I18N Loader Tests
  *
- * 测试文件: tests/i18n/loader.test.ts
- * 关联 Spec: docs/spec/vibe-pm-i18n-support.md
+ * Test file: tests/i18n/loader.test.ts
+ * Related Spec: docs/spec/vibe-pm-i18n-support.md
  */
 
 import { describe, it, expect, beforeEach } from 'bun:test';
@@ -33,7 +33,7 @@ describe('discoverLanguagePacks', () => {
     expect(en!.label).toBe('English');
   });
 
-  it('returns 中文 label for zh-CN', () => {
+  it('returns Chinese label for zh-CN', () => {
     const packs = discoverLanguagePacks();
     const zh = packs.find((p) => p.locale === 'zh-CN');
     expect(zh).toBeDefined();

@@ -1,8 +1,10 @@
 /**
  * Template Manager
  *
- * 纯文件操作模块：模板扫描、安装（含 command 文件生成、regulation 自动安装）、卸载（含 command 文件清理）。
- * 零外部依赖，按约定路径读写文件系统。
+ * Pure file-operation module: Template Scanning, Installation
+ * (including command file generation, regulation auto-install),
+ * Uninstall (including command file cleanup).
+ * Zero external dependencies, reads/writes filesystem by convention paths.
  */
 
 import * as fs from 'node:fs';
@@ -11,7 +13,7 @@ import type { TemplateMeta } from './types.js';
 import { writeDcpConfig } from '../integration';
 import { i18n } from '../i18n';
 
-// ─── 约定路径 ───
+// ─── Convention Paths ───
 
 const TEMPLATE_DIR = 'template';
 const FLOW_DIR = 'flow';
@@ -22,7 +24,7 @@ const CONSTITUTION_OUTPUT = 'constitution.md';
 const DICTIONARY_TEMPLATE = 'dictionary-template.md';
 const DICTIONARY_OUTPUT = 'dictionary.md';
 
-// ─── 错误 ───
+// ─── Errors ───
 
 export class TemplateConflictError extends Error {
   constructor(flowName: string) {
@@ -31,7 +33,7 @@ export class TemplateConflictError extends Error {
   }
 }
 
-// ─── 内部辅助 ───
+// ─── Internal Helpers ───
 
 function getPluginTemplateDir(): string | null {
   const candidates = [
@@ -77,7 +79,7 @@ function parseTemplateMeta(raw: string, bundleDir: string): TemplateMeta | null 
   };
 }
 
-// ─── 编码风格模板安装 ───
+// ─── Coding Style Template Installation ───
 
 const CODING_STYLE_TEMPLATE_SUBDIR = path.join(TEMPLATE_DIR, '_coding_style');
 const CODING_STYLE_REG_SUBDIR = 'coding_style';
@@ -149,7 +151,7 @@ function generateCodingStyleIndex(languages: string[]): string {
   return i18n().codingStyle.generateIndex(languages.join(', '), tableRows);
 }
 
-// ─── 公开 API ───
+// ─── Public API ───
 
 export function scanTemplates(projectDir: string): TemplateMeta[] {
   const templateDir = getTemplateDir(projectDir);
@@ -253,7 +255,7 @@ export function installTemplate(
   };
 }
 
-// ─── Regulation 安装 ───
+// ─── Regulation Installation ───
 
 function installRegulationFromTemplate(
   docsDir: string,

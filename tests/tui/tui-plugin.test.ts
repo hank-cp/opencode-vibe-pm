@@ -1,7 +1,7 @@
 /**
- * TUI Plugin 单元测试
+ * TUI Plugin Unit Tests
  *
- * 测试 createTuiPlugin 工厂函数和非 TUI 环境降级行为。
+ * Tests createTuiPlugin factory function and non-TUI environment graceful degradation.
  */
 
 import { describe, it, expect } from 'bun:test';

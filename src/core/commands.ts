@@ -1,9 +1,9 @@
 /**
- * 命令注册
+ * Command Registration
  *
- * 通过 config hook（声明式）和 tool hook（可执行）注册全部 8 个 /pm-* 命令。
- * 使用 @opencode-ai/plugin SDK 的 tool() 工厂函数。
- * 可执行命令调用 FlowEngine 和 MemorySystem 实现真实业务逻辑。
+ * Registers all 8 /pm-* commands via the config hook (declarative) and
+ * tool hook (executable). Uses the @opencode-ai/plugin SDK tool() factory.
+ * Executable commands invoke FlowEngine and MemorySystem for real business logic.
  */
 
 import { tool } from '@opencode-ai/plugin';
@@ -17,12 +17,12 @@ import type { MemorySystem } from '../memory';
 import { logger } from './logger';
 import { discoverLanguagePacks, getControlPromptTemplate, i18n } from '../i18n';
 
-// ─── 命令清单 ───
+// ─── Command List ───
 
 interface CommandMeta {
   name: string;
   template?: string;
-  /** 是否支持 tool 可执行实现 */
+  /** Whether the command supports executable tool implementation */
   executable: boolean;
 }
 
@@ -65,7 +65,7 @@ const COMMANDS: CommandMeta[] = [
   },
 ];
 
-// ─── register command: 命令注册/注销 ───
+// ─── register command: Command Registration/Unregistration ───
 
 interface CommandDeclaration {
   template: string;
@@ -107,10 +107,10 @@ export function registerFlowCommands(opencodeConfig: Config, projectDir: string)
   }
 }
 
-// ─── tool hook: 注册可执行工具 ───
+// ─── tool hook: Register Executable Tools ───
 
 /**
- * 创建 tool 注册表。使用 SDK tool() 工厂函数 + Zod schema。
+ * Create tool registry using the SDK tool() factory + Zod schemas.
  */
 export function registerTools(
   ctx: IPluginContext,
@@ -140,7 +140,7 @@ export function registerTools(
   return tools;
 }
 
-// ─── 真实工具实现 ───
+// ─── Real Tool Implementations ───
 
 function createTaskSetStepTool(engine: FlowEngine, memory: MemorySystem): ToolDefinition {
   const cmdI18n = i18n().tool;
@@ -242,7 +242,7 @@ function createTaskCurrentStepTool(memory: MemorySystem): ToolDefinition {
   });
 }
 
-// ─── pm-config 实现 ───
+// ─── pm-config Implementation ───
 
 async function buildInitInstructions(
   projectDir: string,
@@ -320,10 +320,10 @@ function createConfigTool(ctx: IPluginContext): ToolDefinition {
   });
 }
 
-// ─── pm-install-flow 实现 ───
+// ─── pm-install-flow Implementation ───
 
 /**
- * 语言选择优先级：tool 参数 > 配置缓存 > General 兜底
+ * Language selection priority: tool param > config cache > General fallback
  */
 function resolveLanguages(langParam?: string, config?: PluginConfig): string[] {
   if (langParam) {
@@ -339,7 +339,7 @@ function resolveLanguages(langParam?: string, config?: PluginConfig): string[] {
   return ['General'];
 }
 
-/** LLM 可能传入非标准名称，映射到 _coding_style/ 目录中的标准语言名 */
+/** LLM may pass non-standard names; map them to canonical language names in the _coding_style/ directory */
 function normalizeLanguage(input: string): string {
   const lower = input.toLowerCase();
   const aliasMap: Record<string, string> = {
@@ -452,7 +452,7 @@ function createInstallFlowTool(ctx: IPluginContext): ToolDefinition {
   });
 }
 
-// ─── pm-uninstall-flow 实现 ───
+// ─── pm-uninstall-flow Implementation ───
 
 function createUninstallFlowTool(ctx: IPluginContext): ToolDefinition {
   const cmdI18n = i18n().tool;
@@ -473,7 +473,7 @@ function createUninstallFlowTool(ctx: IPluginContext): ToolDefinition {
   });
 }
 
-// ─── Flow Tool 注册 ───
+// ─── Flow Tool Registration ───
 
 export function registerFlowTools(
   ctx: IPluginContext,

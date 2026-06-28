@@ -1,7 +1,7 @@
 /**
- * TUI 组件共享类型定义
+ * TUI component shared type definitions
  *
- * 定义 TaskStatusData、TokenData 及颜色映射常量。
+ * Defines TaskStatusData, TokenData, and color mapping constants.
  */
 
 import { RGBA } from '@opentui/core';
@@ -15,20 +15,20 @@ export interface TaskStatusData {
   currentStepName?: string;
   startAt?: string;
   endAt?: string;
-  /** 格式化耗时 "22min" / "1h 15min" */
+  /** Formatted elapsed time e.g. "22min" / "1h 15min" */
   elapsed?: string;
 }
 
 // ─── Token Data ───
 
 export interface TokenData {
-  /** Session 级 Token 总量 — 优先使用 LLM API 返回数据 (apiInput + apiOutput)，兜底本地 tiktoken 合计 */
+  /** Session-level total tokens — prefers LLM API returned data (apiInput + apiOutput), falls back to local tiktoken sum */
   totalTokens: number;
   sourceBreakdown: TokenSourceEntry[];
   stepBreakdown: StepTokenEntry[];
-  /** Cache token 数 = apiCacheRead + apiCacheWrite */
+  /** Cache token count = apiCacheRead + apiCacheWrite */
   cachedTokens: number;
-  /** Cache 百分比基准 = user + assistant（TokenCount 中的 role 维度总和） */
+  /** Cache percentage baseline = user + assistant (role dimension sum in TokenCount) */
   uncachedTokens: number;
 }
 
@@ -47,22 +47,22 @@ export interface StepTokenEntry {
 // ─── Color Mapping ───
 
 /**
- * 来源 → 颜色映射（固定，参考 magic-context 冷暖色调设计）。
+ * Source → color mapping (fixed, inspired by magic-context cool/warm color design).
  *
- * 冷色：System（蓝）、FlowControl（青）
- * 暖色：User（橙）、Assistant（绿）、Tool（紫）、Reasoning（灰）
+ * Cool: System (blue), FlowControl (cyan)
+ * Warm: User (orange), Assistant (green), Tool (purple), Reasoning (gray)
  */
 export const SOURCE_COLORS: Record<string, RGBA> = {
-  FlowControl: RGBA.fromInts(54, 176, 200), // #36B0C8 冷青
-  Text: RGBA.fromInts(74, 144, 217), // #4A90D9 冷蓝
-  Tool: RGBA.fromInts(176, 123, 237), // #B07BED 暖紫
-  Reasoning: RGBA.fromInts(106, 104, 255), // #9B9B9B 暖蓝
-  SubAgent: RGBA.fromInts(255, 173, 51), // #FFAD33 暖橙
+  FlowControl: RGBA.fromInts(54, 176, 200), // #36B0C8 cool cyan
+  Text: RGBA.fromInts(74, 144, 217), // #4A90D9 cool blue
+  Tool: RGBA.fromInts(176, 123, 237), // #B07BED warm purple
+  Reasoning: RGBA.fromInts(106, 104, 255), // #9B9B9B warm blue
+  SubAgent: RGBA.fromInts(255, 173, 51), // #FFAD33 warm orange
 };
 
 // ─── Helpers ───
 
-/** 格式化耗时为可读字符串 */
+/** Format elapsed time as a human-readable string */
 export function formatElapsed(startAt: string, endAt?: string): string {
   const start = new Date(startAt).getTime();
   const end = endAt ? new Date(endAt).getTime() : Date.now();
@@ -76,7 +76,7 @@ export function formatElapsed(startAt: string, endAt?: string): string {
   return `${hours}h ${remainingMinutes}min`;
 }
 
-/** 格式化 Token 数为紧凑格式（如 12.5K, 16.4M） */
+/** Format token count to compact form (e.g. 12.5K, 16.4M) */
 export function compactTokens(tokens: number): string {
   if (tokens >= 1_000_000) {
     return `${(tokens / 1_000_000).toFixed(1)}M`;
@@ -88,10 +88,10 @@ export function compactTokens(tokens: number): string {
 }
 
 /**
- * 计算字符串的可视宽度（CJK 字符计 2 列，ASCII 计 1 列）。
+ * Calculate the visual width of a string (CJK characters count as 2 columns, ASCII as 1).
  *
- * 用于手动字符串填充，替代 flexbox 布局。
- * 覆盖范围：CJK 统一汉字、CJK 标点、全角字符。
+ * Used for manual string padding as a substitute for flexbox layout.
+ * Coverage: CJK unified ideographs, CJK punctuation, fullwidth characters.
  */
 export function visualWidth(s: string): number {
   let w = 0;
@@ -102,12 +102,12 @@ export function visualWidth(s: string): number {
 }
 
 /**
- * CJK 感知的两端对齐。
+ * CJK-aware justified alignment.
  *
- * 在 left 和 right 之间填充空格，使整行可视宽度达到指定 width。
- * 当内容已超出 width 时，至少保留 1 个空格分隔。
+ * Pads spaces between left and right so the total visual width equals the specified width.
+ * When content already exceeds width, at least 1 space separator is preserved.
  *
- * 用于替代 flexbox 布局，避免窄宽度侧边栏中右侧文本被裁断。
+ * Used as a flexbox layout alternative to avoid right-side text truncation in narrow sidebars.
  */
 export function justify(left: string, right: string, width: number): string {
   const gap = width - visualWidth(left) - visualWidth(right);

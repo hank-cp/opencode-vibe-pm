@@ -1,7 +1,8 @@
 /**
- * MemorySystem — vibe-pm 数据层
+ * MemorySystem — vibe-pm Data Layer
  *
- * 基于 SQLite (bun:sqlite) 管理 Task / Discussion / StepTokenMetrics 三类结构化记忆。
+ * Manages three categories of Structured Memory via SQLite (bun:sqlite):
+ * Task / Discussion / StepTokenMetrics.
  */
 import { Database, Statement } from 'bun:sqlite';
 import * as crypto from 'node:crypto';
@@ -23,13 +24,13 @@ import type {
 import { DuplicateTaskError } from './errors.js';
 import { ApiTelemetry, TokenCount } from '../token';
 
-// ─── 内部辅助 ───
+// ─── Internal Helpers ───
 
 function generateId(): string {
   return crypto.randomUUID();
 }
 
-/** 解析 JSON 列，容错返回默认值 */
+/** Parse a JSON column, returns fallback on failure */
 function parseJSON<T>(raw: unknown, fallback: T): T {
   if (typeof raw === 'string') {
     try {
@@ -52,12 +53,12 @@ function prefixKeys(params: Record<string, unknown>): Record<string, unknown> {
 // ─── MemorySystem ───
 
 /**
- * vibe-pm 的结构化记忆层。
+ * vibe-pm's Structured Memory layer.
  *
- * 基于 SQLite (better-sqlite3) 管理三类数据：
- * - tasks：FSM 驱动的任务状态
- * - discussions：非紧急讨论项（碎片时间友好，异步审阅）
- * - stepTokenMetrics：按步骤采集的 Token 消耗、停留时间等指标
+ * Manages three categories of data via SQLite (better-sqlite3):
+ * - tasks: FSM-driven Task state
+ * - discussions: non-urgent Discussion items (async-time-friendly, async review)
+ * - stepTokenMetrics: per-Step metrics (Token consumption, dwell time, etc.)
  */
 export class MemorySystem implements IMemorySystem {
   private db!: Database;
@@ -95,15 +96,15 @@ export class MemorySystem implements IMemorySystem {
   private stmtGetSubagentTokens!: Statement;
 
   /**
-   * 初始化数据库连接与表结构。
+   * Initialize database connection and table schema.
    *
-   * 在指定目录下创建 SQLite 数据库文件，并建立三张表。
-   * 使用前必须调用一次。
+   * Creates a SQLite database file in the specified directory and sets up tables.
+   * Must be called once before use.
    *
-   * @param dataDir 数据库文件存储目录（通常为 `.vibe-pm/`）
+   * @param dataDir Directory for storing database files (typically `.vibe-pm/`)
    */
   async init(dataDir: string): Promise<void> {
-    // 关闭旧连接（支持重新初始化）
+    // Close old connection (support re-initialization)
     this.db?.close();
     const dbPath = `${dataDir}/vibe-pm.db`;
 
@@ -639,7 +640,7 @@ export class MemorySystem implements IMemorySystem {
   }
 
   // ═══════════════════════════════════════════
-  // 新增查询
+  // Additional Queries
   // ═══════════════════════════════════════════
 
   async getLastClosedTask(sessionId: string): Promise<Task | null> {

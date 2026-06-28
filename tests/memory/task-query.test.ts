@@ -1,8 +1,8 @@
 /**
- * MemorySystem 新增查询方法测试
+ * MemorySystem New Query Methods Tests
  *
- * 测试 getLastClosedTask / getStepTokenBreakdown
- * 以及 closeTask 写入 endAt、recordStepEntry 累加 tokensBySource
+ * Tests getLastClosedTask / getStepTokenBreakdown
+ * and closeTask writes endAt, recordStepEntry accumulates tokensBySource
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
@@ -41,23 +41,20 @@ describe('Task Query Extensions', () => {
     it('returns the most recently closed task by endAt', async () => {
       const sid = 'ses_lct';
 
-      // 创建 3 个任务
+      // create 3 tasks (different sessions to avoid duplicate-active constraint)
       const t1 = await memory.createTask({ ...baseTask(sid), summary: 'Task 1' });
       const t2 = await memory.createTask({ ...baseTask(sid + '_2'), summary: 'Task 2' });
       const t3 = await memory.createTask({ ...baseTask(sid + '_3'), summary: 'Task 3' });
 
-      // 逐个关闭（先关 t1 不行——同一 session 不能有两个活跃任务，
-      // 所以需要不同 session）
-
-      // t3 最先关闭
+      // close t3 first
       await memory.closeTask(t3.id);
-      // 稍等确保时间戳不同
+      // brief wait to ensure distinct timestamps
       await new Promise((r) => setTimeout(r, 5));
       await memory.closeTask(t2.id);
       await new Promise((r) => setTimeout(r, 5));
       await memory.closeTask(t1.id);
 
-      // t1（sid）是最晚关闭的
+      // t1 (sid) is the most recently closed
       const last = await memory.getLastClosedTask(sid);
       expect(last).toBeDefined();
       expect(last!.summary).toBe('Task 1');
@@ -96,7 +93,6 @@ describe('Task Query Extensions', () => {
 
   describe('recordStepEntry with tokensBySource', () => {
     it('creates new record with tokensBySource', async () => {
-      // 先创建任务以便 recordStepEntry 能关联 taskSummary
       await memory.createTask(baseTask('ses_rse_new'));
 
       await memory.recordStepTokens('ses_rse_new', 'bug-fix', 'S1', '理解需求', {

@@ -1,16 +1,16 @@
 /**
- * Token 数据加载
+ * Token data loading
  *
- * 从 IMemorySystem 加载 Session 级 Token 分布（来源 + 步骤）。
- * Session 级数据来自 session_tokens 表，应用展示公式进行校准。
- * 步骤级数据来自 flowMetrics 聚合。
+ * Loads Session-level token distribution (source + step) from IMemorySystem.
+ * Session-level data comes from the session_tokens table, calibrated with display formulas.
+ * Step-level data comes from flowMetrics aggregation.
  */
 
 import type { IMemorySystem, SessionTokenMetrics } from '../../memory/types.js';
 import type { TokenData, TokenSourceEntry } from '../types.js';
 
 /**
- * 应用展示公式：将 session_tokens 原始数据转换为 TUI 展示值（4 来源）。
+ * Apply display formulas: convert session_tokens raw data to TUI display values (4 sources).
  *
  * - TOTAL  = (user + assistant) * scaleFactor
  * - FLOW_CONTROL = flowControl * scaleFactor
@@ -38,10 +38,10 @@ function applyDisplayFormulas(m: SessionTokenMetrics): {
 }
 
 /**
- * 加载指定 session 的 Token 分布数据。
+ * Load token distribution data for the specified session.
  *
- * Session 级 Token 从 session_tokens 表读取并应用展示公式。
- * 步骤级 Token 从 flowMetrics 聚合读取（不变）。
+ * Session-level tokens are read from the session_tokens table with display formulas applied.
+ * Step-level tokens are read from flowMetrics aggregation (unchanged).
  */
 export async function loadTokenData(memory: IMemorySystem, sessionId: string): Promise<TokenData> {
   const [sessionMetrics, stepBreakdown, subagentMetrics] = await Promise.all([

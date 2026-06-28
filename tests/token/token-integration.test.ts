@@ -1,8 +1,8 @@
 /**
- * Token 计数集成测试
+ * Token Counting Integration Tests
  *
- * 验证 messages.transform 和 chat.message hook 与 TokenCounter 的集成正确性。
- * 使用 mock tiktoken + 真实 MemorySystem + 真实 TokenCounter。
+ * Verifies messages.transform and chat.message hook integration with TokenCounter.
+ * Uses mock tiktoken + real MemorySystem + real TokenCounter.
  */
 
 import { describe, it, expect, mock, beforeAll, afterAll } from 'bun:test';
@@ -95,19 +95,19 @@ describe('Token Integration', () => {
       currentStep: 'S1',
       currentStepName: '理解需求',
       startAt: new Date().toISOString(),
-      summary: '集成测试',
+      summary: 'Integration test',
     };
     return memory.createTask(input);
   }
 
-  // ─── messages.transform 集成 ────────────────────
+  // ─── messages.transform integration ──────────────
 
   describe('messages.transform integration', () => {
     it('records prompt tokens with correct bySource for active task', async () => {
       const sessionId = 'ses_transform_active';
       await setupActiveTask(sessionId);
 
-      // 模拟注入 FlowControl 的场景：user message 包含文本 + FlowControl
+      // simulate FlowControl injection: user message containing text + FlowControl
       const msg = makeUserMessage([
         makeTextPart('Write a function to add two numbers'),
         makeTextPart('<protect># Flow Rules\n\nExecute step S1 first.</protect>'),
@@ -115,7 +115,7 @@ describe('Token Integration', () => {
 
       const result = tokenCounter.countContextTokens(msg);
 
-      // 记录到 memory — recordStepEntry 现在接受 TokenCount
+      // record to memory — recordStepEntry now accepts TokenCount
       await memory.recordStepTokens(sessionId, 'bug-fix', 'S1', '理解需求', result);
 
       const metrics = await memory.getStepTokenMetrics(sessionId);
@@ -137,7 +137,7 @@ describe('Token Integration', () => {
 
       const result = tokenCounter.countContextTokens(msg);
 
-      // FlowControl token = FC text 的 token
+      // FlowControl token = FC text tokens
       const fcText = "<protect># Rules\n\nDon't skip S1.</protect>";
       const expectedFCTokens = Math.ceil(fcText.length / 4);
       expect(result.flowControl).toBe(expectedFCTokens);
@@ -149,7 +149,7 @@ describe('Token Integration', () => {
     });
   });
 
-  // ─── chat.message 集成 ──────────────────────────
+  // ─── chat.message integration ────────────────────
 
   describe('chat.message integration', () => {
     it('records completion tokens for assistant + tool parts', async () => {
@@ -172,17 +172,17 @@ describe('Token Integration', () => {
     });
   });
 
-  // ─── 无活跃任务时跳过 ───────────────────────────
+  // ─── Skip When No Active Task ────────────────────
 
   describe('no active task skip', () => {
     it('does not record tokens when no active task exists', async () => {
       const sessionId = 'ses_no_task';
 
-      // 无任务创建 → getActiveTask 返回 null
+      // no task created → getActiveTask returns null
       const task = await memory.getActiveTask(sessionId);
       expect(task).toBeNull();
 
-      // 验证没有 metrics 被意外写入
+      // verify no metrics are accidentally written
       const metrics = await memory.getStepTokenMetrics(sessionId);
       expect(metrics).toHaveLength(0);
     });

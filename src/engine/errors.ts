@@ -1,10 +1,10 @@
 /**
- * Flow Engine 错误类
+ * Flow Engine error classes
  */
 
 import { getControlPromptTemplate } from '../i18n';
 
-/** 尝试在已有活跃任务的 session 中启动新任务时抛出 */
+/** Thrown when attempting to start a new task in a session with an existing active task */
 export class DuplicateActiveTaskError extends Error {
   constructor(
     public readonly existingTask: {
@@ -29,7 +29,7 @@ export class DuplicateActiveTaskError extends Error {
   }
 }
 
-/** 请求的 Flow 文档不存在 */
+/** Requested Flow document does not exist */
 export class FlowNotFoundError extends Error {
   constructor(flowName: string) {
     super(`Flow "${flowName}" not found in /docs/flow/.`);
@@ -37,7 +37,7 @@ export class FlowNotFoundError extends Error {
   }
 }
 
-/** Flow 文档解析失败 */
+/** Flow document parsing failed */
 export class FlowParseError extends Error {
   constructor(flowName: string, reason: string) {
     super(`Failed to parse Flow "${flowName}": ${reason}`);

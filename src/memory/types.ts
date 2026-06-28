@@ -1,20 +1,21 @@
 /**
- * Memory System 实体与接口定义
+ * Memory System entity and interface definitions
  *
- * 管理三类结构化记忆：Task（任务状态）、Discussion（讨论项）、StepTokenMetrics（流程指标）。
+ * Manages three categories of Structured Memory: Task (Task State),
+ * Discussion (Discussion items), StepTokenMetrics (Flow Metrics).
  */
 
 // ─── Task ───
 
 import { ApiTelemetry, TokenCount } from '../token';
 
-/** 步骤转换记录：每次 setStep 时写入一条，按时间顺序追加 */
+/** Step transition record: written once per setStep call, appended in chronological order */
 export interface StepTransition {
-  /** 离开的步骤 ID */
+  /** Source Step ID */
   fromStep: string;
-  /** 进入的步骤 ID */
+  /** Destination Step ID */
   toStep: string;
-  /** 转换发生时间（ISO 8601） */
+  /** Transition timestamp (ISO 8601) */
   at: string;
 }
 
@@ -25,13 +26,13 @@ export interface Task {
   currentStep: string;
   currentStepName: string;
   startAt: string;
-  /** 任务结束时间（ISO 8601），由 closeTask 写入 */
+  /** Task end time (ISO 8601), written by closeTask */
   endAt?: string;
   closed: boolean;
   summary: string;
-  /** 用户原始请求内容（<user-request> 标签内文本），用于去重 */
+  /** User's original request content (text within <user-request> tag), used for deduplication */
   userRequest?: string;
-  /** 步骤转换历史，按时间顺序记录。从第二条记录开始，可通过相邻记录的 at 差值计算停留时间 */
+  /** Step transition history in chronological order. From the second record onward, dwell time can be computed from the `at` delta of adjacent records. */
   stepTransitions?: StepTransition[];
 }
 
@@ -83,12 +84,12 @@ export interface StepTokenMetrics {
   stepName: string;
   stepInCount: number;
   tokensConsumed: number;
-  /** 按来源分类的 Token 分布，各项独立累加 */
+  /** Token distribution by source, independently accumulated per source */
   tokensBySource: Record<string, number>;
   taskSummary: string;
 }
 
-/** 按步骤的 Token 汇总 */
+/** Per-Step Token summary */
 export interface StepTokenBreakdown {
   step: string;
   stepName: string;
@@ -98,31 +99,31 @@ export interface StepTokenBreakdown {
 
 // ─── Session Tokens ───
 
-/** Session 级 Token 存储 — 层级式列设计 */
+/** Session-level Token storage — hierarchical column design */
 export interface SessionTokenMetrics {
   sessionId: string;
-  /** 基础类型 */
+  /** Base types */
   user: number; // = User
   assistant: number; // = Assistant
-  /** 按用途分 */
+  /** By purpose */
   flowControl: number; // ⊆ user
   text: number; // = text part tokens
   tool: number; // ⊆ assistant
   reasoning: number; // ⊆ assistant
-  /** LLM API 遥测（仅当 LLM 返回时写入） */
+  /** LLM API telemetry (written only when the LLM returns data) */
   apiInput: number;
   apiOutput: number;
   apiReasoning: number;
   apiCacheRead: number;
   apiCacheWrite: number;
-  /** 校准因子 = (apiInput + apiCacheRead + apiCacheWrite) / (user + assistant) */
+  /** Calibration factor = (apiInput + apiCacheRead + apiCacheWrite) / (user + assistant) */
   scaleFactor: number;
-  /** 时间戳 */
+  /** Timestamp */
   startedAt: string;
   updatedAt: string;
 }
 
-/** recordSessionTokens 的输入参数 — 按 TokenCounter 6 来源分类 */
+/** Input parameters for recordSessionTokens — categorized by TokenCounter's 6 sources */
 export interface RecordSessionTokensInput {
   text: number;
   user: number;
@@ -134,7 +135,7 @@ export interface RecordSessionTokensInput {
 
 // ─── Subagent Tokens ───
 
-/** 子代理 Token 存储 — 按 role 区分 + API 遥测 */
+/** Subagent Token storage — distinguished by role + API telemetry */
 export interface SubagentTokenMetrics {
   sessionId: string;
   parentSessionId: string;
@@ -184,7 +185,7 @@ export interface IMemorySystem {
   getStepTokenMetrics(sessionId: string): Promise<StepTokenMetrics[]>;
   getStepTokenMetricsByFlow(flow: string): Promise<StepTokenMetrics[]>;
 
-  // 新增查询
+  // Additional Queries
   getLastClosedTask(sessionId: string): Promise<Task | null>;
   getStepTokenBreakdown(sessionId: string): Promise<StepTokenBreakdown[]>;
 
@@ -206,6 +207,6 @@ export interface IMemorySystem {
   ): Promise<void>;
   getSubagentTokens(parentSessionId: string): Promise<SubagentTokenMetrics[]>;
 
-  // 初始化
+  // Initialization
   init(dataDir: string): Promise<void>;
 }

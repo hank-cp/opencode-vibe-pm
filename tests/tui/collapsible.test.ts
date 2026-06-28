@@ -1,17 +1,17 @@
 /**
- * TUI 单元测试 — Collapsible 组件
+ * TUI Unit Tests — Collapsible Component
  *
- * 测试 Collapsible 展开/折叠行为。
+ * Tests Collapsible expand/collapse behavior.
  */
 
 import { describe, it, expect } from 'bun:test';
 
-// Collapsible 组件使用 @opentui/solid testRender 需要原生模块支持，
-// 此处测试数据层和工具函数的逻辑正确性。
+// Collapsible component uses @opentui/solid testRender which requires native module support,
+// so here we test data-layer and utility function logic correctness.
 
 describe('formatElapsed', () => {
   it('formats minutes correctly', async () => {
-    // 测试通过数据加载函数间接验证
+    // test via data loading function indirectly
     const { loadTaskStatus } = await import('../../src/tui/data/task-status.js');
     const result = await loadTaskStatus(
       {

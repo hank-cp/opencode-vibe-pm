@@ -1,13 +1,13 @@
 /**
- * Plugin Core 类型定义
+ * Plugin Core Type Definitions
  *
- * OpenCode 交互类型通过 @opencode-ai/plugin SDK 导入。
- * 项目自有领域类型在此定义。
+ * OpenCode interaction types are imported via the @opencode-ai/plugin SDK.
+ * Project-specific domain types are defined here.
  */
 
 // ─── SDK Re-exports ───
 
-/** 模块可以贡献的钩子子集，类型来自 SDK */
+/** Subset of hooks a module can contribute, types from SDK */
 import type { ToolDefinition } from '@opencode-ai/plugin';
 import type { OpencodeClient } from '@opencode-ai/sdk';
 
@@ -27,15 +27,15 @@ export interface PluginConfig {
   language: string;
   dataDir: string;
   autoAnalyze: boolean;
-  /** LLM 分析的项目编程语言列表，一次分析后缓存。安装流程时优先使用此配置。 */
+  /** List of project programming languages analyzed by LLM, cached after first analysis. Prioritized during flow installation. */
   programmingLanguages?: string[];
   contextInjection: {
-    /** 每步骤最大注入 token 数，0 表示不限制 */
+    /** Max context injection tokens per step, 0 means no limit */
     maxStepTokens: number;
     pruneIrrelevant: boolean;
   };
   debug?: {
-    /** 在 system.transform 末尾输出完整请求上下文（默认 false） */
+    /** Output full request context at end of system.transform (default false) */
     logFullRequest?: boolean;
   };
 }

@@ -1,5 +1,5 @@
 /**
- * vibe-pm 插件主入口
- * 导出 Plugin Core 的 VibePMPlugin 函数供 OpenCode 加载
+ * vibe-pm Plugin Main Entry
+ * Exports the Plugin Core's VibePMPlugin function for OpenCode to load.
  */
 export { VibePMPlugin } from './core/index.js';

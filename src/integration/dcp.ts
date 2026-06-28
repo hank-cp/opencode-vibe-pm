@@ -3,10 +3,10 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 
 /**
- * 写入 DCP 保护配置（protectTags + protectedFilePatterns）
+ * Write DCP protection config (protectTags + protectedFilePatterns)
  *
- * 检测 opencode.json/opencode.jsonc 中是否有 plugin 配置，
- * 项目级和全局级均检查，有则继续写入。
+ * Checks whether opencode.json/opencode.jsonc has a plugin config;
+ * both project-level and global-level are checked, and writes proceed if found.
  */
 export function writeDcpConfig(projectDir: string): void {
   const configPaths = [
@@ -50,7 +50,7 @@ export function writeDcpConfig(projectDir: string): void {
     try {
       existing = JSON.parse(fs.readFileSync(dcpPath, 'utf-8'));
     } catch {
-      // 解析失败则覆盖
+      // Parse failure → overwrite
     }
   }
 

@@ -1,8 +1,8 @@
 /**
- * TokenCounter — 多模型 Token 计数 + 来源分类
+ * TokenCounter — multi-model token counting + source classification
  *
- * 按 message.info.role 区分 user/assistant，按 part.type 区分 flowControl/text/tool/reasoning。
- * 根据 model 自动选择正确的 tokenizer backend。
+ * Distinguishes user/assistant by message.info.role, and flowControl/text/tool/reasoning by part.type.
+ * Auto-selects the correct tokenizer backend based on model.
  */
 import type { Part, ToolPart } from '@opencode-ai/sdk';
 import type { MessagePack, TokenCount, ModelInfo, TokenizerBackend } from './types.js';
@@ -26,14 +26,14 @@ export class TokenCounter {
     logger.info(`TokenCounter: provider=${info.providerID} model=${info.modelID}`);
   }
 
-  /** 编码文本并返回 token 数。空/空白直接返回 0。 */
+  /** Encode text and return token count. Empty/whitespace returns 0 directly. */
   countTokens(text: string): number {
     if (!text || !text.trim()) return 0;
     return this.backend.countTokens(text.replace(/<\|endoftext\|>/g, ''));
   }
 
   /**
-   * 根据 part.type 和内容分类 part token 来源。
+   * Classify part token source by part.type and content.
    */
   private classifyPartType(part: Part): 'flowControl' | 'text' | 'tool' | 'reasoning' | null {
     if (part.type === 'text') {
@@ -42,7 +42,7 @@ export class TokenCounter {
       return 'text';
     }
     if (part.type === 'tool') {
-      // Read 工具读取项目规则文件（Constitution/Flow/Regulation）→ flowControl
+      // Read tool reading project regulation files (Constitution/Flow/Regulation) → flowControl
       const tp = part as ToolPart;
       if (tp.tool === 'read') {
         const input = tp.state?.input as Record<string, unknown> | undefined;
@@ -58,7 +58,7 @@ export class TokenCounter {
   }
 
   /**
-   * 计数消息中的 token 并按来源分类。
+   * Count tokens in a message and classify by source.
    */
   countContextTokens(message: MessagePack): TokenCount {
     const result: TokenCount = { ...EMPTY_COUNT };
@@ -116,7 +116,7 @@ export class TokenCounter {
     return result;
   }
 
-  /** 释放 backend 资源 */
+  /** Release backend resources */
   dispose(): void {
     this.backend.dispose();
   }

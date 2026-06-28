@@ -1,7 +1,7 @@
 /**
- * LlamaBackend — Llama 模型 tokenizer
+ * LlamaBackend — Llama model tokenizer
  *
- * 自动按 modelID 选择 llama-tokenizer-js（Llama 1/2）或 llama3-tokenizer-js（Llama 3）。
+ * Auto-selects llama-tokenizer-js (Llama 1/2) or llama3-tokenizer-js (Llama 3) by modelID.
  */
 import llamaTokenizer from 'llama-tokenizer-js';
 import llama3Tokenizer from 'llama3-tokenizer-js';
@@ -21,6 +21,6 @@ export class LlamaBackend implements TokenizerBackend {
   }
 
   dispose(): void {
-    // 无资源需释放
+    // No resources to release
   }
 }

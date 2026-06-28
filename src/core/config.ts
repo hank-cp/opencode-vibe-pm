@@ -1,8 +1,9 @@
 /**
- * 配置管理
+ * Configuration Management
  *
- * 从项目目录加载 vibe-pm/config.json，支持默认值、合并覆盖、容错处理。
- * 启动时自动创建默认配置文件。
+ * Loads vibe-pm/config.json from the project directory. Supports defaults,
+ * merge override, and graceful fallback on parse errors.
+ * Auto-creates a default config file on startup.
  */
 
 import * as fs from 'node:fs';
@@ -17,7 +18,7 @@ export const DEFAULT_CONFIG: PluginConfig = {
   dataDir: '.vibe-pm',
   autoAnalyze: true,
   contextInjection: {
-    maxStepTokens: 0, // 0 = 不限制
+    maxStepTokens: 0, // 0 = no limit
     pruneIrrelevant: true,
   },
   debug: {
@@ -25,7 +26,7 @@ export const DEFAULT_CONFIG: PluginConfig = {
   },
 };
 
-// ─── 公开 API ───
+// ─── Public API ───
 
 const PROJECT_CONFIG_REL = path.join('.vibe-pm', 'config.json');
 

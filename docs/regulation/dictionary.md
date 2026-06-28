@@ -28,21 +28,22 @@
 
 ## 记忆体系
 
-| 中文 | 英文 | 说明 |
-|------|------|------|
+| 中文      | 英文 | 说明 |
+|---------|------|------|
 | MD 文档记忆 | MD Document Memory | 以 Markdown 文件存储的长期记忆 |
-| 结构化记忆 | Structured Memory | 以 AxioDB 存储的事务性/索引型记忆 |
-| 讨论项 | Discussion | 任务完成后自动生成的流程改进建议 |
-| 流程指标 | StepTokenMetrics | 按步骤采集的运行数据（次数/Token/耗时等） |
+| 结构化记忆   | Structured Memory | 以 AxioDB 存储的事务性/索引型记忆 |
+| 讨论项     | Discussion | 任务完成后自动生成的流程改进建议 |
+| Token指标 | TokenMetrics | 按步骤采集的运行数据（次数/Token/耗时等） |
 
 ## 流程相关
 
-| 中文 | 英文 | 说明 |
-|------|------|------|
-| 状态机 | FSM / State Machine | 用 Mermaid 定义步骤流转逻辑 |
-| 人机协作 | Human-in-loop | 需要用户介入的步骤 |
-| 步骤流转 | Step Transition | 从一个步骤推进到下一个步骤 |
-| 上下文注入 | Context Injection | 根据当前步骤向对话注入相关内容 |
+| 中文      | 英文                  | 说明                 |
+|---------|---------------------|--------------------|
+| 状态机     | FSM / State Machine | 用 Mermaid 定义步骤流转逻辑 |
+| 人机协作    | Human-in-loop       | 需要用户介入的步骤          |
+| 步骤流转    | Step Transition     | 从一个步骤推进到下一个步骤      |
+| 上下文注入   | Context Injection   | 根据当前步骤向对话注入相关内容    |
+| 流程控制提示词 | Flow Control Prompt | 用于控制流程执行的提示词       |
 
 ## 技术栈
 
@@ -52,16 +53,3 @@
 | 宿主 | Host | OpenCode 应用本身 |
 | 会话 | Session | 一次 OpenCode 对话 |
 | TUI | Terminal UI | 终端界面展示 |
-
-## 命令对照
-
-| 命令 | 英文 | 用途 |
-|------|------|------|
-| `/pm-init` | pm-init | 初始化向导 |
-| `/pm-install-flow` | pm-install-flow | 安装流程 |
-| `/pm-uninstall-flow` | pm-uninstall-flow | 卸载流程 |
-| `/pm-refine-flow` | pm-refine-flow | 优化流程 |
-| `/pm-task-start` | pm-task-start | 启动任务 |
-| `/pm-task-set-step` | pm-task-set-step | 设置步骤 |
-| `/pm-task-refresh` | pm-task-refresh | 刷新上下文 |
-| `/pm-task-close` | pm-task-close | 关闭任务 |

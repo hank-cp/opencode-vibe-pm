@@ -1,15 +1,15 @@
 /**
- * TokenCounter 单元测试
+ * TokenCounter Unit Tests
  *
- * Mock tiktoken（编码器返回固定 token 数），不依赖真实 tokenizer。
- * 覆盖 6 类来源分类（text/user/assistant/flowControl/tool/reasoning）、边界情况。
+ * Mock tiktoken (encoder returns fixed token count), no real tokenizer dependency.
+ * Covers 6 source categories (text/user/assistant/flowControl/tool/reasoning) and edge cases.
  */
 
 import { describe, it, expect, mock, beforeAll, afterAll } from 'bun:test';
 import type { Part, Message } from '@opencode-ai/sdk';
 import type { MessagePack } from '../../src/token/types.js';
 
-// Mock tiktoken: encode 返回长度 = text.length / 4（最小 1）
+// Mock tiktoken: encode returns length = text.length / 4 (minimum 1)
 mock.module('tiktoken', () => {
   const makeEncoder = () => ({
     encode: mock((text: string) => {
@@ -111,7 +111,7 @@ describe('TokenCounter', () => {
     });
   });
 
-  // ─── countContextTokens — 分类 ───────────────────
+  // ─── countContextTokens — Classification ──────────
 
   describe('countContextTokens classification', () => {
     it('classifies text parts by type=text (no <protect>)', () => {
@@ -212,7 +212,7 @@ describe('TokenCounter', () => {
     });
   });
 
-  // ─── countContextTokens — role 聚合 ──────────────
+  // ─── countContextTokens — Role Aggregation ────────
 
   describe('countContextTokens role aggregation', () => {
     it('user role: total = sum of all part tokens', () => {
@@ -271,7 +271,7 @@ describe('TokenCounter', () => {
     });
   });
 
-  // ─── countContextTokens — 边界 ───────────────────
+  // ─── countContextTokens — Edge Cases ──────────────
 
   describe('countContextTokens edge cases', () => {
     it('returns all zeros for empty parts array', () => {

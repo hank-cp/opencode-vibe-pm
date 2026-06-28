@@ -1,13 +1,13 @@
 /**
- * 日志工具
+ * Logging Utility
  *
- * 通过 OpenCode SDK 的 app.log() 写入宿主日志系统。
- * 公共接口不变：logger.debug / info / warn / error。
+ * Writes to the host log system via the OpenCode SDK's app.log().
+ * Public interface unchanged: logger.debug / info / warn / error.
  */
 
 import type { ILogger } from './types.js';
 
-// ─── LogClient 最小接口 ───
+// ─── LogClient Minimal Interface ───
 
 interface LogClient {
   app: {
@@ -22,7 +22,7 @@ interface LogClient {
   };
 }
 
-// ─── 状态 ───
+// ─── State ───
 
 let client: LogClient | null = null;
 let enabled = true;
@@ -35,11 +35,11 @@ export function setLogEnabled(v: boolean): void {
   enabled = v;
 }
 
-// ─── 内部工具 ───
+// ─── Internal Utilities ───
 
 /**
- * 从 Error.stack 提取调用方文件名（不含路径和扩展名）。
- * 跳过 logger.ts 自身帧。
+ * Extract the calling file's name (without path or extension) from Error.stack.
+ * Skips logger.ts's own frames.
  */
 function getCallerFile(): string {
   const orig = Error.prepareStackTrace;
@@ -77,7 +77,7 @@ function toExtra(data?: unknown): Record<string, unknown> | undefined {
   return { detail: String(data) };
 }
 
-// ─── 写入 ───
+// ─── Write ───
 
 async function write(level: string, message: unknown, data?: unknown): Promise<void> {
   if (!enabled || !client) return;
@@ -95,11 +95,11 @@ async function write(level: string, message: unknown, data?: unknown): Promise<v
       },
     });
   } catch {
-    // 静默失败 —— 日志不应导致应用崩溃
+    // Silent failure — logging should not crash the application
   }
 }
 
-// ─── Logger 实例 ───
+// ─── Logger Instance ───
 
 export const logger: ILogger = {
   debug(...args: unknown[]) {

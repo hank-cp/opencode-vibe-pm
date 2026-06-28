@@ -1,15 +1,15 @@
 /**
- * TUI 扩展模块导出
+ * TUI extension module exports
  *
- * 导出 TuiPluginModule 供 OpenCode TUI 加载。
- * OpenCode 只读取 default export，不使用命名导出。
- * createTuiPlugin() 被立即调用以生成 ready-to-use 的 TuiPlugin 函数。
+ * Exports TuiPluginModule for OpenCode TUI loading.
+ * OpenCode only reads the default export, not named exports.
+ * createTuiPlugin() is invoked immediately to produce a ready-to-use TuiPlugin function.
  */
 
 import type { TuiPluginModule } from '@opencode-ai/plugin/tui';
 import { createTuiPlugin } from './tui-plugin.jsx';
 
-console.error('[vibe-pm TUI] 模块已加载');
+console.error('[vibe-pm TUI] module loaded');
 
 const plugin: TuiPluginModule & { id: string } = {
   id: 'vibe-pm',

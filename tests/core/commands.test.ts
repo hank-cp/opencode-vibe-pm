@@ -1,8 +1,8 @@
 /**
- * 命令注册测试
+ * Command Registration Tests
  *
- * 测试文件: tests/core/commands.test.ts
- * 关联 Spec: vibe-pm-plugin-core.md
+ * Test file: tests/core/commands.test.ts
+ * Related Spec: vibe-pm-plugin-core.md
  */
 
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
@@ -81,7 +81,7 @@ describe('registerCommands', () => {
     config = {} as Config;
   });
 
-  it('register_all_commands: 注册全部 7 个 /pm-* 命令，所有可执行命令必须包含 template', () => {
+  it('register_all_commands: registers all 7 /pm-* commands; every executable command must include template', () => {
     registerCommands(config);
 
     const cmd = config.command as
@@ -103,7 +103,7 @@ describe('registerCommands', () => {
     }
   });
 
-  it('command_no_duplicate_key: 重复注册后者覆盖前者', () => {
+  it('command_no_duplicate_key: duplicate registration — latter overwrites former', () => {
     (config as Record<string, unknown>).command = {
       'pm-install-flow': {
         template: 'old template',
@@ -116,7 +116,7 @@ describe('registerCommands', () => {
 
     const cmd = config.command as
       Record<string, { template: string; description?: string; agent?: string }> | undefined;
-    // registerCommands 会覆盖旧值，template 应为 COMMANDS 中定义的新值
+    // registerCommands overwrites old values; template should be the new one defined in COMMANDS
     expect(cmd!['pm-install-flow'].template).toBe(
       'Install a flow from template library — call the pm_install_flow tool with templateId'
     );
@@ -147,7 +147,7 @@ describe('registerTools', () => {
     ask: async () => {},
   };
 
-  it('register_executable_tools: 注册 6 个可执行工具', async () => {
+  it('register_executable_tools: registers 6 executable tools', async () => {
     const engine = createMockEngine();
     const memory = await createTempMemory();
     const tools = registerTools(mockCtx, engine, memory);
@@ -162,7 +162,7 @@ describe('registerTools', () => {
     expect(toolNames).toContain('pm_task_current_step');
   });
 
-  it('pm_task_set_step_jumps: 跳转步骤返回 JSON', async () => {
+  it('pm_task_set_step_jumps: jumps step and returns JSON', async () => {
     const engine = createMockEngine();
     const memory = await createTempMemory();
     await seedTask(memory, mockToolCtx.sessionID);
@@ -177,7 +177,7 @@ describe('registerTools', () => {
     expect(engine.setStep).toHaveBeenCalledWith('test', 'S3');
   });
 
-  it('pm_task_close_closes_task: 关闭任务返回 JSON', async () => {
+  it('pm_task_close_closes_task: closes task and returns JSON', async () => {
     const engine = createMockEngine();
     const memory = await createTempMemory();
     const tools = registerTools(mockCtx, engine, memory);
@@ -191,7 +191,7 @@ describe('registerTools', () => {
     expect(engine.closeTask).toHaveBeenCalledWith('test');
   });
 
-  it('pm_task_close_no_active_task: 无活跃任务时返回 {ok:false}', async () => {
+  it('pm_task_close_no_active_task: no active task — returns {ok:false}', async () => {
     const engine = createMockEngine();
     engine.closeTask = mock(() => Promise.resolve(null));
     const memory = await createTempMemory();
@@ -202,7 +202,7 @@ describe('registerTools', () => {
     expect(parsed.ok).toBe(false);
   });
 
-  it('pm_task_current_step_returns_step: 有任务时返回步骤 JSON', async () => {
+  it('pm_task_current_step_returns_step: active task — returns step JSON', async () => {
     const engine = createMockEngine();
     const memory = await createTempMemory();
     await seedTask(memory, mockToolCtx.sessionID);
@@ -217,7 +217,7 @@ describe('registerTools', () => {
     expect(parsed.taskId).toBeTruthy();
   });
 
-  it('pm_task_current_step_no_task: 无任务时返回 {ok:false}', async () => {
+  it('pm_task_current_step_no_task: no active task — returns {ok:false}', async () => {
     const engine = createMockEngine();
     const memory = await createTempMemory();
     const tools = registerTools(mockCtx, engine, memory);
@@ -227,7 +227,7 @@ describe('registerTools', () => {
     expect(parsed.ok).toBe(false);
   });
 
-  it('pm_task_current_step_no_session: 无 sessionID 时返回 JSON 错误', async () => {
+  it('pm_task_current_step_no_session: no sessionID — returns JSON error', async () => {
     const engine = createMockEngine();
     const memory = await createTempMemory();
     const tools = registerTools(mockCtx, engine, memory);
@@ -239,7 +239,7 @@ describe('registerTools', () => {
     expect(parsed.error).toContain('Session ID');
   });
 
-  it('pm_config_init_returns_json: init 子命令返回有效 JSON 指令（第一阶段：仅语言选择）', async () => {
+  it('pm_config_init_returns_json: init sub-command returns valid JSON instructions (phase 1: language selection only)', async () => {
     const engine = createMockEngine();
     const memory = await createTempMemory();
     const tools = registerTools(mockCtx, engine, memory);
@@ -252,7 +252,7 @@ describe('registerTools', () => {
     expect(parsed.steps[0].nextAction).toContain('pm_config init');
   });
 
-  it('pm_config_init_with_language_returns_remaining_steps: 带 language 参数返回后续步骤', async () => {
+  it('pm_config_init_with_language_returns_remaining_steps: with language param — returns remaining steps', async () => {
     const engine = createMockEngine();
     const memory = await createTempMemory();
     const tools = registerTools(mockCtx, engine, memory);
@@ -276,7 +276,7 @@ describe('registerTools', () => {
     ]);
   });
 
-  it('pm_config_init_with_language_returns_localized_steps: 带 zh-CN 参数返回中文步骤', async () => {
+  it('pm_config_init_with_language_returns_localized_steps: with zh-CN param — returns Chinese steps', async () => {
     const engine = createMockEngine();
     const memory = await createTempMemory();
     const tools = registerTools(mockCtx, engine, memory);
@@ -291,7 +291,7 @@ describe('registerTools', () => {
     expect(scopeStep.title).toBe('配置范围');
   });
 
-  it('pm_config_init_agents_instruction_has_scenario_separation: agents 步骤 instruction 区分「场景 A」「场景 B」且禁止默认轻量更新', async () => {
+  it('pm_config_init_agents_instruction_has_scenario_separation: agents step instruction separates "Scenario A" / "Scenario B" and forbids default lightweight update', async () => {
     const engine = createMockEngine();
     const memory = await createTempMemory();
     const tools = registerTools(mockCtx, engine, memory);
@@ -306,7 +306,7 @@ describe('registerTools', () => {
     expect(agentsStep).toBeDefined();
     const instruction: string = agentsStep.instruction;
 
-    // 回归断言：场景分离在修复中存在
+    // Regression: scenario separation must exist in the fix
     expect(instruction).toContain('Scenario A');
     expect(instruction).toContain('Scenario B');
     expect(instruction).toContain('FORBIDDEN');
@@ -316,7 +316,7 @@ describe('registerTools', () => {
     expect(agentsStep.templateFile).toBe('agents-template.md');
   });
 
-  it('pm_config_unknown_sub_returns_error: 未知子命令返回错误', async () => {
+  it('pm_config_unknown_sub_returns_error: unknown sub-command returns error', async () => {
     setCurrentLocale('zh-CN');
     const engine = createMockEngine();
     const memory = await createTempMemory();

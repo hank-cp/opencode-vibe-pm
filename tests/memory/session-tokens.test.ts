@@ -1,5 +1,5 @@
 /**
- * Session Tokens CRUD 测试 — SQLite tmp dir，每个 describe 独立 MemorySystem
+ * Session Tokens CRUD Tests — SQLite tmp dir, each describe has independent MemorySystem
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
@@ -10,9 +10,9 @@ import { MemorySystem } from '../../src/memory';
 import type { RecordSessionTokensInput } from '../../src/memory/types.js';
 import { ApiTelemetry } from '../../src/token';
 
-// ─── 辅助函数 ─────────────────────────────────
+// ─── Helpers ─────────────────────────────────
 
-/** 创建 MemorySystem 并初始化到临时目录 */
+/** Create MemorySystem and initialize in temp directory */
 async function setupMemory(prefix: string): Promise<{ tmpDir: string; memory: MemorySystem }> {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   const memory = new MemorySystem();
@@ -20,7 +20,7 @@ async function setupMemory(prefix: string): Promise<{ tmpDir: string; memory: Me
   return { tmpDir, memory };
 }
 
-/** 清理临时目录 */
+/** Clean up temp directory */
 function teardownMemory(tmpDir: string): void {
   fs.rmSync(tmpDir, { recursive: true, force: true });
 }
@@ -66,7 +66,7 @@ describe('initSessionTokens', () => {
 
   it('is idempotent (no error on re-init)', async () => {
     await memory.initSessionTokens('s1');
-    // 第二次调用不应抛错
+    // second call should not throw
     await expect(memory.initSessionTokens('s1')).resolves.toBeUndefined();
   });
 });
@@ -111,7 +111,7 @@ describe('recordSessionTokens', () => {
   });
 
   it('auto-inits if row does not exist', async () => {
-    // 无 prior init，直接 record
+    // no prior init, directly record
     await memory.recordSessionTokens('s1', baseColumns);
     const result = await memory.getSessionTokens('s1');
 
@@ -147,12 +147,12 @@ describe('recordSessionTokens', () => {
     await memory.initSessionTokens('s1');
     const first = await memory.getSessionTokens('s1');
 
-    // 确保时间推进
+    // ensure time advances
     await new Promise((r) => setTimeout(r, 1));
     await memory.recordSessionTokens('s1', baseColumns);
     const second = await memory.getSessionTokens('s1');
 
-    // updatedAt 应在 record 后更新
+    // updatedAt should be updated after record
     expect(second!.updatedAt).not.toBe(first!.updatedAt);
   });
 });
@@ -243,7 +243,7 @@ describe('recordSessionTokens with API telemetry', () => {
     await memory.recordSessionTokens('s1', columns, apiTelemetry);
     const result = await memory.getSessionTokens('s1');
 
-    // denominator = system+user+assistant = 0 → scaleFactor 保持默认 1.0
+    // denominator = system+user+assistant = 0 → scaleFactor stays default 1.0
     expect(result).not.toBeNull();
     expect(result!.scaleFactor).toBe(1.0);
   });

@@ -1,7 +1,7 @@
 /**
- * TiktokenBackend — OpenAI 模型 tokenizer
+ * TiktokenBackend — OpenAI model tokenizer
  *
- * 利用 tiktoken 内置的 encoding_for_model() 自动选择最精确 encoding。
+ * Uses tiktoken's built-in encoding_for_model() to auto-select the most accurate encoding.
  */
 import { get_encoding, encoding_for_model, type Tiktoken, type TiktokenModel } from 'tiktoken';
 import type { TokenizerBackend } from '../types.js';

@@ -1,5 +1,5 @@
 /**
- * Template Manager 类型定义
+ * Template Manager type definitions
  */
 
 export interface TemplateMeta {
@@ -8,10 +8,10 @@ export interface TemplateMeta {
   category: string;
   description: string;
   version: string;
-  /** 关联的斜杠命令名（如 /pm-research） */
+  /** Associated slash command name (e.g., /pm-research) */
   command: string;
-  /** 模板文件路径（flow.md） */
+  /** Template file path (flow.md) */
   flowPath: string;
-  /** 模板 bundle 根目录 */
+  /** Template bundle root directory */
   bundleDir: string;
 }

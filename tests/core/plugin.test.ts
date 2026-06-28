@@ -62,7 +62,7 @@ describe('VibePMPlugin', () => {
   });
 
   it('injects protect when active task exists', async () => {
-    // Use the flow tool to create a task (通过 pm_{flow} 工具，而非已移除的 pm_task_start）
+    // Use the flow tool to create a task (via pm_{flow} tool instead of removed pm_task_start)
     const tools = hooks.tool as Record<
       string,
       { execute: (args: unknown, ctx: unknown) => Promise<string> }
@@ -126,7 +126,7 @@ describe('VibePMPlugin', () => {
     expect(output.messages[0].parts.length).toBe(1);
   });
 
-  it('injects_protect_when_active_task_exists: 有活跃任务时注入 protect', async () => {
+  it('injects_protect_when_active_task_exists: injects protect when active task exists', async () => {
     const tools = hooks.tool as Record<
       string,
       { execute: (args: unknown, ctx: unknown) => Promise<string> }

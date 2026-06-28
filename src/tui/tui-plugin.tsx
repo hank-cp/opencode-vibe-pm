@@ -1,9 +1,9 @@
 /**
- * TuiPlugin 入口
+ * TuiPlugin entry point
  *
- * - createSignal + setInterval + onCleanup 全在 slot 回调内
- * - session_id 从 props 获取
- * - TUI 始终创建独立的 MemorySystem 实例（不跨进程共享）
+ * - createSignal + setInterval + onCleanup all inside the slot callback
+ * - session_id obtained from props
+ * - TUI always creates an independent MemorySystem instance (not shared across processes)
  */
 
 import { createSignal, onCleanup } from 'solid-js';

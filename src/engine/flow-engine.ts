@@ -158,7 +158,7 @@ export class FlowEngine {
       await this.memory.recordStepExit(sessionId, oldStep);
     }
 
-    // 持久化步骤转换记录
+    // Persist step transition record
     await this.memory.appendStepTransition(task.id, {
       fromStep: oldStep ?? '',
       toStep: step,

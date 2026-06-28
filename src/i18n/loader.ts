@@ -1,15 +1,16 @@
 /**
- * I18N 语言包加载器
+ * I18N Language Pack loader
  *
- * 提示词模板通过静态 import + 映射表实现，确保 Bundler（Bun.build）能正确打包。
- * 新增语言：在此文件添加静态 import 和映射条目即可。
+ * Prompt templates are loaded via static imports + a mapping table, ensuring the bundler
+ * (Bun.build) can correctly bundle them. To add a new language, simply add a static
+ * import and a mapping entry in this file.
  */
 
 import enUS from './prompts-en-US.js';
 import zhCN from './prompts-zh-CN.js';
 import type { LanguagePack, Locale, PromptsI18n } from './types.js';
 
-// ─── 内置语言包映射 ───
+// ─── Built-in language pack mapping ───
 
 const PROMPT_MAP: Record<string, PromptsI18n> = {
   'en-US': enUS,
@@ -21,7 +22,7 @@ const LOCALE_LABELS: Record<string, string> = {
   'zh-CN': '中文',
 };
 
-// ─── 全局 Locale 单例 ───
+// ─── Global Locale singleton ───
 
 let _currentLocale: Locale | null = null;
 
@@ -37,15 +38,15 @@ export function i18n(): PromptsI18n {
   return getControlPromptTemplate(getCurrentLocale());
 }
 
-// ─── 缓存 ───
+// ─── Cache ───
 
 let _packsCache: LanguagePack[] | null = null;
 
 // ─── discoverLanguagePacks ───
 
 /**
- * 返回内置语言包列表，从 PROMPT_MAP 推导。
- * 结果内部缓存，多次调用返回同一引用。
+ * Returns the built-in language pack list, derived from PROMPT_MAP.
+ * Results are cached internally; repeated calls return the same reference.
  */
 export function discoverLanguagePacks(): LanguagePack[] {
   if (_packsCache) return _packsCache;
@@ -65,8 +66,8 @@ export function discoverLanguagePacks(): LanguagePack[] {
 // ─── getControlPromptTemplate ───
 
 /**
- * 按 locale 获取 ControlPromptTemplate，未命中回退 en-US。
- * 通过静态映射表查找，无需动态 import。
+ * Returns a ControlPromptTemplate by locale, falling back to en-US on miss.
+ * Looked up via the static mapping table — no dynamic import needed.
  */
 export function getControlPromptTemplate(locale: Locale): PromptsI18n {
   const template = PROMPT_MAP[locale] ?? PROMPT_MAP['en-US'];
@@ -76,7 +77,7 @@ export function getControlPromptTemplate(locale: Locale): PromptsI18n {
   return template;
 }
 
-/** 清除所有缓存（用于测试） */
+/** Clear all caches (for testing) */
 export function clearI18nCache(): void {
   _packsCache = null;
   _currentLocale = null;

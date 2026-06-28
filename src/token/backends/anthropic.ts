@@ -1,8 +1,8 @@
 /**
- * AnthropicBackend — Claude 模型 tokenizer（近似）
+ * AnthropicBackend — Claude model tokenizer (approximation)
  *
- * ⚠️ 精度说明：@anthropic-ai/tokenizer 对 Claude 3+ 模型不再准确（~15-20% 偏差）。
- * 仅作本地近似参考，不应作为成本计算的依据。
+ * ⚠️ Accuracy note: @anthropic-ai/tokenizer is no longer accurate for Claude 3+ models (~15-20% deviation).
+ * For local approximation reference only; should not be used as a basis for cost calculation.
  */
 import { countTokens } from '@anthropic-ai/tokenizer';
 import type { TokenizerBackend } from '../types.js';
@@ -14,6 +14,6 @@ export class AnthropicBackend implements TokenizerBackend {
   }
 
   dispose(): void {
-    // 无资源需释放
+    // No resources to release
   }
 }
