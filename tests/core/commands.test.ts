@@ -8,6 +8,7 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { Config, IPluginContext, ToolContext } from '../../src/core/types.js';
 import { registerCommands, registerTools } from '../../src/core/commands.js';
+import { setCurrentLocale, clearI18nCache } from '../../src/i18n';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -316,11 +317,13 @@ describe('registerTools', () => {
   });
 
   it('pm_config_unknown_sub_returns_error: 未知子命令返回错误', async () => {
+    setCurrentLocale('zh-CN');
     const engine = createMockEngine();
     const memory = await createTempMemory();
     const tools = registerTools(mockCtx, engine, memory);
 
     const result = await tools.pm_config.execute({ subCommand: 'unknown' }, mockToolCtx);
+    clearI18nCache();
     expect(typeof result === 'string' ? result : result.output).toContain('未知');
   });
 });

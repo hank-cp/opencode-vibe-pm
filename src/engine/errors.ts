@@ -2,6 +2,8 @@
  * Flow Engine 错误类
  */
 
+import { getControlPromptTemplate } from '../i18n';
+
 /** 尝试在已有活跃任务的 session 中启动新任务时抛出 */
 export class DuplicateActiveTaskError extends Error {
   constructor(
@@ -11,18 +13,18 @@ export class DuplicateActiveTaskError extends Error {
       currentStepName: string;
       summary: string;
       startAt: string;
-    }
+    },
+    locale: string
   ) {
-    const lines = [
-      '当前 Session 已有活跃任务:',
-      `- 流程: ${existingTask.flow}`,
-      `- 当前步骤: ${existingTask.currentStep} - ${existingTask.currentStepName}`,
-      `- 摘要: ${existingTask.summary}`,
-      `- 开始时间: ${existingTask.startAt}`,
-      '',
-      '请先执行 /pm-task-close 关闭当前任务后再启动新任务。',
-    ];
-    super(lines.join('\n'));
+    const i18n = getControlPromptTemplate(locale);
+    const msg = i18n.error.duplicateActiveTask(
+      existingTask.flow,
+      existingTask.currentStep,
+      existingTask.currentStepName,
+      existingTask.summary,
+      existingTask.startAt
+    );
+    super(msg);
     this.name = 'DuplicateActiveTaskError';
   }
 }

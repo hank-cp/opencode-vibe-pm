@@ -423,7 +423,7 @@ graph TB
 - [x] `prompts-{locale}.ts` 统一为单一 `PromptsI18n` 导出（ControlPrompt + commandsI18n 合并）
 - [x] `commands.ts`: install/init引导 i18n化（`discoverLanguagePacks`/`getControlPromptTemplate`）
 - [x] 安装成功返回 LLM 翻译指令（文件清单 + dictionary 特别说明）
-  - 已知问题/风险: 剩余 Zod describe/COMMAND desc/同步函数工具错误尚未 i18n，后续处理
+  - 已知问题/风险: ~~剩余 Zod describe/COMMAND desc/同步函数工具错误尚未 i18n，后续处理~~ → 已于 2026-06-28 完成 (task `0d5fb2c4`)，commands.ts 15+ 处硬编码 → i18n，Zod describe → 英文
 
 ### [x] 里程碑 4 — Phase 4: TUI Label Migration
 

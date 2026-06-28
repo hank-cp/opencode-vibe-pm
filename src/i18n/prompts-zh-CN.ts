@@ -1,7 +1,7 @@
 /**
  * 中文 I18N — 单一导出，包含所有提示词、消息、工具字符串
  */
-import type { LanguagePack } from './types.js';
+import type {LanguagePack} from './types.js';
 
 const zhCN = {
   locale: 'zh-CN',
@@ -137,6 +137,59 @@ const zhCN = {
       `[vibe-pm] 流程 "${name}" 已移除。\n\n⚠️ 请重启 OpenCode 使变更生效。`,
     uninstallFailure: (msg: string) => `[vibe-pm] 卸载失败：${msg}`,
     flowStartNoSession: '无法获取当前 Session ID。',
+    commandDesc: {
+      'pm-install-flow': '从模板库安装流程',
+      'pm-uninstall-flow': '移除一个流程',
+      'pm-refine-flow': '迭代优化流程定义',
+      'pm-task-set-step': '手动跳转到指定步骤',
+      'pm-task-close': '关闭任务，触发分析',
+      'pm-task-current-step': '获取当前活跃任务所在步骤',
+      'pm-config': '查看或修改插件配置',
+    },
+  },
+
+  codingStyle: {
+    generateIndex: (languagesStr: string, tableRows: string) =>
+      `# 编码风格
+
+> ⚠️ **重要 — 务必读取**：以下各语言的编码风格文件是本项目的强制规范。
+> 在编写或修改任何代码之前，**必须**先读取当前语言对应的具体文件。
+>
+> 当前项目检测到的语言：${languagesStr}
+
+## 通用规则
+
+- 统一使用 UTF-8 编码，换行符使用 LF
+- 代码注释使用英文
+- 在系统边界（用户输入、外部 API）进行输入校验
+- 所有错误必须显式处理
+- 优先使用提前返回，减少嵌套层级
+
+## 语言特定规范
+
+请务必阅读以下与当前项目语言对应的编码规范文件：
+
+| 语言 | 编码规范 |
+|------|---------|
+${tableRows}
+`,
+  },
+
+  error: {
+    duplicateActiveTask: (
+      flow: string,
+      step: string,
+      stepName: string,
+      summary: string,
+      startAt: string
+    ) => `
+当前 Session 已有活跃任务:
+- 流程: ${flow}
+- 当前步骤: ${step} - ${stepName}
+- 摘要: ${summary}
+- 开始时间: ${startAt}
+
+请先执行 /pm-task-close 关闭当前任务后再启动新任务。`,
   },
 
   // ─── 初始化向导 ───

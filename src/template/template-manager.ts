@@ -8,7 +8,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { TemplateMeta } from './types.js';
-import { writeDcpConfig } from '../integration/index.js';
+import { writeDcpConfig } from '../integration';
+import { i18n } from '../i18n';
 
 // ─── 约定路径 ───
 
@@ -133,7 +134,7 @@ function generateCodingStyleIndex(languages: string[]): string {
     { name: 'Go', file: 'go.md' },
     { name: 'Rust', file: 'rust.md' },
     { name: 'Java', file: 'java.md' },
-    { name: '通用', file: 'general.md' },
+    { name: 'General', file: 'general.md' },
   ];
 
   const lowerLanguages = languages.map((l) => l.toLowerCase());
@@ -145,29 +146,7 @@ function generateCodingStyleIndex(languages: string[]): string {
     .map((l) => `| ${l.name} | [${l.file}](./coding_style/${l.file}) |`)
     .join('\n');
 
-  return `# 编码风格
-
-> ⚠️ **重要 — 务必读取**：以下各语言的编码风格文件是本项目的强制规范。
-> 在编写或修改任何代码之前，**必须**先读取当前语言对应的具体文件。
->
-> 当前项目检测到的语言：${languages.join('、')}
-
-## 通用规则
-
-- 统一使用 UTF-8 编码，换行符使用 LF
-- 代码注释使用英文
-- 在系统边界（用户输入、外部 API）进行输入校验
-- 所有错误必须显式处理
-- 优先使用提前返回，减少嵌套层级
-
-## 语言特定规范
-
-请务必阅读以下与当前项目语言对应的编码规范文件：
-
-| 语言 | 编码规范 |
-|------|---------|
-${tableRows}
-`;
+  return i18n().codingStyle.generateIndex(languages.join(', '), tableRows);
 }
 
 // ─── 公开 API ───

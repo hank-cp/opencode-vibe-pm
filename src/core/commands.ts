@@ -15,13 +15,12 @@ import { loadConfig, writeConfig } from './config.js';
 import type { FlowEngine } from '../engine';
 import type { MemorySystem } from '../memory';
 import { logger } from './logger';
-import { discoverLanguagePacks, getControlPromptTemplate } from '../i18n';
+import { discoverLanguagePacks, getControlPromptTemplate, i18n } from '../i18n';
 
 // ─── 命令清单 ───
 
 interface CommandMeta {
   name: string;
-  description: string;
   template?: string;
   /** 是否支持 tool 可执行实现 */
   executable: boolean;
@@ -30,44 +29,37 @@ interface CommandMeta {
 const COMMANDS: CommandMeta[] = [
   {
     name: 'pm-install-flow',
-    description: '从模板库安装流程',
     template:
       'Install a flow from template library — call the pm_install_flow tool with templateId',
     executable: true,
   },
   {
     name: 'pm-uninstall-flow',
-    description: '移除一个流程',
     template: 'Remove an installed flow — call the pm_uninstall_flow tool with flowName',
     executable: true,
   },
   {
     name: 'pm-refine-flow',
-    description: '迭代优化流程定义',
     template: 'Iteratively refine a flow definition',
     executable: false,
   },
   {
     name: 'pm-task-set-step',
-    description: '手动跳转到指定步骤',
     template: 'Manually jump to a specific step — call the pm_task_set_step tool with step',
     executable: true,
   },
   {
     name: 'pm-task-close',
-    description: '关闭任务，触发分析',
     template: 'Close the current task and trigger analysis — call the pm_task_close tool',
     executable: true,
   },
   {
     name: 'pm-task-current-step',
-    description: '获取当前活跃任务所在步骤',
     template: 'Get current step of active task — call the pm_task_current_step tool',
     executable: true,
   },
   {
     name: 'pm-config',
-    description: '查看或修改插件配置',
     template: 'View or modify vibe-pm configuration — call the pm_config tool',
     executable: true,
   },
@@ -83,8 +75,9 @@ interface CommandDeclaration {
 
 export function registerCommands(opencodeConfig: Config): void {
   const commands = (opencodeConfig.command ??= {}) as Record<string, CommandDeclaration>;
+  const descMap = i18n().tool.commandDesc;
   for (const cmd of COMMANDS) {
-    commands[cmd.name] = { template: cmd.template || '', description: cmd.description };
+    commands[cmd.name] = { template: cmd.template || '', description: descMap[cmd.name] ?? cmd.name };
   }
 }
 
@@ -150,22 +143,23 @@ export function registerTools(
 // ─── 真实工具实现 ───
 
 function createTaskSetStepTool(engine: FlowEngine, memory: MemorySystem): ToolDefinition {
+  const cmdI18n = i18n().tool;
   return tool({
-    description: 'Manually jump to a specific step',
+    description: cmdI18n.commandDesc['pm-task-set-step'] ?? 'Manually jump to a specific step',
     args: {
-      step: tool.schema.string().describe('目标步骤 ID，如 S1、S2'),
+      step: tool.schema.string().describe('Target step ID, e.g. S1, S2'),
     },
     async execute(args: { step: string }, toolCtx: ToolContext): Promise<string> {
       const sessionId = toolCtx.sessionID;
       if (!sessionId) {
-        return JSON.stringify({ ok: false, error: '无法获取当前 Session ID。' });
+        return JSON.stringify({ ok: false, error: cmdI18n.flowStartNoSession });
       }
 
       try {
         await engine.setStep(sessionId, args.step);
         const task = await memory.getActiveTask(sessionId);
         if (!task) {
-          return JSON.stringify({ ok: false, error: '步骤设置成功但无法获取任务状态。' });
+          return JSON.stringify({ ok: false, error: cmdI18n.setStepNoTask });
         }
         return JSON.stringify({
           ok: true,
@@ -175,7 +169,7 @@ function createTaskSetStepTool(engine: FlowEngine, memory: MemorySystem): ToolDe
           stepName: task.currentStepName,
         });
       } catch (err) {
-        const msg = err instanceof Error ? err.message : '未知错误';
+        const msg = err instanceof Error ? err.message : cmdI18n.unknownError;
         return JSON.stringify({ ok: false, error: msg });
       }
     },
@@ -183,13 +177,14 @@ function createTaskSetStepTool(engine: FlowEngine, memory: MemorySystem): ToolDe
 }
 
 function createTaskCloseTool(engine: FlowEngine): ToolDefinition {
+  const cmdI18n = i18n().tool;
   return tool({
-    description: 'Close the current task and trigger analysis',
+    description: cmdI18n.commandDesc['pm-task-close'] ?? 'Close the current task and trigger analysis',
     args: {},
     async execute(_args: Record<string, never>, toolCtx: ToolContext): Promise<string> {
       const sessionId = toolCtx.sessionID;
       if (!sessionId) {
-        return JSON.stringify({ ok: false, error: '无法获取当前 Session ID。' });
+        return JSON.stringify({ ok: false, error: cmdI18n.flowStartNoSession });
       }
 
       try {
@@ -208,7 +203,7 @@ function createTaskCloseTool(engine: FlowEngine): ToolDefinition {
           summary: task.summary,
         });
       } catch (err) {
-        const msg = err instanceof Error ? err.message : '未知错误';
+        const msg = err instanceof Error ? err.message : cmdI18n.unknownError;
         return JSON.stringify({ ok: false, error: msg });
       }
     },
@@ -216,14 +211,15 @@ function createTaskCloseTool(engine: FlowEngine): ToolDefinition {
 }
 
 function createTaskCurrentStepTool(memory: MemorySystem): ToolDefinition {
+  const cmdI18n = i18n().tool;
   return tool({
-    description:
+    description: cmdI18n.commandDesc['pm-task-current-step'] ??
       'Get the current step of the active task. Returns JSON {ok:false} if no active task.',
     args: {},
     async execute(_args: Record<string, never>, toolCtx: ToolContext): Promise<string> {
       const sessionId = toolCtx.sessionID;
       if (!sessionId) {
-        return JSON.stringify({ ok: false, error: '无法获取当前 Session ID' });
+        return JSON.stringify({ ok: false, error: cmdI18n.noSessionIdShort });
       }
 
       try {
@@ -239,7 +235,7 @@ function createTaskCurrentStepTool(memory: MemorySystem): ToolDefinition {
           stepName: task.currentStepName,
         });
       } catch (err) {
-        const msg = err instanceof Error ? err.message : '未知错误';
+        const msg = err instanceof Error ? err.message : cmdI18n.unknownError;
         return JSON.stringify({ ok: false, error: msg });
       }
     },
@@ -265,8 +261,9 @@ async function buildInitInstructions(
 }
 
 function createConfigTool(ctx: IPluginContext): ToolDefinition {
+  const cmdI18n = i18n().tool;
   return tool({
-    description: 'View or modify vibe-pm configuration',
+    description: cmdI18n.commandDesc['pm-config'] ?? 'View or modify vibe-pm configuration',
     args: {
       subCommand: tool.schema
         .string()
@@ -288,7 +285,7 @@ function createConfigTool(ctx: IPluginContext): ToolDefinition {
       const sub = args.subCommand ?? 'view';
 
       if (!['view', 'edit', 'init'].includes(sub)) {
-        return `[vibe-pm] ❌ 未知子命令: "${sub}"。支持: view, edit, init`;
+        return cmdI18n.unknownSubCommand(sub);
       }
 
       try {
@@ -299,25 +296,25 @@ function createConfigTool(ctx: IPluginContext): ToolDefinition {
 
         if (sub === 'edit') {
           if (!args.key) {
-            return '[vibe-pm] ❌ edit 子命令需要提供 key 参数';
+            return cmdI18n.editNeedKey;
           }
           if (args.value === undefined) {
-            return '[vibe-pm] ❌ edit 子命令需要提供 value 参数';
+            return cmdI18n.editNeedValue;
           }
           const config = loadConfig(ctx.projectDir);
           (config as unknown as Record<string, unknown>)[args.key] = JSON.parse(args.value);
           writeConfig(ctx.projectDir, config);
-          return `[vibe-pm] ✅ 配置已更新: ${args.key} = ${args.value}`;
+          return cmdI18n.configUpdated(args.key, args.value);
         }
 
         if (sub === 'init') {
           return await buildInitInstructions(ctx.projectDir, args.language);
         }
 
-        return `[vibe-pm] ❌ 未知子命令: "${sub}"`;
+        return cmdI18n.unknownSubCommand(sub);
       } catch (err) {
-        const msg = err instanceof Error ? err.message : '未知错误';
-        return `[vibe-pm] ❌ 操作失败：${msg}`;
+        const msg = err instanceof Error ? err.message : cmdI18n.unknownError;
+        return cmdI18n.operationFailed(msg);
       }
     },
   });
@@ -370,8 +367,9 @@ function normalizeLanguage(input: string): string {
 }
 
 function createInstallFlowTool(ctx: IPluginContext): ToolDefinition {
+  const cmdI18n = i18n().tool;
   return tool({
-    description: 'Install a flow from template library',
+    description: cmdI18n.commandDesc['pm-install-flow'] ?? 'Install a flow from template library',
     args: {
       templateId: tool.schema
         .string()
@@ -383,12 +381,12 @@ function createInstallFlowTool(ctx: IPluginContext): ToolDefinition {
         .string()
         .optional()
         .describe(
-          "逗号分隔的编程语言列表，由 LLM 分析项目结构后提供。支持: TypeScript, Python, Go, Rust, Java, JavaScript, Kotlin, Ruby, Elixir, C/C++。如 'TypeScript,Go'。若省略，从配置缓存读取；无配置时使用 General。"
+          "Comma-separated programming language list, provided by LLM after analyzing project structure. Supports: TypeScript, Python, Go, Rust, Java, JavaScript, Kotlin, Ruby, Elixir, C/C++. e.g. 'TypeScript,Go'. When omitted, reads from config cache; falls back to General."
         ),
       overwrite: tool.schema
         .boolean()
         .optional()
-        .describe('是否覆盖已存在的 flow 文档（默认 false，已存在时返回提示让用户确认）。'),
+        .describe('Whether to overwrite existing flow docs (default false; prompts user to confirm when files exist).'),
     },
     async execute(
       args: { templateId?: string; programmingLanguages?: string; overwrite?: boolean },
@@ -439,7 +437,7 @@ function createInstallFlowTool(ctx: IPluginContext): ToolDefinition {
 
       const templates = scanTemplates(ctx.projectDir);
       if (templates.length === 0) {
-        return '[vibe-pm] 未在 docs/template/ 下找到任何模板。请确认模板目录结构正确。';
+        return cmdI18n.noTemplatesFound;
       }
 
       const lines = templates.map(
@@ -449,7 +447,7 @@ function createInstallFlowTool(ctx: IPluginContext): ToolDefinition {
           }`
       );
 
-      return `[vibe-pm] 可用的模板列表：\n\n${lines.join('\n')}\n\n要安装一个流程，请运行：\n\`\`\`\n/pm-install-flow templateId: <模板ID>\n\`\`\``;
+      return cmdI18n.templateList(lines.join('\n'));
     },
   });
 }
@@ -457,18 +455,19 @@ function createInstallFlowTool(ctx: IPluginContext): ToolDefinition {
 // ─── pm-uninstall-flow 实现 ───
 
 function createUninstallFlowTool(ctx: IPluginContext): ToolDefinition {
+  const cmdI18n = i18n().tool;
   return tool({
-    description: 'Remove an installed flow and its command',
+    description: cmdI18n.commandDesc['pm-uninstall-flow'] ?? 'Remove an installed flow and its command',
     args: {
-      flowName: tool.schema.string().describe('要移除的流程名称（如 spec-driven-dev）'),
+      flowName: tool.schema.string().describe('Flow name to remove (e.g. spec-driven-dev)'),
     },
     async execute(args: { flowName: string }, _toolCtx: ToolContext): Promise<string> {
       try {
         uninstallFlow(ctx.projectDir, args.flowName);
-        return `[vibe-pm] 流程 "${args.flowName}" 已移除。\n\n⚠️ 请重启 OpenCode 使变更生效。`;
+        return cmdI18n.uninstallSuccess(args.flowName);
       } catch (err) {
-        const msg = err instanceof Error ? err.message : '未知错误';
-        return `[vibe-pm] 卸载失败：${msg}`;
+        const msg = err instanceof Error ? err.message : cmdI18n.unknownError;
+        return cmdI18n.uninstallFailure(msg);
       }
     },
   });
@@ -506,6 +505,8 @@ function createFlowStartTool(
   engine: FlowEngine,
   flowName: string
 ): ToolDefinition {
+  const cmdI18n = i18n().tool;
+
   function extractText(parts: Array<any>): string {
     return parts
       .filter((p: any) => p.type === 'text')
@@ -529,7 +530,7 @@ function createFlowStartTool(
       const { sessionID, messageID } = _toolCtx;
       if (!sessionID) {
         logger.warn(`createFlowStartTool(${flowName}): no sessionID`);
-        return JSON.stringify({ ok: false, error: '无法获取当前 Session ID。' });
+        return JSON.stringify({ ok: false, error: cmdI18n.flowStartNoSession });
       }
 
       logger.info(
@@ -618,7 +619,7 @@ function createFlowStartTool(
           startAt: task.startAt,
         });
       } catch (err) {
-        const msg = err instanceof Error ? err.message : '未知错误';
+        const msg = err instanceof Error ? err.message : cmdI18n.unknownError;
         logger.error(`createFlowStartTool(${flowName}): startTask failed: ${msg}`);
         return JSON.stringify({ ok: false, error: msg });
       }

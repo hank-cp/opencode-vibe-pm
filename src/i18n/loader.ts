@@ -21,6 +21,22 @@ const LOCALE_LABELS: Record<string, string> = {
   'zh-CN': '中文',
 };
 
+// ─── 全局 Locale 单例 ───
+
+let _currentLocale: Locale | null = null;
+
+export function setCurrentLocale(locale: Locale): void {
+  _currentLocale = locale;
+}
+
+export function getCurrentLocale(): Locale {
+  return _currentLocale ?? 'en-US';
+}
+
+export function i18n(): PromptsI18n {
+  return getControlPromptTemplate(getCurrentLocale());
+}
+
 // ─── 缓存 ───
 
 let _packsCache: LanguagePack[] | null = null;
@@ -63,4 +79,5 @@ export function getControlPromptTemplate(locale: Locale): PromptsI18n {
 /** 清除所有缓存（用于测试） */
 export function clearI18nCache(): void {
   _packsCache = null;
+  _currentLocale = null;
 }

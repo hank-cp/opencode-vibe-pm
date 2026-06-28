@@ -13,7 +13,7 @@ import type { ApiTelemetry, ModelInfo, TokenCount } from '../token';
 import { TokenCounter } from '../token';
 import type { Config, Hooks, IPluginContext, Plugin, PluginInput } from './types.js';
 import type { UserMessage, AssistantMessage } from '@opencode-ai/sdk';
-import { discoverLanguagePacks } from '../i18n';
+import { discoverLanguagePacks, setCurrentLocale } from '../i18n';
 
 export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => {
   ensureDefaultConfig(ctx.directory);
@@ -41,6 +41,7 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
       `config.language "${config.language}" not found in available packs, fallback to "en-US"`
     );
   }
+  setCurrentLocale(locale);
   engine.initLocale(locale);
 
   return {

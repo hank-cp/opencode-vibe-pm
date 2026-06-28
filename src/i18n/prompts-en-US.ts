@@ -133,6 +133,59 @@ Any of the following = FLOW EXECUTION FAILURE:
     uninstallFailure: (msg: string) => `[vibe-pm] ❌ Uninstall failed: ${msg}`,
     noSessionIdShort: 'Cannot get current Session ID',
     flowStartNoSession: 'Cannot get current Session ID.',
+    commandDesc: {
+      'pm-install-flow': 'Install a flow from template library',
+      'pm-uninstall-flow': 'Remove an installed flow',
+      'pm-refine-flow': 'Iteratively refine a flow definition',
+      'pm-task-set-step': 'Manually jump to a specific step',
+      'pm-task-close': 'Close the current task and trigger analysis',
+      'pm-task-current-step': 'Get current step of active task',
+      'pm-config': 'View or modify plugin configuration',
+    },
+  },
+
+  codingStyle: {
+    generateIndex: (languagesStr: string, tableRows: string) =>
+      `# Coding Style
+
+> ⚠️ **Important — Must Read**: The language-specific coding style files below are mandatory standards for this project.
+> Before writing or modifying any code, you **must** read the specific file for the current language.
+>
+> Detected languages: ${languagesStr}
+
+## General Rules
+
+- Always use UTF-8 encoding with LF line endings
+- Use English for code comments
+- Validate input at system boundaries (user input, external APIs)
+- All errors must be handled explicitly
+- Prefer early returns to reduce nesting depth
+
+## Language-Specific Standards
+
+Make sure to read the coding standard files for the languages used in this project:
+
+| Language | Standard |
+|----------|----------|
+${tableRows}
+`,
+  },
+
+  error: {
+    duplicateActiveTask: (
+      flow: string,
+      step: string,
+      stepName: string,
+      summary: string,
+      startAt: string
+    ) => `
+This session already has an active task:
+- Flow: ${flow}
+- Current Step: ${step} - ${stepName}
+- Summary: ${summary}
+- Started: ${startAt}
+
+Please run /pm-task-close to close the current task before starting a new one.`,
   },
 
   buildInitInstructions(packs: LanguagePack[]): string {
