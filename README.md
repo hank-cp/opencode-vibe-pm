@@ -1,7 +1,6 @@
 # vibe-pm
 
 ![NPM Version](https://img.shields.io/npm/v/@laxture/vibe-pm)
-![Test](https://github.com/hank-cp/opencode-vibe-pm/workflows/CI%20Test/badge.svg)
 ![GitHub](https://img.shields.io/github/license/hank-cp/opencode-vibe-pm)
 ![GitHub last commit](https://img.shields.io/github/last-commit/hank-cp/opencode-vibe-pm.svg)
 
