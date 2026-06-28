@@ -286,10 +286,11 @@ describe("registerTools", () => {
     // 回归断言：场景分离在修复中存在
     expect(instruction).toContain("Scenario A");
     expect(instruction).toContain("Scenario B");
-    // 回归断言：禁止 LLM 在未确认的情况下自行决定"轻量更新"
-    expect(instruction).toContain("MUST confirm");
+    expect(instruction).toContain("FORBIDDEN");
     expect(instruction).toContain("Full Rewrite");
     expect(instruction).toContain("inform user");
+    expect(instruction).toContain("node_modules/vibe-pm/dist/docs/template/agents-template.md");
+    expect(agentsStep.templateFile).toBe("agents-template.md");
   });
 
   it("pm_config_unknown_sub_returns_error: 未知子命令返回错误", async () => {

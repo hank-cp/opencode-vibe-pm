@@ -136,9 +136,19 @@ Any of the following = FLOW EXECUTION FAILURE:
     return JSON.stringify({
       flow: "pm-config-init",
       description: "vib-pm initialization wizard — guided project setup",
-      steps: [
-        { id: "language", title: "Language", type: "question", instruction: "Ask user to choose interactive language. After getting answer, call pm_config init with language=<locale> to get remaining steps in the chosen language.", params: { header: "Language / 语言", question: "Choose vib-pm interactive language / 选择交互语言:", options: languageOptions }, onAnswer: languageOnAnswer, nextAction: "call pm_config init subCommand=init language=<locale>" },
-      ],
+      steps: [{
+        id: "language",
+        title: "Language",
+        type: "question",
+        instruction: "Ask user to choose interactive language. After getting answer, call pm_config init with language=<locale> to get remaining steps in the chosen language.",
+        params: {
+          header: "Language / 语言",
+          question: "Choose vib-pm interactive language / 选择交互语言:",
+          options: languageOptions
+        },
+        onAnswer: languageOnAnswer,
+        nextAction: "call pm_config init subCommand=init language=<locale>"
+      }],
     });
   },
 
@@ -147,12 +157,118 @@ Any of the following = FLOW EXECUTION FAILURE:
       flow: "pm-config-init",
       description: "vib-pm initialization wizard — remaining setup steps",
       steps: [
-        { id: "scope", title: "Config Scope", type: "question", instruction: "Ask user where to write vib-pm config. OpenCode and integration plugin configs are always project-level.", params: { header: "Scope", question: "Where to write vib-pm config? (OpenCode & integration plugins always project-level `.opencode/`)", options: [{ label: "Project", description: "Write to `./vibe-pm/config.json`" }, { label: "Global", description: "Write to `~/.config/vibe-pm/config.json`" }] }, onAnswer: { "Project": { configPath: "./vibe-pm/config.json", scope: "project" }, "Global": { configPath: "~/.config/vibe-pm/config.json", scope: "global" } } },
-        { id: "gitignore", title: ".gitignore", type: "question", instruction: "Ask whether to append entries to .gitignore. Skip if already exists. Use bash.", params: { header: ".gitignore", question: "Which directories to add to .gitignore?", multiple: true, options: [{ label: ".opencode/", description: "OpenCode config" }, { label: ".vibe-pm/", description: "vib-pm data dir" }, { label: ".omo/", description: "oh-my-openagent plans/config" }] }, skipIfExists: true },
-        { id: "agents", title: "AGENTS.md", type: "question", instruction: `Generate AGENTS.md by strict priority:\n\n1. Locate template\n2. Scenario A — template exists:\na) Missing → generate\nb) Exists → ask user (Full Rewrite / Add Missing / Skip, MUST confirm before acting)\n3. Scenario B — missing:\na) Exists → append Constitution reference\nb) Missing → inform user\n4. Constitution: inform user of constraints`, params: { header: "AGENTS.md", question: "Generate AGENTS.md? Template requires only overview & features. Tech stack auto-detected.", options: [{ label: "Yes, generate", description: "Use template" }, { label: "No, skip", description: "Skip" }] }, checkExists: true },
-        { id: "dictionary", title: "Term Dictionary", type: "question", instruction: `Create project term dictionary docs/regulation/dictionary.md (if not exists).\n1. Skip if exists\n2. Copy from template\n3. Generate ~20 initial terms (zh↔en)\n4. Remind user to maintain`, checkExists: true, templateFile: "dictionary-template.md", params: { header: "Dictionary", question: "Create term dictionary? Will generate initial terms from project analysis.", options: [{ label: "Yes, create", description: "Create with initial terms" }, { label: "No, skip", description: "Skip" }] } },
-        { id: "integrations-dcp", title: "Integration: DCP", type: "question", instruction: `Configure DCP plugin.\n1. Check global & project configs for DCP dependency\n2. If missing, ask user. Write to .opencode/opencode.json`, checkInstalled: "opencode-dynamic-context-pruning", checkPaths: ["~/.config/opencode/opencode.json", ".opencode/opencode.json"], params: { header: "DCP Plugin", question: "Install DCP (Dynamic Context Pruning) plugin? Writes to .opencode/opencode.json.", options: [{ label: "Yes", description: "Install" }, { label: "No", description: "Skip" }] } },
-        { id: "done", title: "Done", type: "info", instruction: "Tell user to install flow templates via /pm-install-flow.", message: "✅ Setup complete! Use `/pm-install-flow` to install flow templates (e.g. spec-driven-dev, bug-fix)." },
+        {
+          id: "scope",
+          title: "Config Scope",
+          type: "question",
+          instruction: "Ask user where to write vib-pm config. OpenCode and integration plugin configs are always project-level.",
+          params: {
+            header: "Scope",
+            question: "Where to write vib-pm config? (OpenCode & integration plugins always project-level `.opencode/`)",
+            options: [{label: "Project", description: "Write to `./vibe-pm/config.json`"}, {
+              label: "Global",
+              description: "Write to `~/.config/vibe-pm/config.json`"
+            }]
+          },
+          onAnswer: {
+            "Project": {configPath: "./vibe-pm/config.json", scope: "project"},
+            "Global": {configPath: "~/.config/vibe-pm/config.json", scope: "global"}
+          }
+        },
+        {
+          id: "gitignore",
+          title: ".gitignore",
+          type: "question",
+          instruction: "Ask whether to append entries to .gitignore. Skip if already exists. Use bash.",
+          params: {
+            header: ".gitignore",
+            question: "Which directories to add to .gitignore?",
+            multiple: true,
+            options: [{label: ".opencode/", description: "OpenCode config"}, {
+              label: ".vibe-pm/",
+              description: "vib-pm data dir"
+            }, {label: ".omo/", description: "oh-my-openagent plans/config"}]
+          },
+          skipIfExists: true
+        },
+        {
+          id: "agents",
+          title: "AGENTS.md",
+          type: "question",
+          instruction: `
+Generate AGENTS.md. Follow strictly:
+1. Locate template at these paths (search in order):
+  - docs/template/agents-template.md
+  - node_modules/vibe-pm/dist/docs/template/agents-template.md
+  - Fallback: use glob "**/agents-template.md" to find the file
+2. Scenario A — template found:
+  a) AGENTS.md does not exist → generate using template. Placeholder rules:
+    - "Overview" & "Main Features" → ask user to fill in
+    - "Tech Stack" & "Development Environment" → auto-detect from project
+  b) AGENTS.md exists → analyze diff between existing structure and template, then ask user via question tool:
+    - Option 1 "Full Rewrite": rewrite in template format, preserve tech details from existing AGENTS.md
+    - Option 2 "Add Missing Sections": only add sections from template that are missing, do not change existing structure
+    - Option 3 "Skip"
+    ⚠️ FORBIDDEN to decide "light update" without user confirmation — MUST ask with 3 options and wait for explicit choice
+3. Scenario B — template NOT found:
+  a) AGENTS.md exists → only append Constitution reference note (inform user of implications)
+  b) AGENTS.md does not exist → inform user template is missing, exit this step
+4. Constitution: regardless of approach, inform user of Constitution block's constraint effects`,
+          checkExists: true,
+          templateFile: "agents-template.md",
+          params: {
+            header: "AGENTS.md",
+            question: "Generate AGENTS.md? Template requires only overview & features. Tech stack auto-detected.",
+            options: [{label: "Yes, generate", description: "Use template"}, {
+              label: "No, skip",
+              description: "Skip"
+            }]
+          }
+        },
+        {
+          id: "dictionary",
+          title: "Term Dictionary",
+          type: "question",
+          instruction: `
+Create project term dictionary docs/regulation/dictionary.md (if not exists).
+1. Skip if exists
+2. Copy from template
+3. Generate ~20 initial terms (zh↔en)
+4. Remind user to maintain`,
+          checkExists: true,
+          templateFile: "dictionary-template.md",
+          params: {
+            header: "Dictionary",
+            question: "Create term dictionary? Will generate initial terms from project analysis.",
+            options: [{label: "Yes, create", description: "Create with initial terms"}, {
+              label: "No, skip",
+              description: "Skip"
+            }]
+          }
+        },
+        {
+          id: "integrations-dcp",
+          title: "Integration: DCP",
+          type: "question",
+          instruction: `
+Configure DCP plugin.
+1. Check global & project configs for DCP dependency
+2. If missing, ask user. Write to .opencode/opencode.json`,
+          checkInstalled: "opencode-dynamic-context-pruning",
+          checkPaths: ["~/.config/opencode/opencode.json", ".opencode/opencode.json"],
+          params: {
+            header: "DCP Plugin",
+            question: "Install DCP (Dynamic Context Pruning) plugin? Writes to .opencode/opencode.json.",
+            options: [{label: "Yes", description: "Install"}, {label: "No", description: "Skip"}]
+          }
+        },
+        {
+          id: "done",
+          title: "Done",
+          type: "info",
+          instruction: "Tell user to install flow templates via /pm-install-flow.",
+          message: "✅ Setup complete! Use `/pm-install-flow` to install flow templates (e.g. spec-driven-dev, bug-fix)."
+        },
       ],
     });
   },
