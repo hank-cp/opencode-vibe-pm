@@ -111,7 +111,7 @@ Any of the following = FLOW EXECUTION FAILURE:
     unknownError: "Unknown error",
     noSessionId: "Cannot get current Session ID",
     setStepNoTask: "Step set successfully but unable to get task status",
-    unknownSubCommand: (sub: string) => `[vibe-pm] ❌ Unknown sub-command: "${sub}". Supported: view, edit, write-dcp, setup-dcp, init`,
+    unknownSubCommand: (sub: string) => `[vibe-pm] ❌ Unknown sub-command: "${sub}". Supported: view, edit, init`,
     editNeedKey: "[vibe-pm] ❌ edit requires key parameter",
     editNeedValue: "[vibe-pm] ❌ edit requires value parameter",
     configUpdated: (key: string, value: string) => `[vibe-pm] ✅ Config updated: ${key} = ${value}`,
@@ -240,8 +240,9 @@ Follow strictly:
 Create project term dictionary docs/regulation/dictionary.md (if not exists).
 1. Skip if exists
 2. Copy from template
-3. Generate ~20 initial terms (zh↔en)
-4. Remind user to maintain`,
+3. ⚠️ Extract real terms from existing project code/docs, FORBIDDEN to invent terms or translations
+4. Generate ~20 initial terms (zh↔en)
+5. Remind user to maintain`,
           checkExists: true,
           templateFile: "dictionary-template.md",
           params: {
@@ -260,13 +261,47 @@ Create project term dictionary docs/regulation/dictionary.md (if not exists).
           instruction: `
 Configure DCP plugin.
 1. Check global & project configs for DCP dependency
-2. If missing, ask user. Write to .opencode/opencode.json`,
+2. If installed → skip this step, continue to next step
+3. If missing → ask user. Write to .opencode/opencode.json`,
           checkInstalled: "opencode-dynamic-context-pruning",
           checkPaths: ["~/.config/opencode/opencode.json", ".opencode/opencode.json"],
           params: {
             header: "DCP Plugin",
             question: "Install DCP (Dynamic Context Pruning) plugin? Writes to .opencode/opencode.json.",
             options: [{label: "Yes", description: "Install"}, {label: "No", description: "Skip"}]
+          }
+        },
+        {
+          id: "integrations-vision",
+          title: "Integration: Vision Agent",
+          type: "question",
+          instruction: `
+Configure Vision Agent (multimodal image-reading subagent).
+1. Offer multimodal models for user selection: opencode-go/kimi-k2.7-code, opencode/qwen3.6-plus-free, opencode/mimo-v2.5-free
+2. After user selects model, write agent config to .opencode/agents/vision-helper.md
+3. Skip if agent config already exists`,
+          checkInstalled: "vision-helper",
+          params: {
+            header: "Vision Agent",
+            question: "Configure Vision Agent (multimodal image-reading subagent)? Scans connected models for selection and writes agent config.",
+            options: [{label: "Yes", description: "Configure Vision Agent"}, {label: "No", description: "Skip"}]
+          }
+        },
+        {
+          id: "integrations-code-review",
+          title: "Integration: Code Review Skill",
+          type: "question",
+          instruction: `
+Install Code Review Skill.
+1. Check if installed: look for ~/.agents/skills/code-review-skill/SKILL.md, ~/.claude/skills/code-review-skill/SKILL.md
+2. If missing, ask user. Install via:
+   git clone https://github.com/awesome-skills/code-review-skill ~/.agents/skills/code-review-skill
+3. Inform user to restart OpenCode and use /code-review-skill`,
+          checkInstalled: "code-review-skill",
+          params: {
+            header: "Code Review Skill",
+            question: "Install Code Review Skill? Provides comprehensive code review capabilities. (https://github.com/awesome-skills/code-review-skill)",
+            options: [{label: "Yes, install", description: "Clone to ~/.agents/skills/code-review-skill"}, {label: "No, skip", description: "Skip"}]
           }
         },
         {

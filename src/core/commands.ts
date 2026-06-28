@@ -12,7 +12,6 @@ import * as path from "node:path";
 import {Config, IPluginContext, PluginConfig, ToolContext, ToolDefinition} from "./types.js";
 import {installTemplate, scanTemplates, uninstallFlow} from "../template";
 import {loadConfig, writeConfig} from "./config.js";
-import {writeDcpConfig} from "../integration";
 import type {FlowEngine} from "../engine";
 import type {MemorySystem} from "../memory";
 import {logger} from "./logger";
@@ -276,7 +275,7 @@ function createConfigTool(ctx: IPluginContext): ToolDefinition {
       subCommand: tool.schema
         .string()
         .optional()
-        .describe("Sub-command: view, edit, write-dcp, setup-dcp, or init. Defaults to view."),
+        .describe("Sub-command: view, edit, or init. Defaults to view."),
       key: tool.schema.string().optional().describe("Config key to edit (for edit sub-command)"),
       value: tool.schema.string().optional().describe("JSON value to set (for edit sub-command)"),
       language: tool.schema.string().optional().describe("Selected interactive language locale (for init sub-command). DO NOT provide this parameter automatically — it must ONLY be set after user explicitly chooses a language via the question tool. When provided, init returns remaining steps in this language."),
@@ -287,8 +286,8 @@ function createConfigTool(ctx: IPluginContext): ToolDefinition {
     ): Promise<string> {
       const sub = args.subCommand ?? "view";
 
-      if (!["view", "edit", "write-dcp", "setup-dcp", "init"].includes(sub)) {
-        return `[vibe-pm] ❌ 未知子命令: "${sub}"。支持: view, edit, write-dcp, setup-dcp, init`;
+      if (!["view", "edit", "init"].includes(sub)) {
+        return `[vibe-pm] ❌ 未知子命令: "${sub}"。支持: view, edit, init`;
       }
 
       try {
@@ -310,10 +309,6 @@ function createConfigTool(ctx: IPluginContext): ToolDefinition {
           return `[vibe-pm] ✅ 配置已更新: ${args.key} = ${args.value}`;
         }
 
-        if (sub === "write-dcp" || sub === "setup-dcp") {
-          writeDcpConfig(ctx.projectDir);
-          return "[vibe-pm] ✅ DCP 配置已写入";
-        }
 
         if (sub === "init") {
           return await buildInitInstructions(ctx.projectDir, args.language);

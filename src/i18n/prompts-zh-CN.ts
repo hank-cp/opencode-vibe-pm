@@ -119,7 +119,7 @@ const zhCN = {
     noSessionId: "无法获取当前 Session ID",
     noSessionIdShort: "无法获取当前 Session ID",
     setStepNoTask: "步骤设置成功但无法获取任务状态",
-    unknownSubCommand: (sub: string) => `[vibe-pm] ❌ 未知子命令: "${sub}"。支持: view, edit, write-dcp, setup-dcp, init`,
+    unknownSubCommand: (sub: string) => `[vibe-pm] ❌ 未知子命令: "${sub}"。支持: view, edit, init`,
     editNeedKey: "[vibe-pm] ❌ edit 子命令需要提供 key 参数",
     editNeedValue: "[vibe-pm] ❌ edit 子命令需要提供 value 参数",
     configUpdated: (key: string, value: string) => `[vibe-pm] ✅ 配置已更新: ${key} = ${value}`,
@@ -249,8 +249,9 @@ const zhCN = {
 创建项目术语字典 docs/regulation/dictionary.md（如不存在）。
 1. 如果文件已存在，跳过此步骤
 2. 如果不存在，先创建 docs/regulation/ 目录，再从 vibe-pm 插件内置模板（查找路径：先试项目 docs/template/dictionary-template.md，不存在则从插件 dist/docs/template/ 读取）复制模板
-3. 根据当前项目，分析生成 20 条左右的初始术语记录（中英对照）
-4. 在最后的结束总结中提示用户要积极维护字典文档`,
+3. ⚠️ 从项目已有代码/文档中提取真实术语，禁止自行编造名词和翻译
+4. 根据当前项目，分析生成 20 条左右的初始术语记录（中英对照）
+5. 在最后的结束总结中提示用户要积极维护字典文档`,
           checkExists: true,
           templateFile: "dictionary-template.md",
           params: {
@@ -269,13 +270,47 @@ const zhCN = {
           instruction: `
 配置 DCP (Dynamic Context Pruning) 插件。
 1. 用 bash 检查全局和项目级 opencode 配置中是否已有 DCP 依赖：~/.config/opencode/opencode.json 和 ./.opencode/opencode.json（或 package.json）
-2. 若未安装，询问用户。安装方式：写入 .opencode/opencode.json 的 dependencies`,
+2. 若已安装 → 跳过本步骤，继续执行下一个步骤
+3. 若未安装 → 询问用户。安装方式：写入 .opencode/opencode.json 的 dependencies`,
           checkInstalled: "opencode-dynamic-context-pruning",
           checkPaths: ["~/.config/opencode/opencode.json", ".opencode/opencode.json"],
           params: {
             header: "DCP 插件",
             question: "是否安装 DCP (Dynamic Context Pruning) 插件？将自动写入 .opencode/opencode.json dependencies。",
             options: [{label: "是", description: "安装 DCP 插件"}, {label: "否", description: "跳过"}]
+          }
+        },
+        {
+          id: "integrations-vision",
+          title: "集成: Vision Agent",
+          type: "question",
+          instruction: `
+配置 Vision Agent（多模态读图子 Agent）。
+1. 提供多模态 model 供用户选择：opencode-go/kimi-k2.7-code, opencode/qwen3.6-plus-free, opencode/mimo-v2.5-free
+2. 用户选择 model 后，将 agent 配置写入 .opencode/agents/vision-helper.md
+3. 如果 agent 配置已存在，跳过此步骤`,
+          checkInstalled: "vision-helper",
+          params: {
+            header: "Vision Agent",
+            question: "是否配置 Vision Agent（多模态读图子 Agent）？将扫描已连接 model 供选择，并写入 agent 配置。",
+            options: [{label: "是", description: "配置 Vision Agent"}, {label: "否", description: "跳过"}]
+          }
+        },
+        {
+          id: "integrations-code-review",
+          title: "集成: Code Review Skill",
+          type: "question",
+          instruction: `
+安装 Code Review Skill。
+1. 检查是否已安装：查找 ~/.agents/skills/code-review-skill/SKILL.md、~/.claude/skills/code-review-skill/SKILL.md
+2. 若未安装，询问用户是否安装。安装方式：
+   git clone https://github.com/awesome-skills/code-review-skill ~/.agents/skills/code-review-skill
+3. 安装后告知用户重启 OpenCode 后可使用 /code-review-skill 命令`,
+          checkInstalled: "code-review-skill",
+          params: {
+            header: "Code Review Skill",
+            question: "是否安装 Code Review Skill？提供全面的代码审查能力。(https://github.com/awesome-skills/code-review-skill)",
+            options: [{label: "是，安装", description: "克隆到 ~/.agents/skills/code-review-skill"}, {label: "否，跳过", description: "不安装"}]
           }
         },
         {
