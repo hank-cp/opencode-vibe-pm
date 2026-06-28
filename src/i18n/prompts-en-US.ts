@@ -165,13 +165,13 @@ Any of the following = FLOW EXECUTION FAILURE:
           params: {
             header: "Scope",
             question: "Where to write vib-pm config? (OpenCode & integration plugins always project-level `.opencode/`)",
-            options: [{label: "Project", description: "Write to `./vibe-pm/config.json`"}, {
+            options: [{label: "Project", description: "Write to `.vibe-pm/config.json`"}, {
               label: "Global",
               description: "Write to `~/.config/vibe-pm/config.json`"
             }]
           },
           onAnswer: {
-            "Project": {configPath: "./vibe-pm/config.json", scope: "project"},
+            "Project": {configPath: ".vibe-pm/config.json", scope: "project"},
             "Global": {configPath: "~/.config/vibe-pm/config.json", scope: "global"}
           }
         },
