@@ -40,7 +40,7 @@ const COMMANDS: CommandMeta[] = [
   },
   {
     name: 'pm-refine-flow',
-    template: 'Iteratively refine a flow definition',
+    template: 'Refine a flow definition under `docs/flow/`',
     executable: false,
   },
   {

@@ -106,7 +106,7 @@ graph TB
     subgraph Consumers["消费者"]
         FE["FlowEngine<br/>buildControlPrompt()"]
         TM["TemplateManager<br/>installTemplate()"]
-        CMD["Commands<br/>pm-init / pm-config"]
+        CMD["Commands<br/>pm-config"]
         TUI["TUI<br/>全英文 Label"]
     end
 

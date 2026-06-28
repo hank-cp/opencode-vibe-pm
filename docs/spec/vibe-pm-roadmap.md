@@ -40,7 +40,7 @@ gantt
 
 ### MVP 验证标准
 
-1. 用户执行 `/pm-init` 初始化项目
+1. 用户执行 `/pm-config init` 初始化项目
 2. 用户执行 `/pm-install-flow` 安装 research 流程
 3. 用户执行 `/pm-research` 启动调研任务
 4. 每次对话自动注入三明治上下文（Layer 1 全局视野 + Layer 2 当前步骤 + Layer 3 前瞻窗口）
