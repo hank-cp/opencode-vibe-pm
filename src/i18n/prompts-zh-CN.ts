@@ -205,7 +205,11 @@ const zhCN = {
           title: "AGENTS.md",
           type: "question",
           instruction: `
-生成 AGENTS.md。严格按以下优先级规则执行：
+生成或更新 AGENTS.md。为什么要更新？
+- 统一交互语言（Thinking/Reply 语言），保证 AI 输出语言一致
+- 减少上下文注入的无关信息和噪音，提升 AI 推理效率
+
+严格按以下优先级规则执行：
 1. 确认模板，按以下路径顺序查找：
   - docs/template/agents-template.md（项目本地）
   - node_modules/vibe-pm/dist/docs/template/agents-template.md（npm 安装的插件内置）
@@ -231,7 +235,7 @@ const zhCN = {
           params: {
             header: "AGENTS.md",
             question: "是否生成 AGENTS.md？使用内置模板，你只需填写项目概述和主要功能描述。技术栈和开发环境由我自动推断。",
-            options: [{label: "是，生成", description: "使用模板生成"}, {
+            options: [{label: "是，生成", description: "使用模板生成（统一语言+减少噪音）"}, {
               label: "否，跳过",
               description: "不生成 AGENTS.md"
             }]

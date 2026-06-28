@@ -196,7 +196,11 @@ Any of the following = FLOW EXECUTION FAILURE:
           title: "AGENTS.md",
           type: "question",
           instruction: `
-Generate AGENTS.md. Follow strictly:
+Generate or update AGENTS.md. Why update?
+- Unify interaction language (Thinking/Reply language) for consistent AI output
+- Reduce irrelevant context injection and noise, improving AI reasoning efficiency
+
+Follow strictly:
 1. Locate template at these paths (search in order):
   - docs/template/agents-template.md
   - node_modules/vibe-pm/dist/docs/template/agents-template.md
@@ -222,7 +226,7 @@ Generate AGENTS.md. Follow strictly:
           params: {
             header: "AGENTS.md",
             question: "Generate AGENTS.md? Template requires only overview & features. Tech stack auto-detected.",
-            options: [{label: "Yes, generate", description: "Use template"}, {
+            options: [{label: "Yes, generate", description: "Use template (unified language + noise reduction)"}, {
               label: "No, skip",
               description: "Skip"
             }]
