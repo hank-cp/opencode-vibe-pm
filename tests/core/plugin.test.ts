@@ -17,6 +17,11 @@ function mockInput(dir: string): PluginInput {
             data: { parts: [{ type: 'text', text: 'test user request' }] },
           })
         ),
+        get: mock(() =>
+          Promise.resolve({
+            data: { model: { providerID: 'test', modelID: 'test-model' } },
+          })
+        ),
       },
     } as any,
     project: {} as PluginInput['project'],

@@ -37,7 +37,7 @@ describe('loadConfig', () => {
 
   it('loadConfig_override: returns merged config on partial override', () => {
     const config = { language: 'en-US' };
-    const configDir = path.join(tmpDir, 'vibe-pm');
+    const configDir = path.join(tmpDir, '.vibe-pm');
     fs.mkdirSync(configDir, { recursive: true });
     fs.writeFileSync(path.join(configDir, 'config.json'), JSON.stringify(config));
 
@@ -50,7 +50,7 @@ describe('loadConfig', () => {
   });
 
   it('loadConfig_invalid_json: returns DEFAULT_CONFIG on invalid JSON + logs warning', () => {
-    const configDir = path.join(tmpDir, 'vibe-pm');
+    const configDir = path.join(tmpDir, '.vibe-pm');
     fs.mkdirSync(configDir, { recursive: true });
     fs.writeFileSync(path.join(configDir, 'config.json'), '{ invalid json content');
 
@@ -64,7 +64,7 @@ describe('loadConfig', () => {
     const config = {
       contextInjection: { maxStepTokens: 8000 },
     };
-    const configDir = path.join(tmpDir, 'vibe-pm');
+    const configDir = path.join(tmpDir, '.vibe-pm');
     fs.mkdirSync(configDir, { recursive: true });
     fs.writeFileSync(path.join(configDir, 'config.json'), JSON.stringify(config));
 
@@ -89,7 +89,7 @@ describe('ensureDefaultConfig', () => {
   });
 
   it('ensureDefaultConfig_creates_when_missing: creates default config when missing', () => {
-    const configPath = path.join(tmpDir, 'vibe-pm', 'config.json');
+    const configPath = path.join(tmpDir, '.vibe-pm', 'config.json');
     expect(fs.existsSync(configPath)).toBe(false);
 
     const created = ensureDefaultConfig(tmpDir);
@@ -101,7 +101,7 @@ describe('ensureDefaultConfig', () => {
   });
 
   it('ensureDefaultConfig_skips_when_exists: skips when already exists', () => {
-    const configPath = path.join(tmpDir, 'vibe-pm', 'config.json');
+    const configPath = path.join(tmpDir, '.vibe-pm', 'config.json');
     fs.mkdirSync(path.dirname(configPath), { recursive: true });
     fs.writeFileSync(configPath, JSON.stringify({ language: 'en-US' }));
 
