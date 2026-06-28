@@ -279,7 +279,7 @@ function createConfigTool(ctx: IPluginContext): ToolDefinition {
         .describe("Sub-command: view, edit, write-dcp, setup-dcp, or init. Defaults to view."),
       key: tool.schema.string().optional().describe("Config key to edit (for edit sub-command)"),
       value: tool.schema.string().optional().describe("JSON value to set (for edit sub-command)"),
-      language: tool.schema.string().optional().describe("Selected interactive language locale (for init sub-command). When provided, init skips language selection and returns remaining steps in this language."),
+      language: tool.schema.string().optional().describe("Selected interactive language locale (for init sub-command). DO NOT provide this parameter automatically — it must ONLY be set after user explicitly chooses a language via the question tool. When provided, init returns remaining steps in this language."),
     },
     async execute(
       args: { subCommand?: string; key?: string; value?: string; language?: string },

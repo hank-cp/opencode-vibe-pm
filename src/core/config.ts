@@ -27,7 +27,7 @@ export const DEFAULT_CONFIG: PluginConfig = {
 
 // ─── 公开 API ───
 
-const PROJECT_CONFIG_REL = path.join("vibe-pm", "config.json");
+const PROJECT_CONFIG_REL = path.join(".vibe-pm", "config.json");
 
 export function loadConfig(projectDir: string): PluginConfig {
   const configPath = path.join(projectDir, PROJECT_CONFIG_REL);

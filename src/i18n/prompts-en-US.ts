@@ -140,7 +140,7 @@ Any of the following = FLOW EXECUTION FAILURE:
         id: "language",
         title: "Language",
         type: "question",
-        instruction: "Ask user to choose interactive language. After getting answer, call pm_config init with language=<locale> to get remaining steps in the chosen language.",
+        instruction: "Ask user to choose interactive language. DO NOT auto-provide language parameter — use question tool first. After user answers, call pm_config init with language=<locale> to get remaining steps in the chosen language.",
         params: {
           header: "Language / 语言",
           question: "Choose vib-pm interactive language / 选择交互语言:",

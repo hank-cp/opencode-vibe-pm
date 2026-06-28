@@ -149,7 +149,7 @@ const zhCN = {
           id: "language",
           title: "交互语言",
           type: "question",
-          instruction: "询问用户选择交互语言。用户选择后，用所选语言调用 pm_config init language=<locale> 获取后续步骤。",
+          instruction: "询问用户选择交互语言。禁止自行提供 language 参数——必须先调用 question 工具。用户选择后，用所选语言调用 pm_config init language=<locale> 获取后续步骤。",
           params: {
             header: "Language / 语言",
             question: "选择 vibe-pm 交互语言 / Choose vib-pm interactive language:",
