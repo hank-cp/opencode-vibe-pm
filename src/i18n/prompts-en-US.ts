@@ -343,10 +343,25 @@ Create project term dictionary docs/regulation/dictionary.md (if not exists).
           title: 'Integration: DCP',
           type: 'question',
           instruction: `
-Configure DCP plugin.
-1. Check global & project configs for DCP dependency
-2. If installed → skip this step, continue to next step
-3. If missing → ask user. Write to .opencode/opencode.json`,
+Configure DCP (Dynamic Context Pruning) plugin.
+1. Use bash to check global and project-level opencode configs for the plugin "@tarquinen/opencode-dcp":
+  - ~/.config/opencode/opencode.json (global config)
+  - ./.opencode/opencode.json (project config)
+2. If not installed → suggest installation. Command: "opencode plugin @tarquinen/opencode-dcp@latest --global"
+3. Configure DCP: merge the following config into "~/.config/opencode/dcp.jsonc" or "~/.config/opencode/dcp.json"
+   (if neither exists, create dcp.jsonc)
+\`\`\`json
+{
+  "compress": {
+    "protectTags": true
+  },
+  "protectedFilePatterns": [
+    "docs/flow/*",
+    "docs/regulation/*",
+    "docs/spec/*"
+  ]
+}
+\`\`\``,
           checkInstalled: 'opencode-dynamic-context-pruning',
           checkPaths: ['~/.config/opencode/opencode.json', '.opencode/opencode.json'],
           params: {

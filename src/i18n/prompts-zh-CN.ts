@@ -344,9 +344,23 @@ ${tableRows}
           type: 'question',
           instruction: `
 配置 DCP (Dynamic Context Pruning) 插件。
-1. 用 bash 检查全局和项目级 opencode 配置中是否已有 DCP 依赖：~/.config/opencode/opencode.json 和 ./.opencode/opencode.json（或 package.json）
-2. 若已安装 → 跳过本步骤，继续执行下一个步骤
-3. 若未安装 → 询问用户。安装方式：写入 .opencode/opencode.json 的 dependencies`,
+1. 用 bash 检查全局和项目级 opencode 配置, 是否包含了插件配置"@tarquinen/opencode-dcp"：
+  - ~/.config/opencode/opencode.json（项目级配置） 
+  - ./.opencode/opencode.json（项目级配置）
+2. 若未安装 → 建议用户安装。安装方式："opencode plugin @tarquinen/opencode-dcp@latest --global"
+3. 配置dcp, 将以下配置合并到"~/.config/opencode/dcp.jsonc" 或 "~/.config/opencode/dcp.json" (如都未存在, 创建dcp.jsonc) 
+\`\`\`json
+{
+  "compress": {
+    "protectTags": true
+  },
+  "protectedFilePatterns": [
+    "docs/flow/*",
+    "docs/regulation/*",
+    "docs/spec/*"
+  ]
+}
+\`\`\``,
           checkInstalled: 'opencode-dynamic-context-pruning',
           checkPaths: ['~/.config/opencode/opencode.json', '.opencode/opencode.json'],
           params: {
