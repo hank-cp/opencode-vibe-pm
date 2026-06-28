@@ -213,7 +213,10 @@ Generate AGENTS.md. Follow strictly:
 3. Scenario B — template NOT found:
   a) AGENTS.md exists → only append Constitution reference note (inform user of implications)
   b) AGENTS.md does not exist → inform user template is missing, exit this step
-4. Constitution: regardless of approach, inform user of Constitution block's constraint effects`,
+4. Constitution reference confirmation: regardless of approach, additionally ask user via question tool:
+    "Reference /docs/regulation/constitution.md in AGENTS.md?"
+    - Option 1 "Yes, reference": add Constitution reference block at the top of AGENTS.md. Constitution constraints auto-apply in flow tasks
+    - Option 2 "No, skip": inform user: without referencing, constitution.md is only read during flow tasks; its constraints do NOT auto-apply in non-flow tasks`,
           checkExists: true,
           templateFile: "agents-template.md",
           params: {
@@ -265,9 +268,13 @@ Configure DCP plugin.
         {
           id: "done",
           title: "Done",
-          type: "info",
+          type: "question",
           instruction: "Tell user to install flow templates via /pm-install-flow.",
-          message: "✅ Setup complete! Use `/pm-install-flow` to install flow templates (e.g. spec-driven-dev, bug-fix)."
+          params: {
+            header: "Install Flow Templates",
+            question: "Setup is almost complete! Use `/pm-install-flow` to install flow templates (e.g. spec-driven-dev, bug-fix).",
+            options: [{label: "Got it", description: "Finish setup"}]
+          }
         },
       ],
     });

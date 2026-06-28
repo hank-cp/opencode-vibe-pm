@@ -222,7 +222,10 @@ const zhCN = {
 3. 场景 B — 模板不存在：
   a) AGENTS.md 已存在 → 仅追加 Constitution 引用说明（告知后果）
   b) AGENTS.md 不存在 → 告知用户模板缺失，退出此步骤
-4. Constitution：无论最终采用哪种方式，完成后告知用户 Constitution 块的约束效果`,
+4. Constitution 引用确认：无论采用哪种方式，额外使用 question 工具询问用户：
+    「是否在 AGENTS.md 中引用 /docs/regulation/constitution.md？」
+    - 选项 1「是，引用」：在 AGENTS.md 顶部添加 Constitution 引用块。在流程任务中，constitution 约束自动生效
+    - 选项 2「否，不引用」：告知用户：不引用时，仅流程任务内会读取 constitution.md；非流程任务中 constitution 的规则约束不会自动生效`,
           checkExists: true,
           templateFile: "agents-template.md",
           params: {
@@ -274,9 +277,13 @@ const zhCN = {
         {
           id: "done",
           title: "完成",
-          type: "info",
+          type: "question",
           instruction: "提示用户通过 /pm-install-flow 安装流程模板。",
-          message: "✅ 初始化完成！请使用 `/pm-install-flow` 安装需要的流程模板（如 spec-driven-dev、bug-fix 等）。"
+          params: {
+            header: "安装流程模板",
+            question: "初始化基本完成！请使用 `/pm-install-flow` 安装需要的流程模板（如 spec-driven-dev、bug-fix 等）。",
+            options: [{label: "知道了", description: "结束初始化"}]
+          }
         },
       ],
     });
