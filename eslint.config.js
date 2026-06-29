@@ -1,7 +1,6 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
-import prettier from 'eslint-config-prettier/flat';
-import eslintPluginPrettier from 'eslint-plugin-prettier';
+import stylistic from '@stylistic/eslint-plugin';
 
 export default tseslint.config(
   { ignores: ['dist', 'node_modules', '*.config.js'] },
@@ -26,13 +25,18 @@ export default tseslint.config(
     },
     plugins: {
       '@typescript-eslint': tseslint.plugin,
-      prettier: eslintPluginPrettier,
+      '@stylistic': stylistic,
     },
     rules: {
       ...js.configs.recommended.rules,
       ...tseslint.configs.recommended.rules,
-      ...prettier.rules,
-      'prettier/prettier': 'error',
+
+      '@stylistic/semi': ['error', 'always'],
+      '@stylistic/quotes': ['error', 'single'],
+      '@stylistic/comma-dangle': ['error', 'always-multiline'],
+      '@stylistic/arrow-parens': ['error', 'always'],
+      '@stylistic/indent': ['error', 2],
+
       '@typescript-eslint/no-explicit-any': 'warn',
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
