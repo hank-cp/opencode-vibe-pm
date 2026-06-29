@@ -5,7 +5,7 @@
  * Related Spec: vibe-pm-plugin-core.md
  */
 
-import { beforeEach, describe, expect, it, mock } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { Config, IPluginContext, ToolContext } from '../../src/core/types.js';
 import { registerCommands, registerTools } from '../../src/core/commands.js';
 import { setCurrentLocale, clearI18nCache } from '../../src/i18n';
@@ -124,28 +124,38 @@ describe('registerCommands', () => {
 });
 
 describe('registerTools', () => {
-  const mockCtx: IPluginContext = {
-    config: {
-      language: 'zh-CN',
-      dataDir: '.vibe-pm',
-      autoAnalyze: true,
-      contextInjection: { maxStepTokens: 0, pruneIrrelevant: true },
-    },
-    projectDir: '/test',
-    dataDir: '/test/.vibe-pm',
-    client: {} as any,
-  };
+  let mockCtx: IPluginContext;
+  let mockToolCtx: ToolContext;
+  let tmpDir: string;
 
-  const mockToolCtx: ToolContext = {
-    sessionID: 'test',
-    messageID: 'msg1',
-    agent: 'build',
-    directory: '/test',
-    worktree: '/test',
-    abort: new AbortController().signal,
-    metadata: () => {},
-    ask: async () => {},
-  };
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vibe-pm-test-'));
+    mockCtx = {
+      config: {
+        language: 'zh-CN',
+        dataDir: '.vibe-pm',
+        autoAnalyze: true,
+        contextInjection: { maxStepTokens: 0, pruneIrrelevant: true },
+      },
+      projectDir: tmpDir,
+      dataDir: path.join(tmpDir, '.vibe-pm'),
+      client: {} as any,
+    };
+    mockToolCtx = {
+      sessionID: 'test',
+      messageID: 'msg1',
+      agent: 'build',
+      directory: tmpDir,
+      worktree: tmpDir,
+      abort: new AbortController().signal,
+      metadata: () => {},
+      ask: async () => {},
+    };
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
 
   it('register_executable_tools: registers 6 executable tools', async () => {
     const engine = createMockEngine();
@@ -250,6 +260,21 @@ describe('registerTools', () => {
     expect(parsed.steps).toHaveLength(1);
     expect(parsed.steps[0].id).toBe('language');
     expect(parsed.steps[0].nextAction).toContain('pm_config init');
+  });
+
+  it('pm_config_init_persists_language_to_config: after init with language param, config.json has language saved', async () => {
+    const engine = createMockEngine();
+    const memory = await createTempMemory();
+    const tools = registerTools(mockCtx, engine, memory);
+
+    await tools.pm_config.execute(
+      { subCommand: 'init', language: 'zh-CN' },
+      mockToolCtx,
+    );
+
+    const configPath = path.join(tmpDir, '.vibe-pm', 'config.json');
+    const saved = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    expect(saved.language).toBe('zh-CN');
   });
 
   it('pm_config_init_with_language_returns_remaining_steps: with language param — returns remaining steps', async () => {

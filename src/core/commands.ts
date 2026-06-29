@@ -257,6 +257,8 @@ async function buildInitInstructions(
   const packs = discoverLanguagePacks();
 
   if (selectedLanguage) {
+    config.language = selectedLanguage;
+    writeConfig(projectDir, config);
     const i18n = getControlPromptTemplate(selectedLanguage);
     return i18n.buildInitRemainingSteps(packs);
   }
