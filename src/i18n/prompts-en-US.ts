@@ -132,6 +132,10 @@ Any of the following = FLOW EXECUTION FAILURE:
     uninstallFailure: (msg: string) => `[vibe-pm] ❌ Uninstall failed: ${msg}`,
     noSessionIdShort: 'Cannot get current Session ID',
     flowStartNoSession: 'Cannot get current Session ID.',
+    codingStyleInstalled: (files: string[], regDir: string) =>
+      files.length > 0
+        ? `[vibe-pm] ✅ Coding style files installed to ${regDir}/:\n${files.map((f) => `- ${f}`).join('\n')}`
+        : '[vibe-pm] ℹ️ No new coding style files to install (all targets already exist).',
     commandDesc: {
       'pm-install-flow': 'Install a flow from template library',
       'pm-uninstall-flow': 'Remove an installed flow',
@@ -140,6 +144,7 @@ Any of the following = FLOW EXECUTION FAILURE:
       'pm-task-close': 'Close the current task and trigger analysis',
       'pm-task-current-step': 'Get current step of active task',
       'pm-config': 'View or modify plugin configuration',
+      'pm-config-coding-style': 'Install coding style files from configured languages',
     },
   },
 

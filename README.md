@@ -111,7 +111,7 @@ If you've been haunted by "did the AI skip a step?" or "where did that decision 
 
 | Command | Purpose |
 |---------|---------|
-| `/pm-config` | View / edit plugin config; `init` to start setup wizard |
+| `/pm-config` | View / edit plugin config; `init` to start setup wizard; `coding-style` to install/update coding style files |
 | `/pm-install-flow` | Install a workflow from the template library |
 | `/pm-uninstall-flow` | Remove a workflow |
 | `/pm-task-set-step` | Jump to a specific step |

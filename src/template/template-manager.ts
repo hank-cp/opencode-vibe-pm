@@ -81,7 +81,7 @@ function parseTemplateMeta(raw: string, bundleDir: string): TemplateMeta | null 
 const CODING_STYLE_TEMPLATE_SUBDIR = path.join(TEMPLATE_DIR, '_coding_style');
 const CODING_STYLE_REG_SUBDIR = 'coding_style';
 
-function installCodingStyleFromTemplate(
+export function installCodingStyleFromTemplate(
   docsDir: string,
   regDir: string,
   programmingLanguages?: string[],

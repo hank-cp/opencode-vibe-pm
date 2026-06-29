@@ -38,6 +38,7 @@ export interface PromptsI18n {
     installSuccess: (id: string) => string;
     installFailure: (msg: string) => string;
     installStartHint: string;
+    codingStyleInstalled: (files: string[], regDir: string) => string;
     noTemplatesFound: string;
     templateList: (lines: string) => string;
     uninstallSuccess: (name: string) => string;

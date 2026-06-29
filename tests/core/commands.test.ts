@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import type { Config, IPluginContext, ToolContext } from '../../src/core/types.js';
 import { registerCommands, registerTools } from '../../src/core/commands.js';
 import { setCurrentLocale, clearI18nCache } from '../../src/i18n';
+import { writeConfig } from '../../src/core/config.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -350,5 +351,51 @@ describe('registerTools', () => {
     const result = await tools.pm_config.execute({ subCommand: 'unknown' }, mockToolCtx);
     clearI18nCache();
     expect(typeof result === 'string' ? result : result.output).toContain('未知');
+  });
+
+  it('pm_config_coding_style_installs_from_config: coding-style subcommand installs coding style files', async () => {
+    setCurrentLocale('en-US');
+    const engine = createMockEngine();
+    const memory = await createTempMemory();
+    writeConfig(tmpDir, { ...mockCtx.config, programmingLanguages: ['TypeScript'] });
+    const tools = registerTools(mockCtx, engine, memory);
+
+    const result = await tools.pm_config.execute({ subCommand: 'coding-style' }, mockToolCtx);
+    clearI18nCache();
+    const output = typeof result === 'string' ? result : result.output;
+    expect(output).toContain('✅');
+    expect(output).toContain('coding_style');
+
+    const regDir = path.join(tmpDir, 'docs', 'regulation', 'coding_style');
+    expect(fs.existsSync(path.join(regDir, 'typescript.md'))).toBe(true);
+    expect(fs.existsSync(path.join(regDir, 'general.md'))).toBe(true);
+  });
+
+  it('pm_config_coding_style_returns_info_when_no_new_files: second call skips existing files', async () => {
+    setCurrentLocale('en-US');
+    const engine = createMockEngine();
+    const memory = await createTempMemory();
+    const tools = registerTools(mockCtx, engine, memory);
+
+    await tools.pm_config.execute({ subCommand: 'coding-style' }, mockToolCtx);
+    const result = await tools.pm_config.execute({ subCommand: 'coding-style' }, mockToolCtx);
+    clearI18nCache();
+    const output = typeof result === 'string' ? result : result.output;
+    expect(output).toContain('No new');
+  });
+
+  it('pm_config_coding_style_falls_back_to_general: empty programmingLanguages installs general.md', async () => {
+    setCurrentLocale('en-US');
+    const engine = createMockEngine();
+    const memory = await createTempMemory();
+    const tools = registerTools(mockCtx, engine, memory);
+
+    const result = await tools.pm_config.execute({ subCommand: 'coding-style' }, mockToolCtx);
+    clearI18nCache();
+    const output = typeof result === 'string' ? result : result.output;
+    expect(output).toContain('✅');
+
+    const regDir = path.join(tmpDir, 'docs', 'regulation', 'coding_style');
+    expect(fs.existsSync(path.join(regDir, 'general.md'))).toBe(true);
   });
 });

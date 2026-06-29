@@ -137,6 +137,10 @@ const zhCN = {
       `[vibe-pm] 流程 "${name}" 已移除。\n\n⚠️ 请重启 OpenCode 使变更生效。`,
     uninstallFailure: (msg: string) => `[vibe-pm] 卸载失败：${msg}`,
     flowStartNoSession: '无法获取当前 Session ID。',
+    codingStyleInstalled: (files: string[], regDir: string) =>
+      files.length > 0
+        ? `[vibe-pm] ✅ 编码风格文件已安装到 ${regDir}/：\n${files.map((f) => `- ${f}`).join('\n')}`
+        : '[vibe-pm] ℹ️ 未发现需要安装的新编码风格文件（目标文件均已存在）。',
     commandDesc: {
       'pm-install-flow': '从模板库安装流程',
       'pm-uninstall-flow': '移除一个流程',
@@ -145,6 +149,7 @@ const zhCN = {
       'pm-task-close': '关闭任务，触发分析',
       'pm-task-current-step': '获取当前活跃任务所在步骤',
       'pm-config': '查看或修改插件配置',
+      'pm-config-coding-style': '从模板安装编码风格文件',
     },
   },
 

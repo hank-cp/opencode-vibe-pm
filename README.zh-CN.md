@@ -108,7 +108,7 @@ opencode plugin @laxture/vibe-pm@latest --global
 
 | 命令 | 用途 |
 |------|------|
-| `/pm-config` | 查看/修改插件配置，`init` 启动初始化向导 |
+| `/pm-config` | 查看/修改插件配置，`init` 启动初始化向导，`coding-style` 安装/更新编码风格文件 |
 | `/pm-install-flow` | 从模板库安装流程 |
 | `/pm-uninstall-flow` | 移除流程 |
 | `/pm-task-set-step` | 手动跳转到指定步骤 |

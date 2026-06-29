@@ -10,7 +10,7 @@ import { tool } from '@opencode-ai/plugin';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Config, IPluginContext, PluginConfig, ToolContext, ToolDefinition } from './types.js';
-import { installTemplate, scanTemplates, uninstallFlow, getPluginTemplateDir } from '../template';
+import { installTemplate, scanTemplates, uninstallFlow, getPluginTemplateDir, installCodingStyleFromTemplate } from '../template';
 import { loadConfig, writeConfig } from './config.js';
 import type { FlowEngine } from '../engine';
 import type { MemorySystem } from '../memory';
@@ -291,7 +291,7 @@ function createConfigTool(ctx: IPluginContext): ToolDefinition {
     ): Promise<string> {
       const sub = args.subCommand ?? 'view';
 
-      if (!['view', 'edit', 'init'].includes(sub)) {
+      if (!['view', 'edit', 'init', 'coding-style'].includes(sub)) {
         return cmdI18n.unknownSubCommand(sub);
       }
 
@@ -316,6 +316,15 @@ function createConfigTool(ctx: IPluginContext): ToolDefinition {
 
         if (sub === 'init') {
           return await buildInitInstructions(ctx.projectDir, args.language);
+        }
+
+        if (sub === 'coding-style') {
+          const config = loadConfig(ctx.projectDir);
+          const languages = config.programmingLanguages ?? [];
+          const docsDir = path.join(ctx.projectDir, 'docs');
+          const regDir = path.join(docsDir, 'regulation');
+          const installed = installCodingStyleFromTemplate(docsDir, regDir, languages);
+          return cmdI18n.codingStyleInstalled(installed, regDir);
         }
 
         return cmdI18n.unknownSubCommand(sub);
