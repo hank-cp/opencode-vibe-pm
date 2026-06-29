@@ -62,7 +62,7 @@ describe('Task CRUD', () => {
   it('duplicate_task_rejected: same session cannot have two active tasks', async () => {
     await memory.createTask(baseTask('dup'));
     await expect(memory.createTask({ ...baseTask('dup'), summary: 'Second' })).rejects.toThrow(
-      DuplicateTaskError
+      DuplicateTaskError,
     );
   });
 

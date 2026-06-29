@@ -15,12 +15,12 @@ function mockInput(dir: string): PluginInput {
         message: mock(() =>
           Promise.resolve({
             data: { parts: [{ type: 'text', text: 'test user request' }] },
-          })
+          }),
         ),
         get: mock(() =>
           Promise.resolve({
             data: { model: { providerID: 'test', modelID: 'test-model' } },
-          })
+          }),
         ),
       },
     } as any,
@@ -31,7 +31,7 @@ function mockInput(dir: string): PluginInput {
 }
 
 function makeTransformOutput(
-  messages: { role: string; sessionID: string; parts: { type: string; text: string }[] }[]
+  messages: { role: string; sessionID: string; parts: { type: string; text: string }[] }[],
 ) {
   return {
     messages: messages.map((m, i) => ({
@@ -50,7 +50,7 @@ describe('VibePMPlugin', () => {
     fs.mkdirSync(path.join(tmpDir, 'docs', 'flow'), { recursive: true });
     fs.writeFileSync(
       path.join(tmpDir, 'docs', 'flow', 'test-flow.md'),
-      '**Command**: `/pm-test`\n# Test Flow\n\n## S1\n\n**完成后**: S2\n\n## S2\n\n**完成后**: [*]\n'
+      '**Command**: `/pm-test`\n# Test Flow\n\n## S1\n\n**完成后**: S2\n\n## S2\n\n**完成后**: [*]\n',
     );
     hooks = await VibePMPlugin(mockInput(tmpDir));
   });
@@ -74,7 +74,7 @@ describe('VibePMPlugin', () => {
     >;
     const createResult = await tools.pm_test_flow.execute(
       { summary: 'test task' },
-      { sessionID: 's1', messageID: 'msg-1' }
+      { sessionID: 's1', messageID: 'msg-1' },
     );
     const parsed = JSON.parse(createResult);
     expect(parsed.ok).toBe(true);
@@ -90,7 +90,7 @@ describe('VibePMPlugin', () => {
     ]);
     await hooks['experimental.chat.messages.transform']!(
       {},
-      output as Parameters<NonNullable<(typeof hooks)['experimental.chat.messages.transform']>>[1]
+      output as Parameters<NonNullable<(typeof hooks)['experimental.chat.messages.transform']>>[1],
     );
     const parts = output.messages[0].parts as { type: string; text: string; synthetic?: boolean }[];
     expect(parts.length).toBe(2);
@@ -108,7 +108,7 @@ describe('VibePMPlugin', () => {
     ]);
     await hooks['experimental.chat.messages.transform']!(
       {},
-      output as Parameters<NonNullable<(typeof hooks)['experimental.chat.messages.transform']>>[1]
+      output as Parameters<NonNullable<(typeof hooks)['experimental.chat.messages.transform']>>[1],
     );
     expect(output.messages[0].parts.length).toBe(1);
   });
@@ -126,7 +126,7 @@ describe('VibePMPlugin', () => {
     ]);
     await hooks['experimental.chat.messages.transform']!(
       {},
-      output as Parameters<NonNullable<(typeof hooks)['experimental.chat.messages.transform']>>[1]
+      output as Parameters<NonNullable<(typeof hooks)['experimental.chat.messages.transform']>>[1],
     );
     expect(output.messages[0].parts.length).toBe(1);
   });
@@ -139,7 +139,7 @@ describe('VibePMPlugin', () => {
 
     const createResult = await tools.pm_test_flow.execute(
       { summary: 'dedup test' },
-      { sessionID: 'sd', messageID: 'msg-d' }
+      { sessionID: 'sd', messageID: 'msg-d' },
     );
     expect(JSON.parse(createResult).ok).toBe(true);
 
@@ -149,7 +149,7 @@ describe('VibePMPlugin', () => {
     ]);
     await hooks['experimental.chat.messages.transform']!(
       {},
-      o1 as Parameters<NonNullable<(typeof hooks)['experimental.chat.messages.transform']>>[1]
+      o1 as Parameters<NonNullable<(typeof hooks)['experimental.chat.messages.transform']>>[1],
     );
     expect(o1.messages[0].parts.length).toBe(2);
 
@@ -158,7 +158,7 @@ describe('VibePMPlugin', () => {
     ]);
     await hooks['experimental.chat.messages.transform']!(
       {},
-      o2 as Parameters<NonNullable<(typeof hooks)['experimental.chat.messages.transform']>>[1]
+      o2 as Parameters<NonNullable<(typeof hooks)['experimental.chat.messages.transform']>>[1],
     );
     expect(o2.messages[0].parts.length).toBe(2);
 

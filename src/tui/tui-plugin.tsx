@@ -39,7 +39,7 @@ export function createTuiPlugin(): TuiPlugin {
 
             const [taskStatus, setTaskStatus] = createSignal<TaskStatusData>(
               { type: 'empty' },
-              { equals: false }
+              { equals: false },
             );
             const [tokenData, setTokenData] = createSignal<TokenData>(
               {
@@ -49,7 +49,7 @@ export function createTuiPlugin(): TuiPlugin {
                 cachedTokens: 0,
                 uncachedTokens: 0,
               },
-              { equals: false }
+              { equals: false },
             );
 
             async function refresh() {

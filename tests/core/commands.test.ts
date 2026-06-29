@@ -27,7 +27,7 @@ function createMockEngine() {
         currentStepName: '',
         summary: '测试任务',
         startAt: new Date().toISOString(),
-      })
+      }),
     ),
     getCurrentStep: mock(() =>
       Promise.resolve({
@@ -38,7 +38,7 @@ function createMockEngine() {
         currentStepName: '测试步骤',
         summary: '测试任务',
         startAt: new Date().toISOString(),
-      })
+      }),
     ),
     setStep: mock(() => Promise.resolve(undefined)),
     closeTask: mock(() =>
@@ -51,7 +51,7 @@ function createMockEngine() {
         summary: '测试任务',
         startAt: new Date().toISOString(),
         closed: true,
-      })
+      }),
     ),
   } as any;
 }
@@ -118,7 +118,7 @@ describe('registerCommands', () => {
       Record<string, { template: string; description?: string; agent?: string }> | undefined;
     // registerCommands overwrites old values; template should be the new one defined in COMMANDS
     expect(cmd!['pm-install-flow'].template).toBe(
-      'Install a flow from template library — call the pm_install_flow tool with templateId'
+      'Install a flow from template library — call the pm_install_flow tool with templateId',
     );
   });
 });
@@ -259,7 +259,7 @@ describe('registerTools', () => {
 
     const result = await tools.pm_config.execute(
       { subCommand: 'init', language: 'en-US' },
-      mockToolCtx
+      mockToolCtx,
     );
     const parsed = JSON.parse(typeof result === 'string' ? result : result.output);
     expect(parsed.flow).toBe('pm-config-init');
@@ -283,7 +283,7 @@ describe('registerTools', () => {
 
     const result = await tools.pm_config.execute(
       { subCommand: 'init', language: 'zh-CN' },
-      mockToolCtx
+      mockToolCtx,
     );
     const parsed = JSON.parse(typeof result === 'string' ? result : result.output);
     const scopeStep = parsed.steps.find((s: { id: string }) => s.id === 'scope');
@@ -298,7 +298,7 @@ describe('registerTools', () => {
 
     const result = await tools.pm_config.execute(
       { subCommand: 'init', language: 'en-US' },
-      mockToolCtx
+      mockToolCtx,
     );
     const parsed = JSON.parse(typeof result === 'string' ? result : result.output);
 

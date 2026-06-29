@@ -14,7 +14,7 @@ export class DuplicateActiveTaskError extends Error {
       summary: string;
       startAt: string;
     },
-    locale: string
+    locale: string,
   ) {
     const i18n = getControlPromptTemplate(locale);
     const msg = i18n.error.duplicateActiveTask(
@@ -22,7 +22,7 @@ export class DuplicateActiveTaskError extends Error {
       existingTask.currentStep,
       existingTask.currentStepName,
       existingTask.summary,
-      existingTask.startAt
+      existingTask.startAt,
     );
     super(msg);
     this.name = 'DuplicateActiveTaskError';

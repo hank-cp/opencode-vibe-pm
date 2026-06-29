@@ -18,7 +18,7 @@ import { formatElapsed } from '../types.js';
  */
 export async function loadTaskStatus(
   memory: IMemorySystem,
-  sessionId: string
+  sessionId: string,
 ): Promise<TaskStatusData> {
   const active = await memory.getActiveTask(sessionId);
 

@@ -72,7 +72,7 @@ describe('loadConfig', () => {
 
     expect(result.contextInjection.maxStepTokens).toBe(8000);
     expect(result.contextInjection.pruneIrrelevant).toBe(
-      DEFAULT_CONFIG.contextInjection.pruneIrrelevant
+      DEFAULT_CONFIG.contextInjection.pruneIrrelevant,
     );
   });
 });

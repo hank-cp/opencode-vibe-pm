@@ -84,7 +84,7 @@ const CODING_STYLE_REG_SUBDIR = 'coding_style';
 function installCodingStyleFromTemplate(
   docsDir: string,
   regDir: string,
-  programmingLanguages?: string[]
+  programmingLanguages?: string[],
 ): string[] {
   const result: string[] = [];
   let templateStyleDir = path.join(docsDir, CODING_STYLE_TEMPLATE_SUBDIR);
@@ -138,7 +138,7 @@ function generateCodingStyleIndex(languages: string[]): string {
 
   const lowerLanguages = languages.map((l) => l.toLowerCase());
   const filteredEntries = langEntries.filter((l) =>
-    lowerLanguages.includes(l.file.replace('.md', ''))
+    lowerLanguages.includes(l.file.replace('.md', '')),
   );
 
   const tableRows = filteredEntries
@@ -208,7 +208,7 @@ export function installTemplate(
     programmingLanguages?: string[];
     overwrite?: boolean;
     locale?: string;
-  }
+  },
 ): InstallResult {
   const templates = scanTemplates(projectDir);
   const meta = templates.find((t) => t.id === templateId);
@@ -227,7 +227,7 @@ export function installTemplate(
   const destFlow = path.join(flowDir, `flow-${meta.id}.md`);
   if (fs.existsSync(destFlow) && !options?.overwrite) {
     throw new TemplateConflictError(
-      `"${templateId}" already exists in /docs/flow/. Use --force to overwrite.`
+      `"${templateId}" already exists in /docs/flow/. Use --force to overwrite.`,
     );
   }
   fs.copyFileSync(meta.flowPath, destFlow);
@@ -253,14 +253,14 @@ export function installTemplate(
     docsDir,
     regDir,
     CONSTITUTION_TEMPLATE,
-    CONSTITUTION_OUTPUT
+    CONSTITUTION_OUTPUT,
   );
   if (constResult) regulationPaths.push(constResult);
 
   const codingStylePaths = installCodingStyleFromTemplate(
     docsDir,
     regDir,
-    options?.programmingLanguages
+    options?.programmingLanguages,
   );
 
   return {
@@ -276,7 +276,7 @@ function installRegulationFromTemplate(
   docsDir: string,
   regDir: string,
   templateName: string,
-  outputName: string
+  outputName: string,
 ): string | null {
   const dest = path.join(regDir, outputName);
   if (fs.existsSync(dest)) return null;

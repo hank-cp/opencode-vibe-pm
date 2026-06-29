@@ -176,7 +176,7 @@ ${tableRows}
       step: string,
       stepName: string,
       summary: string,
-      startAt: string
+      startAt: string,
     ) => `
 This session already has an active task:
 - Flow: ${flow}

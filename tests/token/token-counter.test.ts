@@ -242,14 +242,14 @@ describe('TokenCounter', () => {
     it('user role with FlowControl: user total includes FlowControl', () => {
       const msg = makeUserMessage([
         makeTextPart('Fix the bug'),
-        makeFlowControlPart("<protect>Don't skip S1.</protect>"),
+        makeFlowControlPart('<protect>Don\'t skip S1.</protect>'),
       ]);
       const result = counter.countContextTokens(msg);
 
       const expected =
-        expectedTokens('Fix the bug') + expectedTokens("<protect>Don't skip S1.</protect>");
+        expectedTokens('Fix the bug') + expectedTokens('<protect>Don\'t skip S1.</protect>');
       expect(result.user).toBe(expected);
-      expect(result.flowControl).toBe(expectedTokens("<protect>Don't skip S1.</protect>"));
+      expect(result.flowControl).toBe(expectedTokens('<protect>Don\'t skip S1.</protect>'));
     });
 
     it('assistant role: assistant total includes tool + reasoning', () => {

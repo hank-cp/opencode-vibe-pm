@@ -24,11 +24,11 @@ function createTestProject() {
   fs.mkdirSync(path.join(dir, 'docs', 'regulation'), { recursive: true });
   fs.copyFileSync(
     path.join(process.cwd(), 'docs', 'flow', 'test-flow.md'),
-    path.join(dir, 'docs', 'flow', 'test-flow.md')
+    path.join(dir, 'docs', 'flow', 'test-flow.md'),
   );
   fs.copyFileSync(
     path.join(process.cwd(), 'docs', 'regulation', 'constitution.md'),
-    path.join(dir, 'docs', 'regulation', 'constitution.md')
+    path.join(dir, 'docs', 'regulation', 'constitution.md'),
   );
   return dir;
 }
@@ -79,7 +79,7 @@ describe('Task Start', () => {
         flow: 'test-flow',
         summary: 'Second task',
         userRequest: 'dup test 2',
-      })
+      }),
     ).rejects.toThrow('already has active task');
   });
 
@@ -90,7 +90,7 @@ describe('Task Start', () => {
         flow: 'nonexistent',
         summary: 'test',
         userRequest: 'test',
-      })
+      }),
     ).rejects.toThrow(FlowNotFoundError);
   });
 

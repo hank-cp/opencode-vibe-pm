@@ -70,8 +70,8 @@ function toExtra(data?: unknown): Record<string, unknown> | undefined {
   if (typeof data === 'object') {
     return Object.fromEntries(
       Object.entries(data as Record<string, unknown>).filter(
-        ([, v]) => v !== undefined && v !== null
-      )
+        ([, v]) => v !== undefined && v !== null,
+      ),
     );
   }
   return { detail: String(data) };

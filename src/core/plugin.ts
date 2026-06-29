@@ -38,7 +38,7 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
   const locale = validLocales.has(config.language) ? config.language : 'en-US';
   if (!validLocales.has(config.language)) {
     logger.warn(
-      `config.language "${config.language}" not found in available packs, fallback to "en-US"`
+      `config.language "${config.language}" not found in available packs, fallback to "en-US"`,
     );
   }
   setCurrentLocale(locale);
@@ -52,7 +52,7 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
     tool: (() => {
       const tools = Object.assign(
         registerTools(pluginCtx, engine, memory),
-        registerFlowTools(pluginCtx, engine)
+        registerFlowTools(pluginCtx, engine),
       );
       logger.info(`registering tools: ${Object.keys(tools)}`);
       return tools;
@@ -88,7 +88,7 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
         flowSessions.add(msg.info.sessionID ?? '');
       }
       logger.info(
-        `messages.transform hook entered: sid=${sid}, parentSid=${session?.parentID}, modelId=${modelInfo.modelID}, providerId=${modelInfo.providerID}`
+        `messages.transform hook entered: sid=${sid}, parentSid=${session?.parentID}, modelId=${modelInfo.modelID}, providerId=${modelInfo.providerID}`,
       );
       logger.info(`sessionIds in flow: ${flowSessions.size}`);
 
@@ -142,7 +142,7 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
             if (task && !outOfControl) {
               const stepCalled = (task.stepTransitions?.length ?? 0) > 0;
               const hasTodo = msg.parts.some(
-                (p) => p.type === 'tool' && (p as { name?: string }).name === 'todowrite'
+                (p) => p.type === 'tool' && (p as { name?: string }).name === 'todowrite',
               );
               if (hasTodo && !stepCalled) {
                 outOfControl = true;
@@ -183,14 +183,14 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
             task.flow,
             userMsg.parts,
             umInfo.id ?? '',
-            umInfo.sessionID ?? ''
+            umInfo.sessionID ?? '',
           );
           if (outOfControl) {
             engine.injectFlowWarningPrompt(
               sid,
               userMsg.parts,
               umInfo.id ?? '',
-              umInfo.sessionID ?? ''
+              umInfo.sessionID ?? '',
             );
           }
         }

@@ -27,13 +27,13 @@ function writeTemplateBundle(
   projectDir: string,
   id: string,
   name: string,
-  category: string = 'development'
+  category: string = 'development',
 ) {
   const bundleDir = path.join(projectDir, 'docs', 'template', id);
   fs.mkdirSync(bundleDir, { recursive: true });
   fs.writeFileSync(
     path.join(bundleDir, 'flow.md'),
-    `# ${name}\n\n**Template ID**: \`${id}\`\n**Category**: ${category}\n**Description**: Test template ${id}\n**Version**: 1.0.0\n\n---\n\n## 适用场景\n\n测试。\n\n## 状态机\n\n\`\`\`mermaid\nstateDiagram-v2\n    [*] --> S1\n    S1 --> [*]\n\`\`\`\n\n## 任务步骤\n\n### S1: 测试步骤\n\n**目标**：测试。\n**执行 Agent**：Assistant\n\n1. 测试\n\n**完成后**：结束\n`
+    `# ${name}\n\n**Template ID**: \`${id}\`\n**Category**: ${category}\n**Description**: Test template ${id}\n**Version**: 1.0.0\n\n---\n\n## 适用场景\n\n测试。\n\n## 状态机\n\n\`\`\`mermaid\nstateDiagram-v2\n    [*] --> S1\n    S1 --> [*]\n\`\`\`\n\n## 任务步骤\n\n### S1: 测试步骤\n\n**目标**：测试。\n**执行 Agent**：Assistant\n\n1. 测试\n\n**完成后**：结束\n`,
   );
 }
 
@@ -132,7 +132,7 @@ describe('Template Manager', () => {
     fs.writeFileSync(
       flowPath,
       '# Updated Flow\n\n**Template ID**: `dup2`\n\nUpdated content.',
-      'utf-8'
+      'utf-8',
     );
 
     expect(() => installTemplate(tmpDir, 'dup2', { overwrite: true })).not.toThrow();
@@ -227,13 +227,13 @@ describe('Template Manager', () => {
       fs.mkdirSync(opencodeDir, { recursive: true });
       fs.writeFileSync(
         path.join(opencodeDir, 'opencode.jsonc'),
-        JSON.stringify({ plugin: ['vibe-pm'] })
+        JSON.stringify({ plugin: ['vibe-pm'] }),
       );
       fs.writeFileSync(
         path.join(opencodeDir, 'package.json'),
         JSON.stringify({
           dependencies: { 'opencode-dynamic-context-pruning': '^1.0.0' },
-        })
+        }),
       );
       writeTemplateBundle(dir, 'dcp-test', 'DCP Test');
     }

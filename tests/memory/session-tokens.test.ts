@@ -185,7 +185,7 @@ describe('recordSessionTokens with API telemetry', () => {
     await memory.recordSessionTokens(
       's1',
       { text: 0, user: 0, assistant: 0, flowControl: 0, tool: 0, reasoning: 0 },
-      apiTelemetry
+      apiTelemetry,
     );
     const result = await memory.getSessionTokens('s1');
 

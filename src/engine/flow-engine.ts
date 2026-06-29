@@ -22,7 +22,7 @@ export class FlowEngine {
 
   constructor(
     private memory: MemorySystem,
-    projectDir: string
+    projectDir: string,
   ) {
     this.projectDir = projectDir;
   }
@@ -37,15 +37,15 @@ export class FlowEngine {
     flow: string,
     parts: Part[],
     msgId: string,
-    msgSid: string
+    msgSid: string,
   ): Promise<void> {
     if (parts.some((p) => p.type === 'text' && this.promptTemplate!.isControlPromptPart(p.text))) {
-      logger.info(`injectFlowControlPrompt: already injected, skip`);
+      logger.info('injectFlowControlPrompt: already injected, skip');
       return;
     }
 
     const cmdIdx = parts.findIndex(
-      (p) => p.type === 'text' && p.text.includes('<auto-slash-command>')
+      (p) => p.type === 'text' && p.text.includes('<auto-slash-command>'),
     );
     parts.splice(cmdIdx >= 0 ? cmdIdx + 1 : parts.length, 0, {
       id: `prt_vp_${sessionId}_${flow}`,
@@ -79,7 +79,7 @@ export class FlowEngine {
 
   injectFlowWarningPrompt(sessionId: string, parts: Part[], msgId: string, msgSid: string): void {
     if (parts.some((p) => p.type === 'text' && this.promptTemplate!.isWarningPromptPart(p.text))) {
-      logger.info(`injectFlowWarningPrompt: already injected, skip`);
+      logger.info('injectFlowWarningPrompt: already injected, skip');
       return;
     }
 
@@ -95,7 +95,7 @@ export class FlowEngine {
 
   async startTask(params: StartTaskParams): Promise<Task> {
     logger.info(
-      `FlowEngine.startTask: flow=${params.flow} sessionId=${params.sessionId} summary=${params.summary} userRequestLen=${params.userRequest?.length ?? 0}`
+      `FlowEngine.startTask: flow=${params.flow} sessionId=${params.sessionId} summary=${params.summary} userRequestLen=${params.userRequest?.length ?? 0}`,
     );
 
     if (!this.flowExists(params.flow)) {
@@ -106,7 +106,7 @@ export class FlowEngine {
     const isDup = await this.memory.checkDuplicateUserRequest(params.sessionId, params.userRequest);
     if (isDup) {
       logger.warn(
-        `FlowEngine.startTask: duplicate userRequest detected for session ${params.sessionId}`
+        `FlowEngine.startTask: duplicate userRequest detected for session ${params.sessionId}`,
       );
       throw new Error(`This task has been started in Session ${params.sessionId}`);
     }
@@ -114,10 +114,10 @@ export class FlowEngine {
     const existing = await this.memory.getActiveTask(params.sessionId);
     if (existing) {
       logger.warn(
-        `FlowEngine.startTask: session ${params.sessionId} already has active task ${existing.flow}`
+        `FlowEngine.startTask: session ${params.sessionId} already has active task ${existing.flow}`,
       );
       throw new Error(
-        `Session ${params.sessionId} already has active task: ${existing.flow}. Close it before starting a new task.`
+        `Session ${params.sessionId} already has active task: ${existing.flow}. Close it before starting a new task.`,
       );
     }
 
@@ -193,7 +193,7 @@ export class FlowEngine {
   private flowExists(flowName: string): boolean {
     const d = path.join(this.projectDir, 'docs', 'flow');
     return [path.join(d, `flow-${flowName}.md`), path.join(d, `${flowName}.md`)].some((c) =>
-      fs.existsSync(c)
+      fs.existsSync(c),
     );
   }
 

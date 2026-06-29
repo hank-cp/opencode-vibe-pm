@@ -181,7 +181,7 @@ ${tableRows}
       step: string,
       stepName: string,
       summary: string,
-      startAt: string
+      startAt: string,
     ) => `
 当前 Session 已有活跃任务:
 - 流程: ${flow}

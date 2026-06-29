@@ -132,13 +132,13 @@ describe('Token Integration', () => {
 
       const msg = makeUserMessage([
         makeTextPart('Fix the login bug'),
-        makeTextPart("<protect># Rules\n\nDon't skip S1.</protect>"),
+        makeTextPart('<protect># Rules\n\nDon\'t skip S1.</protect>'),
       ]);
 
       const result = tokenCounter.countContextTokens(msg);
 
       // FlowControl token = FC text tokens
-      const fcText = "<protect># Rules\n\nDon't skip S1.</protect>";
+      const fcText = '<protect># Rules\n\nDon\'t skip S1.</protect>';
       const expectedFCTokens = Math.ceil(fcText.length / 4);
       expect(result.flowControl).toBe(expectedFCTokens);
 

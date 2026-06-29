@@ -22,7 +22,7 @@ function writeTemplateWithCommand(
   id: string,
   name: string,
   command: string,
-  opts?: { inputReqs?: boolean }
+  opts?: { inputReqs?: boolean },
 ) {
   const bundleDir = path.join(projectDir, 'docs', 'template', id);
   fs.mkdirSync(bundleDir, { recursive: true });
@@ -30,27 +30,27 @@ function writeTemplateWithCommand(
   let content =
     `# ${name}\n\n` +
     `**Template ID**: \`${id}\`\n` +
-    `**Category**: development\n` +
+    '**Category**: development\n' +
     `**Description**: Test template ${id}\n` +
     `**Command**: \`${command}\`\n` +
-    `**Version**: 1.0.0\n\n` +
-    `---\n\n` +
-    `## 适用场景\n\n用于测试命令文件生成的场景。\n\n`;
+    '**Version**: 1.0.0\n\n' +
+    '---\n\n' +
+    '## 适用场景\n\n用于测试命令文件生成的场景。\n\n';
 
   if (opts?.inputReqs) {
     content +=
-      `## 输入要求\n\n` +
-      `| 输入项 | 必填 | 说明 |\n` +
-      `|--------|------|------|\n` +
-      `| Spec 文档 | 是 | 已存在的规格说明 |\n` +
-      `| 调整需求 | 是 | 要改动什么 |\n\n`;
+      '## 输入要求\n\n' +
+      '| 输入项 | 必填 | 说明 |\n' +
+      '|--------|------|------|\n' +
+      '| Spec 文档 | 是 | 已存在的规格说明 |\n' +
+      '| 调整需求 | 是 | 要改动什么 |\n\n';
   }
 
   content +=
-    `## 状态机\n\n` +
-    `\`\`\`mermaid\nstateDiagram-v2\n    [*] --> S1\n    S1 --> [*]\n\`\`\`\n\n` +
-    `## 任务步骤\n\n` +
-    `### S1: 测试步骤\n\n**目标**：测试。\n**执行 Agent**：Assistant\n\n1. 测试\n\n**完成后**：结束\n`;
+    '## 状态机\n\n' +
+    '```mermaid\nstateDiagram-v2\n    [*] --> S1\n    S1 --> [*]\n```\n\n' +
+    '## 任务步骤\n\n' +
+    '### S1: 测试步骤\n\n**目标**：测试。\n**执行 Agent**：Assistant\n\n1. 测试\n\n**完成后**：结束\n';
 
   fs.writeFileSync(path.join(bundleDir, 'flow.md'), content);
 }
@@ -62,12 +62,12 @@ function writeTemplateWithoutCommand(projectDir: string, id: string, name: strin
   const content =
     `# ${name}\n\n` +
     `**Template ID**: \`${id}\`\n` +
-    `**Category**: development\n` +
+    '**Category**: development\n' +
     `**Description**: Test template ${id}\n` +
-    `**Version**: 1.0.0\n\n` +
-    `---\n\n` +
-    `## 适用场景\n\n无命令模板。\n\n` +
-    `## 任务步骤\n\n### S1: 测试\n\n**目标**：测试。\n**执行 Agent**：Assistant\n\n1. 测试\n\n**完成后**：结束\n`;
+    '**Version**: 1.0.0\n\n' +
+    '---\n\n' +
+    '## 适用场景\n\n无命令模板。\n\n' +
+    '## 任务步骤\n\n### S1: 测试\n\n**目标**：测试。\n**执行 Agent**：Assistant\n\n1. 测试\n\n**完成后**：结束\n';
 
   fs.writeFileSync(path.join(bundleDir, 'flow.md'), content);
 }

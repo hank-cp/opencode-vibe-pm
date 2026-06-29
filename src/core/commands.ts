@@ -118,7 +118,7 @@ export function registerFlowCommands(opencodeConfig: Config, projectDir: string)
 export function registerTools(
   ctx: IPluginContext,
   engine: FlowEngine,
-  memory: MemorySystem
+  memory: MemorySystem,
 ): Record<string, ToolDefinition> {
   const tools: Record<string, ToolDefinition> = {};
 
@@ -251,7 +251,7 @@ function createTaskCurrentStepTool(memory: MemorySystem): ToolDefinition {
 
 async function buildInitInstructions(
   projectDir: string,
-  selectedLanguage?: string
+  selectedLanguage?: string,
 ): Promise<string> {
   const config = loadConfig(projectDir);
   const packs = discoverLanguagePacks();
@@ -280,12 +280,12 @@ function createConfigTool(ctx: IPluginContext): ToolDefinition {
         .string()
         .optional()
         .describe(
-          'Selected interactive language locale (for init sub-command). DO NOT provide this parameter automatically — it must ONLY be set after user explicitly chooses a language via the question tool. When provided, init returns remaining steps in this language.'
+          'Selected interactive language locale (for init sub-command). DO NOT provide this parameter automatically — it must ONLY be set after user explicitly chooses a language via the question tool. When provided, init returns remaining steps in this language.',
         ),
     },
     async execute(
       args: { subCommand?: string; key?: string; value?: string; language?: string },
-      _toolCtx: ToolContext
+      _toolCtx: ToolContext,
     ): Promise<string> {
       const sub = args.subCommand ?? 'view';
 
@@ -380,24 +380,24 @@ function createInstallFlowTool(ctx: IPluginContext): ToolDefinition {
         .string()
         .optional()
         .describe(
-          "Template ID to install (e.g. 'spec-driven-dev', 'bug-fix', 'research', 'large-refactor'). If omitted, lists available templates."
+          'Template ID to install (e.g. \'spec-driven-dev\', \'bug-fix\', \'research\', \'large-refactor\'). If omitted, lists available templates.',
         ),
       programmingLanguages: tool.schema
         .string()
         .optional()
         .describe(
-          "Comma-separated programming language list, provided by LLM after analyzing project structure. Supports: TypeScript, Python, Go, Rust, Java, JavaScript, Kotlin, Ruby, Elixir, C/C++. e.g. 'TypeScript,Go'. When omitted, reads from config cache; falls back to General."
+          'Comma-separated programming language list, provided by LLM after analyzing project structure. Supports: TypeScript, Python, Go, Rust, Java, JavaScript, Kotlin, Ruby, Elixir, C/C++. e.g. \'TypeScript,Go\'. When omitted, reads from config cache; falls back to General.',
         ),
       overwrite: tool.schema
         .boolean()
         .optional()
         .describe(
-          'Whether to overwrite existing flow docs (default false; prompts user to confirm when files exist).'
+          'Whether to overwrite existing flow docs (default false; prompts user to confirm when files exist).',
         ),
     },
     async execute(
       args: { templateId?: string; programmingLanguages?: string; overwrite?: boolean },
-      _toolCtx: ToolContext
+      _toolCtx: ToolContext,
     ): Promise<string> {
       if (args.templateId) {
         try {
@@ -453,7 +453,7 @@ function createInstallFlowTool(ctx: IPluginContext): ToolDefinition {
         (t, i) =>
           `${i + 1}. \`${t.id}\` — ${t.name}（${t.description}）${
             t.command ? `→ \`${t.command}\`` : ''
-          }`
+          }`,
       );
 
       return cmdI18n.templateList(lines.join('\n'));
@@ -487,7 +487,7 @@ function createUninstallFlowTool(ctx: IPluginContext): ToolDefinition {
 
 export function registerFlowTools(
   ctx: IPluginContext,
-  engine: FlowEngine
+  engine: FlowEngine,
 ): Record<string, ToolDefinition> {
   const tools: Record<string, ToolDefinition> = {};
   const flowDir = path.join(ctx.projectDir, 'docs', 'flow');
@@ -513,7 +513,7 @@ function flowNameToToolKey(flowName: string): string {
 function createFlowStartTool(
   ctx: IPluginContext,
   engine: FlowEngine,
-  flowName: string
+  flowName: string,
 ): ToolDefinition {
   const cmdI18n = i18n().tool;
 
@@ -535,7 +535,7 @@ function createFlowStartTool(
     },
     async execute(
       args: { summary?: string; userRequest?: string },
-      _toolCtx: ToolContext
+      _toolCtx: ToolContext,
     ): Promise<string> {
       const { sessionID, messageID } = _toolCtx;
       if (!sessionID) {
@@ -544,7 +544,7 @@ function createFlowStartTool(
       }
 
       logger.info(
-        `createFlowStartTool(${flowName}): sessionID=${sessionID} messageID=${messageID ?? 'N/A'} summary=${args.summary ?? 'N/A'} userRequest=${args.userRequest ? 'provided' : 'extracting'}`
+        `createFlowStartTool(${flowName}): sessionID=${sessionID} messageID=${messageID ?? 'N/A'} summary=${args.summary ?? 'N/A'} userRequest=${args.userRequest ? 'provided' : 'extracting'}`,
       );
 
       // ── Extract userRequest ──
@@ -553,7 +553,7 @@ function createFlowStartTool(
       // 1) If not provided, try the message that triggered the tool (messageID from ToolContext)
       if (!userRequest && messageID) {
         logger.info(
-          `createFlowStartTool(${flowName}): trying message fetch via messageID=${messageID}`
+          `createFlowStartTool(${flowName}): trying message fetch via messageID=${messageID}`,
         );
         try {
           const response = await ctx.client.session.message({
@@ -563,7 +563,7 @@ function createFlowStartTool(
           if (msg && Array.isArray((msg as any).parts)) {
             userRequest = extractText((msg as any).parts);
             logger.info(
-              `createFlowStartTool(${flowName}): extracted from message, len=${userRequest.length}`
+              `createFlowStartTool(${flowName}): extracted from message, len=${userRequest.length}`,
             );
           }
         } catch (err) {
@@ -587,7 +587,7 @@ function createFlowStartTool(
               if (role === 'user') {
                 userRequest = extractText(m.parts ?? []);
                 logger.info(
-                  `createFlowStartTool(${flowName}): extracted from session messages[${i}], len=${userRequest.length}`
+                  `createFlowStartTool(${flowName}): extracted from session messages[${i}], len=${userRequest.length}`,
                 );
                 break;
               }
@@ -616,7 +616,7 @@ function createFlowStartTool(
           userRequest,
         });
         logger.info(
-          `createFlowStartTool(${flowName}): task created id=${task.id} step=${task.currentStep}`
+          `createFlowStartTool(${flowName}): task created id=${task.id} step=${task.currentStep}`,
         );
         return JSON.stringify({
           ok: true,

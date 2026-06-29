@@ -34,7 +34,7 @@ export function loadConfig(projectDir: string): PluginConfig {
   const configPath = path.join(projectDir, PROJECT_CONFIG_REL);
 
   if (!fs.existsSync(configPath)) {
-    logger.info(`vibe-pm/config.json not found, using defaults.`);
+    logger.info('vibe-pm/config.json not found, using defaults.');
     return { ...DEFAULT_CONFIG };
   }
 
@@ -53,8 +53,8 @@ export function loadConfig(projectDir: string): PluginConfig {
     return merged;
   } catch (err) {
     logger.warn(
-      `Failed to parse vibe-pm/config.json, using defaults:`,
-      err instanceof Error ? err.message : err
+      'Failed to parse vibe-pm/config.json, using defaults:',
+      err instanceof Error ? err.message : err,
     );
     return { ...DEFAULT_CONFIG };
   }

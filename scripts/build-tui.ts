@@ -52,7 +52,7 @@ for (const o of serverResult.outputs) {
     console.error(`[vibe-pm] Copied templates: ${srcDir} → ${destDir} (${count} files)`);
   } else {
     console.error(
-      '[vibe-pm] WARNING: docs/template/ not found, plugins will not have built-in templates'
+      '[vibe-pm] WARNING: docs/template/ not found, plugins will not have built-in templates',
     );
   }
 }

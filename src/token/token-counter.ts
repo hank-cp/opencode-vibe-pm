@@ -87,7 +87,7 @@ export class TokenCounter {
           const pieces: string[] = [];
           if (tp.state.input !== undefined) {
             pieces.push(
-              typeof tp.state.input === 'string' ? tp.state.input : JSON.stringify(tp.state.input)
+              typeof tp.state.input === 'string' ? tp.state.input : JSON.stringify(tp.state.input),
             );
           }
           if (tp.state.output) pieces.push(tp.state.output);

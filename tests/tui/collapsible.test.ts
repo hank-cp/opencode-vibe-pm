@@ -18,7 +18,7 @@ describe('formatElapsed', () => {
         getActiveTask: async () => null,
         getLastClosedTask: async () => null,
       } as unknown as Parameters<typeof loadTaskStatus>[0],
-      'test-session'
+      'test-session',
     );
     expect(result.type).toBe('empty');
   });
@@ -36,7 +36,7 @@ describe('formatElapsed', () => {
         }),
         getLastClosedTask: async () => null,
       } as unknown as Parameters<typeof loadTaskStatus>[0],
-      'test-session'
+      'test-session',
     );
     expect(result.type).toBe('active');
     expect(result.flow).toBe('research');
@@ -58,7 +58,7 @@ describe('formatElapsed', () => {
           endAt,
         }),
       } as unknown as Parameters<typeof loadTaskStatus>[0],
-      'test-session'
+      'test-session',
     );
     expect(result.type).toBe('last');
     expect(result.flow).toBe('bug-fix');
@@ -97,7 +97,7 @@ describe('loadTokenData', () => {
         ],
         getSubagentTokens: async () => [],
       } as unknown as Parameters<typeof loadTokenData>[0],
-      'test-session'
+      'test-session',
     );
     // Display formulas with scaleFactor=1.0:
     // FlowControl = 500 * 1 = 500
@@ -130,7 +130,7 @@ describe('loadTokenData', () => {
         getStepTokenBreakdown: async () => [],
         getSubagentTokens: async () => [],
       } as unknown as Parameters<typeof loadTokenData>[0],
-      'test-session'
+      'test-session',
     );
     expect(result.totalTokens).toBe(0);
     expect(result.sourceBreakdown).toHaveLength(0);
@@ -162,7 +162,7 @@ describe('loadTokenData', () => {
         getStepTokenBreakdown: async () => [],
         getSubagentTokens: async () => [],
       } as unknown as Parameters<typeof loadTokenData>[0],
-      'test-session'
+      'test-session',
     );
     // TOTAL = (user + assistant) * scaleFactor = (3000 + 6000) * 2 = 18000
     expect(result.totalTokens).toBe(18000);

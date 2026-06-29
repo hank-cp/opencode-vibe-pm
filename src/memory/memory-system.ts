@@ -36,7 +36,7 @@ function parseJSON<T>(raw: unknown, fallback: T): T {
     try {
       return JSON.parse(raw) as T;
     } catch {
-      logger.debug(`parseJSON: failed to parse JSON, using fallback`);
+      logger.debug('parseJSON: failed to parse JSON, using fallback');
     }
   }
   return fallback;
@@ -210,7 +210,7 @@ export class MemorySystem implements IMemorySystem {
     try {
       this.db.run('ALTER TABLE tasks ADD COLUMN user_request TEXT');
       this.db.run(
-        'CREATE INDEX IF NOT EXISTS idx_tasks_session_id_user_request ON tasks(session_id, user_request)'
+        'CREATE INDEX IF NOT EXISTS idx_tasks_session_id_user_request ON tasks(session_id, user_request)',
       );
     } catch {
       /* column/index already exists */
@@ -223,22 +223,22 @@ export class MemorySystem implements IMemorySystem {
     `);
     this.stmtGetTaskBySession = this.db.prepare('SELECT * FROM tasks WHERE session_id = ? LIMIT 1');
     this.stmtGetActiveTaskBySession = this.db.prepare(
-      'SELECT * FROM tasks WHERE session_id = ? AND closed = 0 LIMIT 1'
+      'SELECT * FROM tasks WHERE session_id = ? AND closed = 0 LIMIT 1',
     );
     this.stmtUpdateTaskStep = this.db.prepare(
-      'UPDATE tasks SET current_step = ?, current_step_name = ? WHERE id = ?'
+      'UPDATE tasks SET current_step = ?, current_step_name = ? WHERE id = ?',
     );
     this.stmtCloseTask = this.db.prepare('UPDATE tasks SET closed = 1, ended_at = ? WHERE id = ?');
     this.stmtListActiveTasks = this.db.prepare('SELECT * FROM tasks WHERE closed = 0');
     this.stmtGetTaskById = this.db.prepare('SELECT * FROM tasks WHERE id = ? LIMIT 1');
     this.stmtUpdateTaskTransitions = this.db.prepare(
-      'UPDATE tasks SET step_transitions = ? WHERE id = ?'
+      'UPDATE tasks SET step_transitions = ? WHERE id = ?',
     );
     this.stmtGetClosedTasksBySession = this.db.prepare(
-      'SELECT * FROM tasks WHERE session_id = ? AND closed = 1'
+      'SELECT * FROM tasks WHERE session_id = ? AND closed = 1',
     );
     this.stmtCheckDupUserRequest = this.db.prepare(
-      'SELECT COUNT(*) AS cnt FROM tasks WHERE session_id = ? AND user_request = ? AND user_request IS NOT NULL AND closed = 0'
+      'SELECT COUNT(*) AS cnt FROM tasks WHERE session_id = ? AND user_request = ? AND user_request IS NOT NULL AND closed = 0',
     );
 
     this.stmtInsertDiscussion = this.db.prepare(`
@@ -246,15 +246,15 @@ export class MemorySystem implements IMemorySystem {
       VALUES ($id, $fromSessionId, $priority, $importance, $severity, $issue, $reason, $solution, $decision, $taskSummary, $createdAt, $resolvedAt)
     `);
     this.stmtGetDiscussionsBySession = this.db.prepare(
-      'SELECT * FROM discussions WHERE from_session_id = ?'
+      'SELECT * FROM discussions WHERE from_session_id = ?',
     );
     this.stmtGetAllDiscussions = this.db.prepare('SELECT * FROM discussions');
     this.stmtResolveDiscussion = this.db.prepare(
-      'UPDATE discussions SET decision = ?, resolved_at = ? WHERE id = ?'
+      'UPDATE discussions SET decision = ?, resolved_at = ? WHERE id = ?',
     );
 
     this.stmtGetMetricsBySessionStep = this.db.prepare(
-      'SELECT * FROM step_token_metrics WHERE session_id = ? AND step = ? LIMIT 1'
+      'SELECT * FROM step_token_metrics WHERE session_id = ? AND step = ? LIMIT 1',
     );
     this.stmtUpdateMetrics = this.db.prepare(`
       UPDATE step_token_metrics SET tokens_consumed = ?, tokens_by_source = ?, step_in_count = ?
@@ -269,7 +269,7 @@ export class MemorySystem implements IMemorySystem {
       VALUES ($id, $sessionId, $flow, $step, $stepName, $stepInCount, $tokensConsumed, $tokensBySource, $taskSummary)
     `);
     this.stmtGetMetricsBySession = this.db.prepare(
-      'SELECT * FROM step_token_metrics WHERE session_id = ?'
+      'SELECT * FROM step_token_metrics WHERE session_id = ?',
     );
     this.stmtGetMetricsByFlow = this.db.prepare('SELECT * FROM step_token_metrics WHERE flow = ?');
 
@@ -278,7 +278,7 @@ export class MemorySystem implements IMemorySystem {
       VALUES ($sessionId, $text, $user, $assistant, $flowControl, $tool, $reasoning, $apiInput, $apiOutput, $apiReasoning, $apiCacheRead, $apiCacheWrite, $scaleFactor, $startedAt, $updatedAt)
     `);
     this.stmtGetSessionTokens = this.db.prepare(
-      'SELECT * FROM session_tokens WHERE session_id = ?'
+      'SELECT * FROM session_tokens WHERE session_id = ?',
     );
     this.stmtUpsertSessionTokens = this.db.prepare(`
        INSERT OR REPLACE INTO session_tokens (session_id, text, "user", assistant, flow_control, tool, reasoning, api_input, api_output, api_reasoning, api_cache_read, api_cache_write, scale_factor, started_at, updated_at)
@@ -289,7 +289,7 @@ export class MemorySystem implements IMemorySystem {
       VALUES ($sessionId, $parentSessionId, $user, $assistant, $apiInput, $apiOutput, $apiReasoning, $apiCacheRead, $apiCacheWrite)
     `);
     this.stmtGetSubagentTokens = this.db.prepare(
-      'SELECT * FROM subagent_tokens WHERE parent_session_id = ?'
+      'SELECT * FROM subagent_tokens WHERE parent_session_id = ?',
     );
   }
 
@@ -316,7 +316,7 @@ export class MemorySystem implements IMemorySystem {
         userRequest: task.userRequest ?? null,
         stepTransitions: null,
         closed: 0,
-      })
+      }),
     );
 
     return task;
@@ -395,7 +395,7 @@ export class MemorySystem implements IMemorySystem {
         ...discussion,
         decision: null,
         resolvedAt: null,
-      })
+      }),
     );
 
     return discussion;
@@ -441,7 +441,7 @@ export class MemorySystem implements IMemorySystem {
     flow: string,
     step: string,
     stepName: string,
-    tokenCount: TokenCount
+    tokenCount: TokenCount,
   ): Promise<void> {
     step = step || 'S1';
     const rawBySource: Record<string, number> = {
@@ -478,7 +478,7 @@ export class MemorySystem implements IMemorySystem {
           tokensConsumed: ((existing['tokens_consumed'] as number) ?? 0) + newTotal,
           tokensBySource: JSON.stringify(merged),
           taskSummary: (existing['task_summary'] as string) ?? '',
-        })
+        }),
       );
     } else {
       let taskSummary = '';
@@ -495,7 +495,7 @@ export class MemorySystem implements IMemorySystem {
           tokensConsumed: newTotal,
           tokensBySource: JSON.stringify(tokensBySource),
           taskSummary,
-        })
+        }),
       );
     }
   }
@@ -505,7 +505,7 @@ export class MemorySystem implements IMemorySystem {
     flow: string,
     step: string,
     stepName: string,
-    taskSummary: string
+    taskSummary: string,
   ): Promise<void> {
     const existing = this.stmtGetMetricsBySessionStep.get(sessionId, step) as
       Record<string, unknown> | undefined;
@@ -515,10 +515,10 @@ export class MemorySystem implements IMemorySystem {
         existing['tokens_consumed'],
         existing['tokens_by_source'],
         (existing['step_in_count'] as number) + 1,
-        existing['id']
+        existing['id'],
       );
       logger.info(
-        `incrementStepCount: step=${step} count=${(existing['step_in_count'] as number) + 1}`
+        `incrementStepCount: step=${step} count=${(existing['step_in_count'] as number) + 1}`,
       );
     } else {
       this.stmtInsertMetrics.run(
@@ -539,7 +539,7 @@ export class MemorySystem implements IMemorySystem {
             Reasoning: 0,
           }),
           taskSummary,
-        })
+        }),
       );
     }
   }
@@ -553,7 +553,7 @@ export class MemorySystem implements IMemorySystem {
         existing['tokens_consumed'],
         existing['tokens_by_source'],
         existing['step_in_count'],
-        existing['id']
+        existing['id'],
       );
     }
   }
@@ -591,14 +591,14 @@ export class MemorySystem implements IMemorySystem {
         scaleFactor: 1.0,
         startedAt: now,
         updatedAt: now,
-      })
+      }),
     );
   }
 
   async recordSessionTokens(
     sessionId: string,
     tokenCount: TokenCount,
-    apiTelemetry?: ApiTelemetry
+    apiTelemetry?: ApiTelemetry,
   ): Promise<void> {
     const now = new Date().toISOString();
 
@@ -631,7 +631,7 @@ export class MemorySystem implements IMemorySystem {
         scaleFactor,
         startedAt: now,
         updatedAt: now,
-      })
+      }),
     );
   }
 
@@ -669,7 +669,7 @@ export class MemorySystem implements IMemorySystem {
     sessionId: string,
     parentSessionId: string,
     tokenCount: TokenCount,
-    apiTelemetry?: ApiTelemetry
+    apiTelemetry?: ApiTelemetry,
   ): Promise<void> {
     this.stmtUpsertSubagentTokens.run(
       prefixKeys({
@@ -682,7 +682,7 @@ export class MemorySystem implements IMemorySystem {
         apiReasoning: apiTelemetry?.reasoning ?? 0,
         apiCacheRead: apiTelemetry?.cache?.read ?? 0,
         apiCacheWrite: apiTelemetry?.cache?.write ?? 0,
-      })
+      }),
     );
   }
 
@@ -740,7 +740,7 @@ export class MemorySystem implements IMemorySystem {
       tokensConsumed: row['tokens_consumed'] as number,
       tokensBySource: parseJSON<Record<string, number>>(
         row['tokens_by_source'],
-        {} as Record<string, number>
+        {} as Record<string, number>,
       ),
       taskSummary: row['task_summary'] as string,
     };

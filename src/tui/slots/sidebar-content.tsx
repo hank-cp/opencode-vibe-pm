@@ -143,7 +143,7 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
                 {td.cachedTokens > 0 &&
                   (() => {
                     const cachePct = Math.round(
-                      (td.cachedTokens / (td.cachedTokens + td.uncachedTokens)) * 100
+                      (td.cachedTokens / (td.cachedTokens + td.uncachedTokens)) * 100,
                     );
                     const right = `${compactTokens(td.cachedTokens)} (${cachePct}%)`;
                     return (
@@ -172,7 +172,7 @@ export function SidebarContent(props: SidebarContentProps): JSX.Element {
             const steps = [...td.stepBreakdown].sort(
               (a, b) =>
                 (parseInt(a.step.replace('S', ''), 10) || 0) -
-                (parseInt(b.step.replace('S', ''), 10) || 0)
+                (parseInt(b.step.replace('S', ''), 10) || 0),
             );
             const stepTokensTotal = steps.reduce((sum, s) => sum + s.tokensConsumed, 0);
             return (
