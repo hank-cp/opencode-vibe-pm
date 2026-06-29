@@ -121,9 +121,8 @@ Any of the following = FLOW EXECUTION FAILURE:
     installSuccess: (id: string) =>
       `[vibe-pm] ✅ Flow "${id}" installed.\n\nInstalled to:\n- docs/flow/flow-${id}.md\n\n⚠️ Restart OpenCode then use \`/pm-${id}\`.`,
     installFailure: (msg: string) => `[vibe-pm] ❌ Install failed: ${msg}`,
-    installStartHint: 'Please translate template files (Read → Translate → Write):',
-    translateDictNote:
-      'dictionary.md: Keep English terms, translate descriptions to target language.',
+    installStartHint:
+      'Translate using the dictionary-template.md terminology table (Read → Translate → Write). Do NOT translate: FSM, Human-in-loop.',
     noTemplatesFound:
       '[vibe-pm] No templates found under docs/template/. Check template directory.',
     templateList: (lines: string) =>
@@ -276,8 +275,7 @@ Follow strictly:
 1. Locate template at these paths (search in order):
   - docs/template/agents-template.md
   - .opencode/node_modules/@laxture/vibe-pm/dist/docs/template/agents-template.md
-  - ~/.opencode/node_modules/@laxture/vibe-pm/dist/docs/template/agents-template.md
-  - ~/.cache/opencode/packages/@laxture/vibe-pm@latest/node_modules/@laxture/vibe-pm/dist/docs/template/agents-template.md
+  - ${import.meta.dirname}/docs/template/agents-template.md
   - Fallback: use glob "**/agents-template.md" to find the file
 2. Scenario A — template found:
   a) AGENTS.md does not exist → generate using template. Placeholder rules:
@@ -380,14 +378,12 @@ Configure DCP (Dynamic Context Pruning) plugin.
           type: 'question',
           instruction: `
 Configure Vision Agent (multimodal image-reading subagent).
-1. Offer multimodal models for user selection: opencode-go/kimi-k2.7-code, opencode/qwen3.6-plus-free, opencode/mimo-v2.5-free
-2. After user selects model, write agent config to .opencode/agents/vision-helper.md
-3. Skip if agent config already exists`,
+1. Write agent config to .opencode/agents/vision-helper.md. Template: ${import.meta.dirname}/docs/template/visual-helper-template.md
+2. Skip if agent config already exists`,
           checkInstalled: 'vision-helper',
           params: {
             header: 'Vision Agent',
-            question:
-              'Configure Vision Agent (multimodal image-reading subagent)? Scans connected models for selection and writes agent config.',
+            question: 'Configure Vision Agent (multimodal image-reading subagent)?',
             options: [
               { label: 'Yes', description: 'Configure Vision Agent' },
               { label: 'No', description: 'Skip' },

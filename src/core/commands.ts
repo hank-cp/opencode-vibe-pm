@@ -10,7 +10,7 @@ import { tool } from '@opencode-ai/plugin';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Config, IPluginContext, PluginConfig, ToolContext, ToolDefinition } from './types.js';
-import { installTemplate, scanTemplates, uninstallFlow } from '../template';
+import { installTemplate, scanTemplates, uninstallFlow, getPluginTemplateDir } from '../template';
 import { loadConfig, writeConfig } from './config.js';
 import type { FlowEngine } from '../engine';
 import type { MemorySystem } from '../memory';
@@ -428,8 +428,10 @@ function createInstallFlowTool(ctx: IPluginContext): ToolDefinition {
             for (const cp of result.codingStylePaths) {
               response += `\n- Coding Style: ${cp}`;
             }
-            if (result.dictionaryPath) {
-              response += `\n- Dictionary: ${result.dictionaryPath} (${i18n.tool.translateDictNote})`;
+            const pluginTemplateDir = getPluginTemplateDir();
+            if (pluginTemplateDir) {
+              const dictTemplatePath = path.join(pluginTemplateDir, 'dictionary-template.md');
+              response += `\n- Dictionary template: ${dictTemplatePath}`;
             }
           }
 

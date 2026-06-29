@@ -128,8 +128,8 @@ const zhCN = {
     installSuccess: (id: string) =>
       `[vibe-pm] ✅ 流程 "${id}" 已成功安装。\n\n已安装到：\n- docs/flow/flow-${id}.md\n\n⚠️ 请重启 OpenCode 后使用 \`/pm-${id}\` 命令启动任务。`,
     installFailure: (msg: string) => `[vibe-pm] ❌ 安装失败：${msg}`,
-    installStartHint: '请使用以下工具翻译安装的模板文件（Read → 翻译 → Write）：',
-    translateDictNote: 'dictionary.md 特殊处理：保留英文术语列，将中文说明列翻译为目标语言。',
+    installStartHint:
+      '请按 dictionary-template.md 的术语表翻译以下文件（Read → 翻译 → Write）。以下名词不翻译: FSM, Human-in-loop。',
     noTemplatesFound: '[vibe-pm] 未在 docs/template/ 下找到任何模板。请确认模板目录结构正确。',
     templateList: (lines: string) =>
       `[vibe-pm] 可用的模板列表：\n\n${lines}\n\n要安装一个流程，请运行：\n\`\`\`\n/pm-install-flow templateId: <模板ID>\n\`\`\``,
@@ -269,7 +269,6 @@ ${tableRows}
         {
           id: 'agents',
           title: 'AGENTS.md',
-          type: 'question',
           instruction: `
 生成或更新 AGENTS.md。为什么要更新？
 - 统一交互语言（Thinking/Reply 语言），保证 AI 输出语言一致
@@ -278,8 +277,7 @@ ${tableRows}
 严格按以下优先级规则执行：
 1. 确认模板，按以下路径顺序查找：
   - docs/template/agents-template.md（项目本地）
-  - ~/.opencode/node_modules/@laxture/vibe-pm/dist/docs/template/agents-template.md（npm 安装的插件内置）
-  - ~/.cache/opencode/packages/@laxture/vibe-pm@latest/node_modules/@laxture/vibe-pm/dist/docs/template/agents-template.md（npm 安装的插件内置）
+  - ${import.meta.dirname}/docs/template/agents-template.md
   - 兜底：使用 glob "**/agents-template.md" 全局搜索该文件
 2. 场景 A — 模板存在：
   a) AGENTS.md 不存在 → 按模板格式生成。占位符填充规则：
@@ -297,6 +295,7 @@ ${tableRows}
     「是否在 AGENTS.md 中引用 /docs/regulation/constitution.md？」
     - 选项 1「是，引用」：在 AGENTS.md 顶部添加 Constitution 引用块。在流程任务中，constitution 约束自动生效
     - 选项 2「否，不引用」：告知用户：不引用时，仅流程任务内会读取 constitution.md；非流程任务中 constitution 的规则约束不会自动生效`,
+          type: 'question',
           checkExists: true,
           templateFile: 'agents-template.md',
           params: {
@@ -379,14 +378,12 @@ ${tableRows}
           type: 'question',
           instruction: `
 配置 Vision Agent（多模态读图子 Agent）。
-1. 提供多模态 model 供用户选择：opencode-go/kimi-k2.7-code, opencode/qwen3.6-plus-free, opencode/mimo-v2.5-free
-2. 用户选择 model 后，将 agent 配置写入 .opencode/agents/vision-helper.md
-3. 如果 agent 配置已存在，跳过此步骤`,
+1. 将 agent 配置写入 .opencode/agents/visual-helper.md. 模板: ${import.meta.dirname}/docs/template/visual-helper-template.md
+2. 如果 agent 配置已存在，跳过此步骤`,
           checkInstalled: 'vision-helper',
           params: {
             header: 'Vision Agent',
-            question:
-              '是否配置 Vision Agent（多模态读图子 Agent）？将扫描已连接 model 供选择，并写入 agent 配置。',
+            question: '是否配置 Vision Agent（多模态读图子 Agent）？',
             options: [
               { label: '是', description: '配置 Vision Agent' },
               { label: '否', description: '跳过' },

@@ -62,7 +62,7 @@ sequenceDiagram
     Core->>User: 展示可用模板列表（question 工具选择）
     User->>Core: 选择模板
     Core->>FS: 复制到 /docs/flow/flow-{name}.md
-    Core->>FS: 复制配套 regulations/*.md → /docs/regulation/
+    Core->>FS: 解析 flow.md 引用标记，复制被引用的 regulation → /docs/regulation/
     Core->>FS: 检测项目语言，复制 _coding_style/{lang}.md → coding_style/
     Core->>FS: 生成 /docs/regulation/coding_style.md 引用入口
     Core->>FS: 生成 .opencode/commands/{command}.md
@@ -243,6 +243,8 @@ S13 [Human-in-loop] 用户验收 → S14 合流
 ### [x] 里程碑 1 — Template Manager MVP
 
 - [x] 模板扫描与安装：`/pm-install-flow` → 约定路径 `docs/template/` → 复制到 `docs/flow/`
+  - 已知问题/风险: regulations 安装改为按 flow.md 引用标记精确复制，不再全量复制 bundleDir/regulations/
+- [x] dictionary 模板安装已移至 `/pm-config init` 流程，`installTemplate` 不再处理
 - [x] 模板卸载：`/pm-uninstall-flow` → 删除 flow 文件 + 对应 command 文件
   - 已知问题/风险: 卸载流程不处理 regulations 文件清理（仅清理 flow + command）
 - [x] Command 文件自动生成（`.opencode/commands/{cmd}.md`）

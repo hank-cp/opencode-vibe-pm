@@ -44,6 +44,10 @@ function writeTemplateWithRegulations(projectDir: string, id: string, regFiles: 
   for (const f of regFiles) {
     fs.writeFileSync(path.join(regDir, f), `# ${f}\n\nTest regulation.`);
   }
+  // Append regulation reference markers to flow.md so they get picked up
+  const flowPath = path.join(projectDir, 'docs', 'template', id, 'flow.md');
+  const refs = regFiles.map((f) => `**Referenced Regulation**: ${f}`).join('\n');
+  fs.appendFileSync(flowPath, `\n${refs}\n`);
 }
 
 describe('Template Manager', () => {
@@ -314,7 +318,6 @@ describe('Template Manager', () => {
         await installTemplate(dir, 'bug-fix');
 
         expect(fs.existsSync(path.join(docsDir, 'regulation', 'constitution.md'))).toBe(true);
-        expect(fs.existsSync(path.join(docsDir, 'regulation', 'dictionary.md'))).toBe(true);
       } finally {
         fs.rmSync(dir, { recursive: true, force: true });
       }

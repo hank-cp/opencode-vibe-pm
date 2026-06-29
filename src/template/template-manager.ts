@@ -21,8 +21,7 @@ const REGULATION_DIR = 'regulation';
 const CODING_STYLE_OUTPUT = 'coding_style.md';
 const CONSTITUTION_TEMPLATE = 'constitution-template.md';
 const CONSTITUTION_OUTPUT = 'constitution.md';
-const DICTIONARY_TEMPLATE = 'dictionary-template.md';
-const DICTIONARY_OUTPUT = 'dictionary.md';
+
 
 // ─── Errors ───
 
@@ -35,7 +34,7 @@ export class TemplateConflictError extends Error {
 
 // ─── Internal Helpers ───
 
-function getPluginTemplateDir(): string | null {
+export function getPluginTemplateDir(): string | null {
   const candidates = [
     path.join(import.meta.dirname, 'docs', TEMPLATE_DIR),
     path.join(import.meta.dirname, '..', 'docs', TEMPLATE_DIR),
@@ -151,6 +150,26 @@ function generateCodingStyleIndex(languages: string[]): string {
   return i18n().codingStyle.generateIndex(languages.join(', '), tableRows);
 }
 
+// ─── Regulation Reference Extraction ───
+
+/**
+ * Extract referenced regulation file names from a flow document.
+ * Supports three format variants:
+ *   **Referenced Regulation**: coding_style.md
+ *   **Referenced Regulations**: coding_style.md, constitution.md
+ *   **Reference Regulation**: coding_style.md, constitution.md
+ */
+function extractReferencedRegulations(flowContent: string): string[] {
+  const pattern = /\*\*(?:Referenced\s+Regulation[s]?|Reference\s+Regulation)\*\*\s*:\s*(.+)/gm;
+  const results: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(flowContent)) !== null) {
+    const files = match[1].split(',').map((f) => f.trim()).filter(Boolean);
+    results.push(...files);
+  }
+  return [...new Set(results)];
+}
+
 // ─── Public API ───
 
 export function scanTemplates(projectDir: string): TemplateMeta[] {
@@ -179,7 +198,6 @@ export interface InstallResult {
   flowPath: string;
   regulationPaths: string[];
   codingStylePaths: string[];
-  dictionaryPath: string | null;
 }
 
 export function installTemplate(
@@ -213,13 +231,19 @@ export function installTemplate(
   }
   fs.copyFileSync(meta.flowPath, destFlow);
 
+  // Parse flow.md to find referenced regulations, then copy only those files
+  const flowContent = fs.readFileSync(meta.flowPath, 'utf-8');
+  const referencedRegs = extractReferencedRegulations(flowContent);
   const bundleRegDir = path.join(meta.bundleDir, 'regulations');
-  if (fs.existsSync(bundleRegDir)) {
-    for (const regFile of fs.readdirSync(bundleRegDir).filter((f) => f.endsWith('.md'))) {
-      const dest = path.join(regDir, regFile);
-      if (!fs.existsSync(dest)) {
-        fs.copyFileSync(path.join(bundleRegDir, regFile), dest);
-        regulationPaths.push(dest);
+  if (referencedRegs.length > 0 && fs.existsSync(bundleRegDir)) {
+    for (const regFile of referencedRegs) {
+      const src = path.join(bundleRegDir, regFile);
+      if (fs.existsSync(src)) {
+        const dest = path.join(regDir, regFile);
+        if (!fs.existsSync(dest)) {
+          fs.copyFileSync(src, dest);
+          regulationPaths.push(dest);
+        }
       }
     }
   }
@@ -231,13 +255,6 @@ export function installTemplate(
     CONSTITUTION_OUTPUT
   );
   if (constResult) regulationPaths.push(constResult);
-
-  const dictResult = installRegulationFromTemplate(
-    docsDir,
-    regDir,
-    DICTIONARY_TEMPLATE,
-    DICTIONARY_OUTPUT
-  );
 
   const codingStylePaths = installCodingStyleFromTemplate(
     docsDir,
@@ -251,7 +268,6 @@ export function installTemplate(
     flowPath: destFlow,
     regulationPaths,
     codingStylePaths,
-    dictionaryPath: dictResult,
   };
 }
 
