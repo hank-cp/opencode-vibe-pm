@@ -443,6 +443,7 @@ export class MemorySystem implements IMemorySystem {
     stepName: string,
     tokenCount: TokenCount
   ): Promise<void> {
+    step = step || 'S1';
     const rawBySource: Record<string, number> = {
       System: tokenCount.text,
       User: tokenCount.user,
