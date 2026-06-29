@@ -344,7 +344,9 @@ Create project term dictionary docs/regulation/dictionary.md (if not exists).
 Configure DCP (Dynamic Context Pruning) plugin.
 1. Use bash to check global and project-level opencode configs for the plugin "@tarquinen/opencode-dcp":
   - ~/.config/opencode/opencode.json (global config)
+  - ~/.config/opencode/opencode.jsonc (global config)
   - ./.opencode/opencode.json (project config)
+  - ./.opencode/opencode.jsonc (project config)
 2. If not installed → suggest installation. Command: "opencode plugin @tarquinen/opencode-dcp@latest --global"
 3. Configure DCP: merge the following config into "~/.config/opencode/dcp.jsonc" or "~/.config/opencode/dcp.json"
    (if neither exists, create dcp.jsonc)
@@ -378,7 +380,7 @@ Configure DCP (Dynamic Context Pruning) plugin.
           type: 'question',
           instruction: `
 Configure Vision Agent (multimodal image-reading subagent).
-1. Write agent config to .opencode/agents/vision-helper.md. Template: ${import.meta.dirname}/docs/template/visual-helper-template.md
+1. Write agent config to .opencode/agents/vision-helper.md. Template: ${import.meta.dirname}/docs/template/visual-helper.md
 2. Skip if agent config already exists`,
           checkInstalled: 'vision-helper',
           params: {

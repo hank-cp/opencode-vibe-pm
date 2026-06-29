@@ -344,8 +344,10 @@ ${tableRows}
           instruction: `
 配置 DCP (Dynamic Context Pruning) 插件。
 1. 用 bash 检查全局和项目级 opencode 配置, 是否包含了插件配置"@tarquinen/opencode-dcp"：
-  - ~/.config/opencode/opencode.json（项目级配置） 
+  - ~/.config/opencode/opencode.json（全局配置） 
+  - ~/.config/opencode/opencode.jsonc（全局配置） 
   - ./.opencode/opencode.json（项目级配置）
+  - ./.opencode/opencode.jsonc（项目级配置）
 2. 若未安装 → 建议用户安装。安装方式："opencode plugin @tarquinen/opencode-dcp@latest --global"
 3. 配置dcp, 将以下配置合并到"~/.config/opencode/dcp.jsonc" 或 "~/.config/opencode/dcp.json" (如都未存在, 创建dcp.jsonc) 
 \`\`\`json
@@ -378,7 +380,7 @@ ${tableRows}
           type: 'question',
           instruction: `
 配置 Vision Agent（多模态读图子 Agent）。
-1. 将 agent 配置写入 .opencode/agents/visual-helper.md. 模板: ${import.meta.dirname}/docs/template/visual-helper-template.md
+1. 将 agent 配置写入 .opencode/agents/visual-helper.md. 模板: ${import.meta.dirname}/docs/template/visual-helper.md
 2. 如果 agent 配置已存在，跳过此步骤`,
           checkInstalled: 'vision-helper',
           params: {
