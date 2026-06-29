@@ -324,7 +324,15 @@ function createConfigTool(ctx: IPluginContext): ToolDefinition {
           const docsDir = path.join(ctx.projectDir, 'docs');
           const regDir = path.join(docsDir, 'regulation');
           const installed = installCodingStyleFromTemplate(docsDir, regDir, languages);
-          return cmdI18n.codingStyleInstalled(installed, regDir);
+          let response = cmdI18n.codingStyleInstalled(installed, regDir);
+          if (config.language !== 'en-US' && installed.length > 0) {
+            const tpl = getControlPromptTemplate(config.language);
+            response += `\n\n${tpl.tool.translateMdFilePrompt}`;
+            for (const f of installed) {
+              response += `\n- Coding Style: ${f}`;
+            }
+          }
+          return response;
         }
 
         return cmdI18n.unknownSubCommand(sub);
@@ -431,7 +439,7 @@ function createInstallFlowTool(ctx: IPluginContext): ToolDefinition {
           let response = i18n.tool.installSuccess(args.templateId);
 
           if (needsTranslation && result.flowPath) {
-            response += `\n\n${i18n.tool.installStartHint}`;
+            response += `\n\n${i18n.tool.translateMdFilePrompt}`;
             response += `\n- Flow: ${result.flowPath}`;
             for (const rp of result.regulationPaths) {
               response += `\n- Regulation: ${rp}`;

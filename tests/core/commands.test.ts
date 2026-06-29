@@ -398,4 +398,32 @@ describe('registerTools', () => {
     const regDir = path.join(tmpDir, 'docs', 'regulation', 'coding_style');
     expect(fs.existsSync(path.join(regDir, 'general.md'))).toBe(true);
   });
+
+  it('pm_config_coding_style_includes_translation_hint: non-en-US locale appends translateMdFilePrompt', async () => {
+    setCurrentLocale('zh-CN');
+    const engine = createMockEngine();
+    const memory = await createTempMemory();
+    writeConfig(tmpDir, { ...mockCtx.config, language: 'zh-CN' });
+    const tools = registerTools(mockCtx, engine, memory);
+
+    const result = await tools.pm_config.execute({ subCommand: 'coding-style' }, mockToolCtx);
+    clearI18nCache();
+    const output = typeof result === 'string' ? result : result.output;
+    expect(output).toContain('✅');
+    expect(output).toContain('名词不翻译');
+  });
+
+  it('pm_config_coding_style_no_hint_for_en_US: en-US locale does not include translateMdFilePrompt', async () => {
+    setCurrentLocale('en-US');
+    const engine = createMockEngine();
+    const memory = await createTempMemory();
+    writeConfig(tmpDir, { ...mockCtx.config, language: 'en-US' });
+    const tools = registerTools(mockCtx, engine, memory);
+
+    const result = await tools.pm_config.execute({ subCommand: 'coding-style' }, mockToolCtx);
+    clearI18nCache();
+    const output = typeof result === 'string' ? result : result.output;
+    expect(output).toContain('✅');
+    expect(output).not.toContain('Do NOT translate');
+  });
 });

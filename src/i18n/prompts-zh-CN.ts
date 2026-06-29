@@ -128,7 +128,7 @@ const zhCN = {
     installSuccess: (id: string) =>
       `[vibe-pm] ✅ 流程 "${id}" 已成功安装。\n\n已安装到：\n- docs/flow/flow-${id}.md\n\n⚠️ 请重启 OpenCode 后使用 \`/pm-${id}\` 命令启动任务。`,
     installFailure: (msg: string) => `[vibe-pm] ❌ 安装失败：${msg}`,
-    installStartHint:
+    translateMdFilePrompt:
       '请按 dictionary-template.md 的术语表翻译以下文件（Read → 翻译 → Write）。以下名词不翻译: FSM, Human-in-loop，以及 flow 文件第 3~7 行元数据（Template ID, Category, Description, Command, Version）。',
     noTemplatesFound: '[vibe-pm] 未在 docs/template/ 下找到任何模板。请确认模板目录结构正确。',
     templateList: (lines: string) =>

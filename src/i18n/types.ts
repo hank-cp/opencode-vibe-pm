@@ -37,7 +37,7 @@ export interface PromptsI18n {
     operationFailed: (msg: string) => string;
     installSuccess: (id: string) => string;
     installFailure: (msg: string) => string;
-    installStartHint: string;
+    translateMdFilePrompt: string;
     codingStyleInstalled: (files: string[], regDir: string) => string;
     noTemplatesFound: string;
     templateList: (lines: string) => string;
