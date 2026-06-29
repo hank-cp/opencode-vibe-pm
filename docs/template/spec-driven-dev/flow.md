@@ -325,8 +325,6 @@ After saving the Plan file, confirm the following item by item:
 
 #### Phase 1: Basic Self-Check
 
-**Referenced Regulation**: checklist.md
-
 1. Are all Plan tasks fully implemented
 2. Do build + tests pass
 3. Is the Spec fully implemented

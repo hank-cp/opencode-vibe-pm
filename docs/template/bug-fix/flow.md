@@ -153,7 +153,6 @@ stateDiagram-v2
 ### S7: Self-Check
 
 **Goal**: Thoroughly self-review fix quality.
-**Referenced Regulation**: checklist.md
 
 1. Does the fix comply with the code quality first principle?
 2. Do all tests pass?

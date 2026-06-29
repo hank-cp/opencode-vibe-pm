@@ -206,7 +206,6 @@ stateDiagram-v2
 ### S11: Self-Check
 
 **Goal**: Comprehensive self-check.
-**Reference Regulation**: checklist.md
 
 1. Is the migration path complete
 2. Does the compatibility layer cover all old APIs
