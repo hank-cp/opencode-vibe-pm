@@ -26,6 +26,11 @@ vibe-pm 的解法：**只注入当前步骤所需的内容** — 不多不少。
 
 关键节点需要人工确认，杜绝无声漂移。
 
+## 设计哲学
+
+- **让 Coding Agent 做一个循规蹈矩的员工。** 不懂就问，而非天马行空的熊孩子。
+- **握住缰绳的是你。** Vibe-coding 时代，你是 AI 的 Boss 和教练，技术决策不放手。
+
 ## 功能
 
 1. 将任务流程控制引入LLM上下文，通过插件保证 vibe-coding 过程**稳定受控**
@@ -112,6 +117,14 @@ opencode plugin @laxture/vibe-pm@latest --global
 | `/pm-task-refresh` | 为当前步骤重新注入上下文 |
 
 流程专用命令（如 `/pm-research`、`/pm-bug-fix`）会在安装对应流程模板后自动生成。
+
+## 最佳搭档
+
+vibe-pm 与以下优秀插件配合，获得更完整的 vibe-coding 体验：
+
+- **[oh-my-openagent](https://github.com/code-yeongyu/oh-my-openagent)** 或 **[oh-my-opencode-slim](https://github.com/alvinunreal/oh-my-opencode-slim)** — 实现多 Agent 协作
+- **[DCP](https://github.com/Opencode-DCP/opencode-dynamic-context-pruning)** — 智能上下文裁剪
+
 
 ## License
 

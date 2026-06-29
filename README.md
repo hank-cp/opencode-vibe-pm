@@ -28,6 +28,11 @@ vibe-pm solves this by injecting **only what the current step needs** — no mor
 
 Key checkpoints require human approval. No silent drift.
 
+## Philosophy
+
+- **Your Coding Agent is a disciplined worker.** It asks when unsure — not a reckless cowboy who runs wild.
+- **You hold the reins.** In vibe-coding, you are the boss and the coach. Technical decisions are yours to make.
+
 ## Features
 
 1. Inject workflow control into LLM context — the plugin ensures **stable, controlled** vibe-coding sessions
@@ -115,6 +120,14 @@ If you've been haunted by "did the AI skip a step?" or "where did that decision 
 | `/pm-task-refresh` | Re-inject context for the current step |
 
 Workflow-specific commands (e.g. `/pm-research`, `/pm-bug-fix`) are auto-generated when you install a flow template.
+
+## Best Partner
+
+vibe-pm pairs well with these excellent plugins for an even better vibe-coding experience:
+
+- **[oh-my-openagent](https://github.com/code-yeongyu/oh-my-openagent)** or **[oh-my-opencode-slim](https://github.com/alvinunreal/oh-my-opencode-slim)** — multi-agent collaboration
+- **[DCP](https://github.com/Opencode-DCP/opencode-dynamic-context-pruning)** — smarter context pruning
+
 
 ## License
 
