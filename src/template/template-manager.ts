@@ -10,7 +10,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { TemplateMeta } from './types.js';
-import { writeDcpConfig } from '../integration';
 import { i18n } from '../i18n';
 
 // ─── Convention Paths ───
@@ -21,7 +20,6 @@ const REGULATION_DIR = 'regulation';
 const CODING_STYLE_OUTPUT = 'coding_style.md';
 const CONSTITUTION_TEMPLATE = 'constitution-template.md';
 const CONSTITUTION_OUTPUT = 'constitution.md';
-
 
 // ─── Errors ───
 
@@ -164,7 +162,10 @@ function extractReferencedRegulations(flowContent: string): string[] {
   const results: string[] = [];
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(flowContent)) !== null) {
-    const files = match[1].split(',').map((f) => f.trim()).filter(Boolean);
+    const files = match[1]
+      .split(',')
+      .map((f) => f.trim())
+      .filter(Boolean);
     results.push(...files);
   }
   return [...new Set(results)];
@@ -226,7 +227,7 @@ export function installTemplate(
   const destFlow = path.join(flowDir, `flow-${meta.id}.md`);
   if (fs.existsSync(destFlow) && !options?.overwrite) {
     throw new TemplateConflictError(
-      `"${templateId}" 已存在。如需覆盖安装，请使用 overwrite 参数。`
+      `"${templateId}" already exists in /docs/flow/. Use --force to overwrite.`
     );
   }
   fs.copyFileSync(meta.flowPath, destFlow);
@@ -261,8 +262,6 @@ export function installTemplate(
     regDir,
     options?.programmingLanguages
   );
-
-  writeDcpConfig(projectDir);
 
   return {
     flowPath: destFlow,
