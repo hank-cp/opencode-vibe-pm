@@ -122,7 +122,7 @@ Any of the following = FLOW EXECUTION FAILURE:
       `[vibe-pm] ✅ Flow "${id}" installed.\n\nInstalled to:\n- docs/flow/flow-${id}.md\n\n⚠️ Restart OpenCode then use \`/pm-${id}\`.`,
     installFailure: (msg: string) => `[vibe-pm] ❌ Install failed: ${msg}`,
     installStartHint:
-      'Translate using the dictionary-template.md terminology table (Read → Translate → Write). Do NOT translate: FSM, Human-in-loop.',
+      'Translate using the dictionary-template.md terminology table (Read → Translate → Write). Do NOT translate: FSM, Human-in-loop, and flow meta lines 3-7 (Template ID, Category, Description, Command, Version).',
     noTemplatesFound:
       '[vibe-pm] No templates found under docs/template/. Check template directory.',
     templateList: (lines: string) =>

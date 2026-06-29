@@ -88,4 +88,20 @@ describe('getControlPromptTemplate', () => {
     const warning = tpl.buildFlowWarningPrompt();
     expect(warning).toContain('流程违规检测');
   });
+
+  it('installStartHint includes L3-L7 flow meta protection (en-US)', () => {
+    const tpl = getControlPromptTemplate('en-US');
+    expect(tpl.tool.installStartHint).toContain('lines 3-7');
+    expect(tpl.tool.installStartHint).toContain('Template ID');
+    expect(tpl.tool.installStartHint).toContain('Category');
+    expect(tpl.tool.installStartHint).toContain('Version');
+  });
+
+  it('installStartHint includes L3-L7 flow meta protection (zh-CN)', () => {
+    const tpl = getControlPromptTemplate('zh-CN');
+    expect(tpl.tool.installStartHint).toContain('第 3~7 行');
+    expect(tpl.tool.installStartHint).toContain('Template ID');
+    expect(tpl.tool.installStartHint).toContain('Category');
+    expect(tpl.tool.installStartHint).toContain('Version');
+  });
 });
