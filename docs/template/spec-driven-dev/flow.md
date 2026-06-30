@@ -275,15 +275,14 @@ After saving the Plan file, confirm the following item by item:
 
 **Goal**: User reviews the complete Plan (Spec changes + Code changes + Conflicts) in one pass, and makes alignment decisions on conflict points.
 
-1. Call `pm_task_set_step(step="S5")` to declare entry into this step
-2. Present the three sections of the Plan document
-3. ⚠️ For each CF-* entry in the "Spec vs Code Conflicts" table, use the `question` tool to ask the user for the alignment direction item by item:
+1. Present the three sections of the Plan document
+2. ⚠️ For each CF-* entry in the "Spec vs Code Conflicts" table, use the `question` tool to ask the user for the alignment direction item by item:
    - Options: `Align to Spec` / `Align to Code` / `Compromise`
    - If the user chooses Compromise, follow up to ask for specific compromise details
-4. After collecting all decisions, use the `confirm` tool to wait for the user's final confirmation of the overall Plan:
-   - **Must** receive **strongly affirmative** instructions from the user such as "confirm / agree / approved / no problem / go ahead / LGTM" before proceeding
-   - Vague or weak affirmative responses ("looks OK", "let's try", "mm", "should be fine") are treated as **unconfirmed**; must follow up for explicit approval
-5. **Strictly prohibited** from performing any code modifications, file edits, or todo creation before receiving explicit confirmation
+3. After collecting all decisions, use the `confirm` tool to wait for the user's final confirmation of the overall Plan:
+    - **Must** receive **strongly affirmative** instructions from the user such as "confirm / agree / approved / no problem / go ahead / LGTM" before proceeding
+    - Vague or weak affirmative responses ("looks OK", "let's try", "mm", "should be fine") are treated as **unconfirmed**; must follow up for explicit approval
+4. **Strictly prohibited** from performing any code modifications, file edits, or todo creation before receiving explicit confirmation
 
 **On completion**: Explicitly confirmed → S6; revisions needed → S4; new ambiguities → S3
 

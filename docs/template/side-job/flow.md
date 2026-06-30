@@ -84,18 +84,17 @@ stateDiagram-v2
 
 **Goal**: Present the execution plan to the user and obtain explicit confirmation.
 
-1. Call `pm_task_set_step(step="S2")` to declare entry into this step
-2. Present the execution plan, including at minimum:
+1. Present the execution plan, including at minimum:
    - **Task Understanding**: A one-sentence summary of what to do
    - **Execution Steps**: Which specific files to modify, what changes to make (order and dependencies)
    - **Scope of Impact**: Modules or features that may be affected
    - **Risk Points**: Areas to watch out for (if any)
-3. ⚠️ Use the `confirm` / `question` tools to wait for the user's explicit confirmation:
-   - **Must** receive a **strongly affirmative** instruction such as "confirmed / agree / approved / no problem / OK / go ahead / LGTM" before proceeding
-   - Vague or weakly affirmative language ("looks doable", "give it a try", "mm", "should be fine") is treated as **unconfirmed** — must follow up with the user for a clear stance
-   - User silence is treated as **unconfirmed** — do not proceed on your own
-4. **Strictly prohibited** from performing any code modifications, file edits, or todo creation before receiving explicit confirmation
-5. If the user requests plan adjustments → return to S1 for re-analysis (or revise in place at this step and re-confirm)
+2. ⚠️ Use the `confirm` / `question` tools to wait for the user's explicit confirmation:
+    - **Must** receive a **strongly affirmative** instruction such as "confirmed / agree / approved / no problem / OK / go ahead / LGTM" before proceeding
+    - Vague or weakly affirmative language ("looks doable", "give it a try", "mm", "should be fine") is treated as **unconfirmed** — must follow up with the user for a clear stance
+    - User silence is treated as **unconfirmed** — do not proceed on your own
+3. **Strictly prohibited** from performing any code modifications, file edits, or todo creation before receiving explicit confirmation
+4. If the user requests plan adjustments → return to S1 for re-analysis (or revise in place at this step and re-confirm)
 
 **State transitions**:
 - User explicitly confirms → S3
@@ -110,14 +109,13 @@ stateDiagram-v2
 
 **Goal**: Execute the task according to the confirmed plan.
 
-1. Call `pm_task_set_step(step="S3")` to declare entry into this step
-2. Create a todo list (if the task involves multiple sub-steps)
-3. Strictly follow the plan confirmed in S2:
-   - Only modify files listed in the plan
-   - Do not introduce changes outside the plan
-   - Follow the project constitution's "Code Quality First" principle
-4. Update todo status upon completing each sub-step
-5. After completion, run project build / type check / LSP diagnostics for verification
+1. Create a todo list (if the task involves multiple sub-steps)
+2. Strictly follow the plan confirmed in S2:
+    - Only modify files listed in the plan
+    - Do not introduce changes outside the plan
+    - Follow the project constitution's "Code Quality First" principle
+3. Update todo status upon completing each sub-step
+4. After completion, run project build / type check / LSP diagnostics for verification
 
 **On completion**: Automatically proceed to S4
 
@@ -129,13 +127,12 @@ stateDiagram-v2
 
 **Goal**: User accepts the final deliverable and confirms completion.
 
-1. Call `pm_task_set_step(step="S4")` to declare entry into this step
-2. Present an execution summary:
+1. Present an execution summary:
    - Which files were modified
    - What changes were made (diff summary)
    - Verification results (build / type check / LSP diagnostics passed or not)
-3. Use the `confirm` / `question` tools to wait for the user's acceptance confirmation
-4. After acceptance, use the `question` tool to ask the user: "Proceed with `git commit`?"
+2. Use the `confirm` / `question` tools to wait for the user's acceptance confirmation
+3. After acceptance, use the `question` tool to ask the user: "Proceed with `git commit`?"
    - If the user chooses "Yes": run `git add -A && git commit`, using the task summary as the commit message
    - If the user chooses "No": skip the commit
    - ⚠️ The user's choice does not affect task completion
