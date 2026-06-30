@@ -203,7 +203,7 @@ export class FlowEngine {
       if (!fs.existsSync(fp)) continue;
       try {
         const raw = fs.readFileSync(fp, 'utf-8');
-        const m = raw.match(new RegExp(`###\\s+${stepId}:\\s*(.+)`, 'i'));
+        const m = raw.match(new RegExp(`###\\s+${stepId}[:|：]\\s*(.+)`, 'i'));
         if (m) {
           const cleaned = m[1]
             .trim()
