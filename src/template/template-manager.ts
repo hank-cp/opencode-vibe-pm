@@ -235,7 +235,7 @@ export function installTemplate(
   // Parse flow.md to find referenced regulations, then copy only those files
   const flowContent = fs.readFileSync(meta.flowPath, 'utf-8');
   const referencedRegs = extractReferencedRegulations(flowContent);
-  const bundleRegDir = path.join(meta.bundleDir, 'regulations');
+  const bundleRegDir = path.join(meta.bundleDir, 'regulation');
   if (referencedRegs.length > 0 && fs.existsSync(bundleRegDir)) {
     for (const regFile of referencedRegs) {
       const src = path.join(bundleRegDir, regFile);

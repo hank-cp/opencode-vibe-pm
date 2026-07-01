@@ -1,115 +1,109 @@
-# Flow 文档模板
+# {Flow Name}
 
-## 用法
-
-新建 Flow 时，复制此模板到 `/docs/flow/flow-{name}.md`，按章节填充。
-
----
-
-# {流程名称}
-
-**Command**: `/{command-name}`
-**版本**: 1.0.0 | **创建日期**: {YYYY-MM-DD}
+**Template ID**: `{flow-name}`
+**Category**: {category}
+**Description**: {description}
+**Command**: `/pm-{flow-name}`
+**Version**: 1.0.0
 
 ---
 
-## 适用场景
+## Applicable Scenarios
 
-{一句话描述此流程适用什么任务类型}
-
----
-
-## 输入要求
-
-| 输入项 | 必填 | 说明 |
-|--------|------|------|
-| {字段名} | 是/否 | {描述} |
+{One sentence describing what task types this flow applies to}
 
 ---
 
-## 默认交付清单
+## Input Requirements
 
-- {交付物1}
-- {交付物2}
+| Input Item | Required | Description |
+|------------|----------|-------------|
+| {field name} | Yes/No | {description} |
 
 ---
 
-## 状态机
+## Default Deliverables
+
+- {deliverable 1}
+- {deliverable 2}
+
+---
+
+## State Machine
 
 ```mermaid
 stateDiagram-v2
-    [*] --> S1_{步骤简称}: 启动任务
-    S1_{步骤简称} --> S2_{步骤简称}: 完成后自动
-    S2_{步骤简称} --> S3_{步骤简称}: 完成后自动
-    S3_{步骤简称} --> S4_{步骤简称}: 完成后自动
-    S4_{步骤简称} --> S4_{步骤简称}: 继续追问
-    S4_{步骤简称} --> S5_{步骤简称}: 用户确认无更多疑问
-    S5_{步骤简称} --> S6_{步骤简称}: 完成后自动
-    S6_{步骤简称} --> S7_{步骤简称}: 用户批准
-    S6_{步骤简称} --> S5_{步骤简称}: 用户要求修改
-    S6_{步骤简称} --> S4_{步骤简称}: 出现新模糊点
-    S7_{步骤简称} --> [*]: 任务结束
+    [*] --> S1_{step abbrev}: Trigger task
+    S1_{step abbrev} --> S2_{step abbrev}: Auto after completion
+    S2_{step abbrev} --> S3_{step abbrev}: Auto after completion
+    S3_{step abbrev} --> S4_{step abbrev}: Auto after completion
+    S4_{step abbrev} --> S4_{step abbrev}: Continue follow-up
+    S4_{step abbrev} --> S5_{step abbrev}: User confirms no more questions
+    S5_{step abbrev} --> S6_{step abbrev}: Auto after completion
+    S6_{step abbrev} --> S7_{step abbrev}: User approves
+    S6_{step abbrev} --> S5_{step abbrev}: User requests revision
+    S6_{step abbrev} --> S4_{step abbrev}: New ambiguity found
+    S7_{step abbrev} --> [*]: Task ends
 
-    note right of S4_{步骤简称}
-        ⚠️ 需要用户介入
+    note right of S4_{step abbrev}
+        ⚠️ Requires user intervention
     end note
 
-    note right of S6_{步骤简称}
-        ⚠️ 需要用户介入
+    note right of S6_{step abbrev}
+        ⚠️ Requires user intervention
     end note
 ```
 
-> **约定**：用 mermaid 的 `note` 标注需要用户介入的步骤。用 label 标注每条边的流转条件。
+> **Convention**: Use mermaid `note` to mark steps that require user intervention. Use labels to describe transition conditions on each edge.
 
 ---
 
-## 任务步骤
+## Task Steps
 
-### S1: {步骤名称}
+### S1: {Step Name}
 
-**目标**：{本步骤要达成的目标}
-**执行 Agent**：{指定 Agent}
-**Referenced Regulation**：{/docs/regulation/文件名，多个逗号分隔，无可省略}
+**Goal**: {The goal this step must achieve}
+**Execution Agent**: {Specified Agent}
+**Referenced Regulation**: {/docs/regulation/filenames, comma-separated, omit if none}
 
-1. {第一步做什么}
-2. {第二步做什么}
+1. {What to do first}
+2. {What to do second}
 
-**完成后**：自动进入 S2
-
----
-
-### S2: {步骤名称}
-
-**目标**：{本步骤要达成的目标}
-**执行 Agent**：{指定 Agent}
-**Referenced Regulation**：{—}
-
-1. {第一步做什么}
-
-**完成后**：自动进入 S3
+**Upon completion**: Auto proceed to S2
 
 ---
 
-### S3: [Human-in-loop] {步骤名称} ⚠️
+### S2: {Step Name}
 
-> **⚠️ 本步骤需要用户介入。** 使用 `question` / `confirm` 阻塞式工具向用户提问，每次只问 1 个问题，等待回复后再继续。
+**Goal**: {The goal this step must achieve}
+**Execution Agent**: {Specified Agent}
+**Referenced Regulation**: {—}
 
-**目标**：{本步骤要达成的目标}
+1. {What to do}
 
-1. 使用 `question` / `confirm` 工具逐步向用户澄清
-2. 每次只问 1 个问题
-3. 循环直到用户确认无更多疑问
-
-**完成后**：用户确认「无更多疑问」→ S4
+**Upon completion**: Auto proceed to S3
 
 ---
 
-{按需添加更多步骤}
+### S3: [Human-in-loop] {Step Name} ⚠️
 
-> **步骤格式约定**：
-> - `⚠️` 标记在步骤名称后 + 独立引用块 = 需要用户介入的步骤
-> - **步骤名称不超过 5 个中文字符**（`[Human-in-loop]`、`⚠️` 等标注前缀不计入）
-> - `**完成后**` 描述流转到下一步的条件
-> - `**目标**` 为必填元信息字段
-> - `**执行 Agent**` 为可选字段
-> - `**Referenced Regulation**` 为可选字段
+> **⚠️ This step requires user intervention.** Use `question` / `confirm` blocking tools to ask the user — only 1 question at a time, wait for reply before continuing.
+
+**Goal**: {The goal this step must achieve}
+
+1. Use `question` / `confirm` tools to progressively clarify with the user
+2. Only 1 question at a time
+3. Loop until user confirms no more questions
+
+**Upon completion**: User confirms "no more questions" → S4
+
+---
+
+{Add more steps as needed}
+
+> **Step Format Convention**:
+> - `⚠️` placed after step name + blockquote = step requiring user intervention
+> - `**Upon completion**` describes the transition condition to the next step
+> - `**Goal**` is a required metadata field
+> - `**Execution Agent**` is optional
+> - `**Referenced Regulation**` is optional
