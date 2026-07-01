@@ -29,7 +29,7 @@
 
 ## Default Deliverables Checklist
 
-- Spec document (format reference: `docs/template/spec-template.md`)
+- Spec document (format reference: `regulation/spec-template.md`)
 - Research notes or decision records if necessary
 
 ---
@@ -137,12 +137,13 @@ stateDiagram-v2
 ### S5: Design Phase
 
 **Goal**: Based on the clarified requirements, produce a structured Spec document.
+**Referenced Regulation**: /docs/regulation/spec-template.md
 
 1. Consolidate all information from S1–S4:
    - Clear requirement background and goals
    - Key decisions and clarification results from user interviews
    - Technical constraints and known facts collected in S2
-2. Populate each section following the organizational structure of `docs/template/spec-template.md`:
+2. Populate each section following the organizational structure of `/docs/regulation/spec-template.md`:
    - Requirement background
    - Use cases and user stories (annotated with priority P1/P2/P3)
    - Design points (domain model, critical paths, conditional branches, interface design, configurable items)
@@ -158,8 +159,6 @@ stateDiagram-v2
    - Decomposed design → master Spec saved as `/docs/spec/{feature-name}/spec-{feature-name}.md`, sub-Specs saved to the same directory
 5. For sections not applicable to the current design, mark "Not Applicable" while retaining the skeleton
 6. Note any open items still pending decision in the design (if any)
-
-**Reference document**: `docs/template/spec-template.md`
 
 **Upon completion**: Automatically proceed to S6
 

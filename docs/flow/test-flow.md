@@ -64,7 +64,7 @@ stateDiagram-v2
 
 **目标**：基于需求设计技术方案或实现计划。
 **执行 Agent**：Assistant
-**引用 Regulation**：coding_style.md
+**引用 Regulation**：/docs/regulation/coding_style.md
 
 1. 分析需求和现有代码约束
 2. 列出可行方案，评估优劣
@@ -80,7 +80,7 @@ stateDiagram-v2
 
 **目标**：用户审查并确认设计方案。
 **执行 Agent**：—
-**引用 Regulation**：checklist.md
+**引用 Regulation**：/docs/regulation/checklist.md
 
 1. 展示方案
 2. 使用 `confirm` 工具等待用户确认
@@ -95,7 +95,7 @@ stateDiagram-v2
 
 **目标**：按确认的方案编写代码。
 **执行 Agent**：Assistant
-**引用 Regulation**：coding_style.md、constitution.md
+**引用 Regulation**：/docs/regulation/coding_style.md、/docs/regulation/constitution.md
 
 1. 按方案实现代码
 2. 遵循代码品质优先原则

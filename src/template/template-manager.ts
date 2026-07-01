@@ -164,7 +164,7 @@ function extractReferencedRegulations(flowContent: string): string[] {
   while ((match = pattern.exec(flowContent)) !== null) {
     const files = match[1]
       .split(',')
-      .map((f) => f.trim())
+      .map((f) => path.basename(f.trim()))
       .filter(Boolean);
     results.push(...files);
   }

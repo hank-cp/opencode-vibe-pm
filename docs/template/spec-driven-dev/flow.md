@@ -291,7 +291,7 @@ After saving the Plan file, confirm the following item by item:
 ### S6: Write Code
 
 **Goal**: Implement according to the Plan.
-**Referenced Regulations**: coding_style.md, constitution.md
+**Referenced Regulation**: coding_style.md
 
 1. Implement change points from the Plan one by one
 2. Run build/type-check after each change
@@ -404,7 +404,6 @@ When S6 has taken more than 5 iterations to reach this step, it indicates the co
 ### S10: Deliver and Merge
 
 **Goal**: Wrap up, update documentation, prepare for commit.
-**Referenced Regulation**: checklist.md
 
 1. Save the delivery report to the Plan
 2. Update the Spec document

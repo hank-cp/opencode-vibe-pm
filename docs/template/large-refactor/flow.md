@@ -129,7 +129,6 @@ stateDiagram-v2
 ### S5: Design Solution and Migration Path
 
 **Goal**: Design a complete refactoring solution and migration plan.
-**Reference Regulation**: coding_style.md, constitution.md
 
 1. Design the new architecture / interfaces / data model
 2. Design the backward compatibility layer (e.g., Adapter / Facade)
@@ -154,7 +153,7 @@ stateDiagram-v2
 ### S7: Write Code (Maintaining Backward Compatibility)
 
 **Goal**: Implement the refactoring incrementally following the migration path.
-**Reference Regulation**: coding_style.md, constitution.md
+**Referenced Regulation**: coding_style.md
 
 1. Build the compatibility layer first, then modify internal implementation
 2. Run build / type check after each change
@@ -167,7 +166,7 @@ stateDiagram-v2
 ### S8: Write Migration Tests
 
 **Goal**: Write tests covering both old and new behavior.
-**Reference Regulation**: coding_style.md
+**Referenced Regulation**: coding_style.md
 
 1. Retain regression tests for old APIs
 2. Add behavioral tests for new APIs
@@ -192,7 +191,7 @@ stateDiagram-v2
 ### S10: Compatibility Verification
 
 **Goal**: Verify backward compatibility.
-**Reference Regulation**: migration-checklist.md
+**Referenced Regulation**: migration-checklist.md
 
 1. Run tests for callers of old APIs
 2. Verify data format compatibility
