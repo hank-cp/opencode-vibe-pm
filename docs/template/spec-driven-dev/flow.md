@@ -121,6 +121,7 @@ stateDiagram-v2
 ### S4: Modify Spec Design
 
 **Goal**: Based on the requirements clarified through S3 interviews, directly modify the Spec documents to reflect the clarified requirements. Every change must be traceable to an S3 interview conclusion.
+**Referenced Regulation**: /docs/regulation/spec-template.md
 
 1. **Review S3 interview results**: Revisit all Q&A sessions, distill the clarified core requirements
 2. **Locate and read relevant Spec documents**: List the involved Spec documents (`docs/spec/`), understand the existing chapter structure
