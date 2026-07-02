@@ -85,6 +85,18 @@ If you attempt a solution and it fails, or roll back after multiple attempts, yo
 
 Never pretend a problem is solved or obscure failure with vague language.
 
+### X. Spec Writing Standards
+
+All Spec documents must follow these requirements:
+
+- **No concrete code** — Express design intent using clear natural language, pseudocode, or structured descriptions. Do not write implementation code in specific programming language syntax (e.g., no TypeScript functions, no SQL queries, no React components). The Spec answers "what" and "why," not "how to implement."
+- **Input/Output clarity** — Clearly define all interfaces: parameters, return values, data types, valid ranges, and boundary conditions. Every external-facing contract must be unambiguous.
+- **Internal logic clarity** — Describe internal processing logic using step sequences, flow descriptions, decision tables, or pseudocode. The design must be clear enough that an engineer can implement it without ambiguity.
+- **No ASCII art** — All diagrams (architecture, flow, sequence, state) must use Mermaid syntax. ASCII art diagrams are strictly forbidden (see Principle IV).
+- **Structured format** — Follow `docs/regulation/spec-template.md` to organize content: background, use cases, domain model, interface design, edge cases, constraints, implementation plan. Retain relevant sections; mark non-applicable sections as "Not Applicable."
+- **Traceability** — Each design decision must be traceable to a requirement, interview conclusion, or constraint. Link back to the source where possible.
+- **Certainty over speculation** — Only write confirmed information. Mark uncertain or undecided items explicitly as "Pending Decision" with the open question stated.
+
 ---
 
 ## Additional Constraints
@@ -104,6 +116,7 @@ Never pretend a problem is solved or obscure failure with vague language.
 |-----------|----------|
 | Type escape (`any` / `@ts-ignore`) | Must rewrite |
 | Skipping requirement clarification and implementing directly | Revert all changes |
+| Writing implementation code in Spec documents | Rewrite as pseudocode or natural language |
 | Deleting failing tests to "pass" | Restore tests + fix root cause |
 | Mixing refactoring into bug fixes | Split into separate tasks |
 | Overwriting user refactored code without consent | Revert + understand intent first |
