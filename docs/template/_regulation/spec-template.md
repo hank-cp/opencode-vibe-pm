@@ -77,38 +77,124 @@ For non-code-oriented features (process design, architecture design, rule defini
 
 ---
 
-## Design Highlights
+## Design
+
+### Modules & Responsibilities
+
+<!--
+  Define clear ownership boundaries. Every piece of logic must belong to exactly one module.
+  A module exposes interfaces; consumers only depend on those interfaces, not internals.
+-->
+
+| Module | Responsibility | Depends On | Exposes |
+|--------|---------------|------------|---------|
+| {Module A} | {What this module owns — its unique job} | {Module B, External Service C} | {Interface X, Interface Y} |
+| {Module B} | {What this module owns} | — | {Interface Z} |
+
+> Use a Mermaid diagram to show module relationships if the dependency graph is non-trivial.
+
+---
 
 ### Domain Model
 
-{Core entities/concepts involved, and the relationships between entities}
+<!-- Core entities/concepts and their relationships -->
 
 | Entity | Attributes | Relationships |
 |--------|------------|---------------|
 | {Entity Name} | {Key Attributes} | {Related entities and their relationships} |
 
-### Critical Path
+---
 
-{Main flow description; may use step list or flow chart}
+### Data Flow
 
-### Conditional Branches
+<!--
+  Describe how data enters the system, flows through modules, and exits.
+  Answer: what triggers the flow? what input data is consumed? what output is produced?
+-->
 
-{Behavior branches under different conditions}
+**Trigger**: {What event or condition initiates this flow}
+
+**Input** → **Processing** → **Output**:
+
+| Stage | Module | Input Data | Action | Output Data |
+|-------|--------|------------|--------|-------------|
+| 1 | {Module A} | {Raw input — type, format} | {What it does} | {Transformed data — type, format} |
+| 2 | {Module B} | {Data from stage 1} | {What it does} | {Final output — type, format} |
+
+---
 
 ### Interface Design
 
-{Externally exposed interfaces, parameters, and return values}
+<!--
+  Each interface must clearly define: what goes in, what comes out, and what can go wrong.
+  Use a separate sub-section for each interface.
+-->
+
+#### {Interface Name}
+
+| Aspect | Detail |
+|--------|--------|
+| **Role** | {What this interface does, in one sentence} |
+| **Owner** | {Module that owns this interface} |
+| **Consumed By** | {Modules or external systems that call this interface} |
+
+**Input**:
+
+| Parameter | Type | Required | Constraints | Default |
+|-----------|------|:--------:|-------------|---------|
+| {name} | {type / enum} | Yes/No | {range, format, length limit, allowed values} | {value} |
+
+**Output**:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| {name} | {type} | {what this field means} |
+
+**Error Cases**:
+
+| Condition | Error | Message | Recovery |
+|-----------|-------|---------|----------|
+| {When does this happen} | {Error type/code} | {User-facing message} | {What the caller should do} |
+
+---
+
+### Internal Logic
+
+<!--
+  Describe how each module processes input to produce output.
+  Use step-by-step descriptions or pseudocode — no implementation code.
+-->
+
+#### {Logic Unit Name}
+
+**Trigger**: {What initiates this logic}
+
+**Steps**:
+
+1. {Step 1 — describe action, not code}
+2. IF {condition} THEN {branch action} ELSE {alternative action}
+3. {Step 3}
+
+**Decision Table** (if applicable):
+
+| Condition | Input State | Action | Output State |
+|-----------|-------------|--------|--------------|
+| {When} | {State A} | {What happens} | {State B} |
+
+---
 
 ### Interaction Design
 
-{User-system interaction flow, key interface layouts, or operation sequences}
+<!-- User-system interaction flow, key interface layouts, or operation sequences -->
 
 > Optionally use Mermaid sequence diagrams to describe interactions
+
+---
 
 ### Configurable Items
 
 | Config Item | Default Value | Description |
-|-------------|---------------|-------------|
+|-------------|:-------------:|-------------|
 | {key} | {value} | {description} |
 
 ---
@@ -117,9 +203,8 @@ For non-code-oriented features (process design, architecture design, rule defini
 
 <!--
   Use this section when the Spec scope is too large to describe all details in a single document.
-  "Design Highlights" retains only the layered architecture (domain model, module relationships, critical path);
-  detailed designs for individual feature points (domain models, interface designs, test cases, etc.)
-  are decomposed into independent Specs.
+  "Design" retains only the layered architecture (modules, domain model, data flow, critical interfaces);
+  detailed designs for individual feature points are decomposed into independent Specs.
   Remove this comment and table when not applicable.
 -->
 
@@ -141,17 +226,19 @@ For non-code-oriented features (process design, architecture design, rule defini
 
 ---
 
-## Test Cases
+## Acceptance Criteria
 
-### ${Test File Name}
+<!--
+  Define verifiable acceptance criteria using Given/When/Then.
+  Each criterion must map to at least one user story.
+  This section replaces implementation-specific test case details.
+-->
 
-- **Test File**: `[file name](/path/to/xxx_test.go)`
-- **Associated Design Doc**: The associated Feature Spec document
-- **Setup/Teardown**: What needs to be done for Setup/Teardown
-
-| Action | Test Method | Given | When | Then | Notes |
-|--------|-------------|-------|------|------|-------|
-| ${Add/Modify/Deprecate} | `${testMethod}` | ${gherkin} | ${gherkin} | ${gherkin} | ${notes} |
+| # | User Story | Given | When | Then |
+|---|:----------:|-------|------|------|
+| 1 | US-1 | {initial state} | {action} | {expected result} |
+| 2 | US-1 | {initial state} | {action} | {expected result} |
+| 3 | US-2 | {initial state} | {action} | {expected result} |
 
 ---
 

@@ -146,11 +146,12 @@ stateDiagram-v2
 2. Populate each section following the organizational structure of `/docs/regulation/spec-template.md`:
    - Requirement background
    - Use cases and user stories (annotated with priority P1/P2/P3)
-   - Design points (domain model, critical paths, conditional branches, interface design, configurable items)
+   - Design: modules & responsibilities, domain model, data flow, interface design (with structured I/O), internal logic, interaction design, configurable items
    - Edge cases and error scenarios
+   - Acceptance criteria (Given/When/Then format)
    - Constraints and limitations (technical constraints, business constraints, known risks, scope of impact)
 3. If the user chose decomposed design in S4:
-   - Produce an overview Spec (master Spec), where "Design Points" only describes the module layering architecture and inter-module interfaces
+    - Produce an overview Spec (master Spec), where "Design" only describes the module layering architecture and inter-module interfaces
    - Produce independent detailed design Specs (full sections) for each independent feature
    - Save sub-Specs to the `/docs/spec/{parent-feature}/` directory, with file naming `spec-{feature-name}.md`
    - Use a "Decomposition Index" table in the master Spec to reference each detailed design Spec
