@@ -123,15 +123,23 @@ stateDiagram-v2
 **Goal**: Based on the requirements clarified through S3 interviews, directly modify the Spec documents to reflect the clarified requirements. Every change must be traceable to an S3 interview conclusion.
 **Referenced Regulation**: /docs/regulation/spec-template.md
 
-1. **Review S3 interview results**: Revisit all Q&A sessions, distill the clarified core requirements
-2. **Locate and read relevant Spec documents**: List the involved Spec documents (`docs/spec/`), understand the existing chapter structure
-3. **Apply Spec changes directly**: For each chapter, determine and execute the change:
+1. **Third-party library skill check (MUST complete before Spec modification)**:
+   - Review the change requirements and identify any third-party component libraries or frameworks involved (e.g., UI libraries, database drivers, API clients, authentication SDKs, etc.)
+   - For each identified dependency, check if a corresponding skill is installed locally using the `skill` tool
+   - ⚠️ If any required skill is missing:
+     - Inform the user which library lacks a skill
+     - Use the `question` tool to ask the user to install or create the required skill
+     - **Do NOT proceed** with Spec modification. Block and wait until the user confirms the skill has been installed, then re-check.
+   - Once all required skills are available (or no third-party dependencies exist), proceed to step 2
+2. **Review S3 interview results**: Revisit all Q&A sessions, distill the clarified core requirements
+3. **Locate and read relevant Spec documents**: List the involved Spec documents (`docs/spec/`), understand the existing chapter structure
+4. **Apply Spec changes directly**: For each chapter, determine and execute the change:
    - **Modify** — Content is outdated, inaccurate, or needs supplementation → edit the file
    - **Add** — New concepts, interfaces, constraints, or flows → write new sections
    - **Delete** — Deprecated design → remove or mark as deprecated
    - **Affected** — Cross-references or dependencies impacted by other changes → update links and references
-4. **Annotate traceability**: Each change should include a brief note linking back to the specific S3 interview conclusion that motivated it
-5. **Keep Spec consistent**: Ensure no contradictions between sections after modifications
+5. **Annotate traceability**: Each change should include a brief note linking back to the specific S3 interview conclusion that motivated it
+6. **Keep Spec consistent**: Ensure no contradictions between sections after modifications
 
 > ⚠️ **Important**: This step modifies Spec documents ONLY. Do NOT write code or create implementation plans yet. Changes must be minimal and directly traceable to interview conclusions.
 

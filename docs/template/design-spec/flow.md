@@ -139,27 +139,35 @@ stateDiagram-v2
 **Goal**: Based on the clarified requirements, produce a structured Spec document.
 **Referenced Regulation**: /docs/regulation/spec-template.md
 
-1. Consolidate all information from S1–S4:
+1. **Third-party library skill check (MUST complete before Spec writing)**:
+   - Review all requirements gathered in S1-S4 and identify any third-party component libraries or frameworks the design depends on (e.g., UI libraries, database drivers, API clients, authentication SDKs, etc.)
+   - For each identified dependency, check if a corresponding skill is installed locally using the `skill` tool
+   - ⚠️ If any required skill is missing:
+     - Inform the user which library lacks a skill: "The Spec depends on {library}. A skill for this library is not installed locally."
+     - Use the `question` tool to ask: "Please install or create a skill for {library} before continuing. Skills can be installed via the OpenCode skill system."
+     - **Do NOT proceed** with Spec writing. Block and wait until the user confirms the skill has been installed, then re-check.
+   - Once all required skills are available (or no third-party dependencies exist), proceed to step 2
+2. Consolidate all information from S1–S4:
    - Clear requirement background and goals
    - Key decisions and clarification results from user interviews
    - Technical constraints and known facts collected in S2
-2. Populate each section following the organizational structure of `/docs/regulation/spec-template.md`:
+3. Populate each section following the organizational structure of `/docs/regulation/spec-template.md`:
    - Requirement background
    - Use cases and user stories (annotated with priority P1/P2/P3)
    - Design: modules & responsibilities, domain model, data flow, interface design (with structured I/O), internal logic, interaction design, configurable items
    - Edge cases and error scenarios
    - Acceptance criteria (Given/When/Then format)
    - Constraints and limitations (technical constraints, business constraints, known risks, scope of impact)
-3. If the user chose decomposed design in S4:
+4. If the user chose decomposed design in S4:
     - Produce an overview Spec (master Spec), where "Design" only describes the module layering architecture and inter-module interfaces
    - Produce independent detailed design Specs (full sections) for each independent feature
    - Save sub-Specs to the `/docs/spec/{parent-feature}/` directory, with file naming `spec-{feature-name}.md`
    - Use a "Decomposition Index" table in the master Spec to reference each detailed design Spec
-4. Output the Spec document(s):
+5. Output the Spec document(s):
    - Conventional design → `/docs/spec/{feature-name}.md`
    - Decomposed design → master Spec saved as `/docs/spec/{feature-name}/spec-{feature-name}.md`, sub-Specs saved to the same directory
-5. For sections not applicable to the current design, mark "Not Applicable" while retaining the skeleton
-6. Note any open items still pending decision in the design (if any)
+6. For sections not applicable to the current design, mark "Not Applicable" while retaining the skeleton
+7. Note any open items still pending decision in the design (if any)
 
 **Upon completion**: Automatically proceed to S6
 
