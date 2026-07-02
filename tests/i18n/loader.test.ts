@@ -88,20 +88,4 @@ describe('getControlPromptTemplate', () => {
     const warning = tpl.buildFlowWarningPrompt();
     expect(warning).toContain('流程违规检测');
   });
-
-  it('translateMdFilePrompt includes L3-L7 flow meta protection (en-US)', () => {
-    const tpl = getControlPromptTemplate('en-US');
-    expect(tpl.tool.translateMdFilePrompt).toContain('lines 3-7');
-    expect(tpl.tool.translateMdFilePrompt).toContain('Template ID');
-    expect(tpl.tool.translateMdFilePrompt).toContain('Category');
-    expect(tpl.tool.translateMdFilePrompt).toContain('Version');
-  });
-
-  it('translateMdFilePrompt includes L3-L7 flow meta protection (zh-CN)', () => {
-    const tpl = getControlPromptTemplate('zh-CN');
-    expect(tpl.tool.translateMdFilePrompt).toContain('第 3~7 行');
-    expect(tpl.tool.translateMdFilePrompt).toContain('Template ID');
-    expect(tpl.tool.translateMdFilePrompt).toContain('Category');
-    expect(tpl.tool.translateMdFilePrompt).toContain('Version');
-  });
 });

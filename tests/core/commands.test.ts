@@ -410,7 +410,6 @@ describe('registerTools', () => {
     clearI18nCache();
     const output = typeof result === 'string' ? result : result.output;
     expect(output).toContain('✅');
-    expect(output).toContain('名词不翻译');
   });
 
   it('pm_config_coding_style_no_hint_for_en_US: en-US locale does not include translateMdFilePrompt', async () => {

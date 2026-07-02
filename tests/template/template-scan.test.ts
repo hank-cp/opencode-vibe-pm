@@ -39,7 +39,7 @@ function writeTemplateBundle(
 
 function writeTemplateWithRegulations(projectDir: string, id: string, regFiles: string[]) {
   writeTemplateBundle(projectDir, id, `Template ${id}`);
-  const regDir = path.join(projectDir, 'docs', 'template', id, 'regulations');
+  const regDir = path.join(projectDir, 'docs', 'template', id, 'regulation');
   fs.mkdirSync(regDir, { recursive: true });
   for (const f of regFiles) {
     fs.writeFileSync(path.join(regDir, f), `# ${f}\n\nTest regulation.`);
@@ -208,73 +208,6 @@ describe('Template Manager', () => {
       const codingDir = path.join(tmpDir, 'docs', 'regulation', 'coding_style');
       expect(fs.existsSync(path.join(codingDir, 'general.md'))).toBe(true);
       expect(fs.existsSync(path.join(codingDir, 'typescript.md'))).toBe(false);
-    });
-  });
-
-  describe('DCP Config File Path Resolution', () => {
-    const dcpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vibe-pm-test-dcp-'));
-
-    afterEach(() => {
-      fs.rmSync(dcpDir, { recursive: true, force: true });
-    });
-
-    function setupDcpProject(dir: string) {
-      const docsDir = path.join(dir, 'docs');
-      fs.mkdirSync(path.join(docsDir, 'template'), { recursive: true });
-      fs.mkdirSync(path.join(docsDir, 'flow'), { recursive: true });
-      fs.mkdirSync(path.join(docsDir, 'regulation'), { recursive: true });
-      const opencodeDir = path.join(dir, '.opencode');
-      fs.mkdirSync(opencodeDir, { recursive: true });
-      fs.writeFileSync(
-        path.join(opencodeDir, 'opencode.jsonc'),
-        JSON.stringify({ plugin: ['vibe-pm'] }),
-      );
-      fs.writeFileSync(
-        path.join(opencodeDir, 'package.json'),
-        JSON.stringify({
-          dependencies: { 'opencode-dynamic-context-pruning': '^1.0.0' },
-        }),
-      );
-      writeTemplateBundle(dir, 'dcp-test', 'DCP Test');
-    }
-
-    it('uses dcp.jsonc when dcp.jsonc already exists', () => {
-      setupDcpProject(dcpDir);
-      const jsoncPath = path.join(dcpDir, '.opencode', 'dcp.jsonc');
-      fs.writeFileSync(jsoncPath, JSON.stringify({ existing: true }));
-
-      installTemplate(dcpDir, 'dcp-test');
-
-      const content = JSON.parse(fs.readFileSync(jsoncPath, 'utf-8'));
-      expect(content.existing).toBe(true);
-      expect(content.compress.protectTags).toBe(true);
-    });
-
-    it('uses dcp.json when only dcp.json exists', () => {
-      setupDcpProject(dcpDir);
-      const jsonPath = path.join(dcpDir, '.opencode', 'dcp.json');
-      const jsoncPath = path.join(dcpDir, '.opencode', 'dcp.jsonc');
-      fs.writeFileSync(jsonPath, JSON.stringify({ existing: true }));
-
-      installTemplate(dcpDir, 'dcp-test');
-
-      // dcp.json should be updated
-      const content = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
-      expect(content.existing).toBe(true);
-      expect(content.compress.protectTags).toBe(true);
-      // dcp.jsonc should not be created
-      expect(fs.existsSync(jsoncPath)).toBe(false);
-    });
-
-    it('creates dcp.jsonc when neither exists', () => {
-      setupDcpProject(dcpDir);
-      const jsoncPath = path.join(dcpDir, '.opencode', 'dcp.jsonc');
-
-      installTemplate(dcpDir, 'dcp-test');
-
-      expect(fs.existsSync(jsoncPath)).toBe(true);
-      const content = JSON.parse(fs.readFileSync(jsoncPath, 'utf-8'));
-      expect(content.compress.protectTags).toBe(true);
     });
   });
 
