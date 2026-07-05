@@ -43,5 +43,6 @@
   - FSM
   - Human-in-loop
   - Command
--  Flow文档的Meta信息字段标题不翻译
+  - Spec
+- Flow文档的Meta信息字段标题不翻译
   - Flow第3-7行的字段标题部分不翻译
