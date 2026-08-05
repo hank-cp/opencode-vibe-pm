@@ -2,30 +2,23 @@
  * vibe-pm 构建脚本
  *
  * 统一使用 Bun.build() API：
- * - Server 插件：纯 TS，无需 JSX 插件
- * - TUI 插件：需 @opentui/solid/bun-plugin 转换 SolidJS JSX
+ * - Server 插件：target=node（Desktop 在 Node.js/Electron sidecar 中加载）
+ * - TUI 插件：target=bun + @opentui/solid/bun-plugin 转换 SolidJS JSX
  * - external @opentui/* 和 solid-js：共享 OpenTUI 运行时的渲染器实例
  */
 import solidPlugin from '@opentui/solid/bun-plugin';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-const shared = {
-  target: 'bun' as const,
+// ─── Server Plugin (Desktop-compatible, target=node) ───
+
+const serverResult = await Bun.build({
+  target: 'node' as const,
   format: 'esm' as const,
   external: [
-    '@opentui/core',
-    '@opentui/solid',
-    '@opentui/keymap',
-    'solid-js',
     '@opencode-ai/plugin',
     'tiktoken',
   ],
-};
-
-// ─── Server Plugin ───
-const serverResult = await Bun.build({
-  ...shared,
   entrypoints: ['./src/index.ts'],
   outdir: './dist',
   naming: { entry: 'index.js' },
@@ -66,9 +59,19 @@ function countFiles(dir: string): number {
   return n;
 }
 
-// ─── TUI Plugin ───
+// ─── TUI Plugin (Bun-only, target=bun) ───
+
 const tuiResult = await Bun.build({
-  ...shared,
+  target: 'bun' as const,
+  format: 'esm' as const,
+  external: [
+    '@opentui/core',
+    '@opentui/solid',
+    '@opentui/keymap',
+    'solid-js',
+    '@opencode-ai/plugin',
+    'tiktoken',
+  ],
   entrypoints: ['./src/tui/index.ts'],
   outdir: './dist/tui',
   plugins: [solidPlugin],

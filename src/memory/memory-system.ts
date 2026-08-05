@@ -1,10 +1,13 @@
 /**
  * MemorySystem — vibe-pm Data Layer
  *
- * Manages three categories of Structured Memory via SQLite (bun:sqlite):
+ * Manages three categories of Structured Memory via SQLite:
  * Task / Discussion / StepTokenMetrics.
+ *
+ * Uses a runtime-adaptive driver (bun:sqlite in CLI/TUI, node:sqlite in Desktop)
+ * to work across both Bun and Node.js/Electron environments.
  */
-import { Database, Statement } from 'bun:sqlite';
+import { openDatabase, type Database, type Statement } from './sqlite-driver.js';
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -110,7 +113,7 @@ export class MemorySystem implements IMemorySystem {
 
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
-    this.db = new Database(dbPath, { create: true });
+    this.db = await openDatabase(dbPath, { create: true });
     this.db.run('PRAGMA journal_mode = WAL');
 
     // ─── DDL ───
