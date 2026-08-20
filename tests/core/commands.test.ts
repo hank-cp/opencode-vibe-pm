@@ -164,13 +164,14 @@ describe('registerTools', () => {
     const tools = registerTools(mockCtx, engine, memory);
 
     const toolNames = Object.keys(tools);
-    expect(toolNames).toHaveLength(6);
+    expect(toolNames).toHaveLength(7);
     expect(toolNames).toContain('pm_install_flow');
     expect(toolNames).toContain('pm_uninstall_flow');
     expect(toolNames).toContain('pm_config');
     expect(toolNames).toContain('pm_task_set_step');
     expect(toolNames).toContain('pm_task_close');
     expect(toolNames).toContain('pm_task_current_step');
+    expect(toolNames).toContain('pm_task_verify');
   });
 
   it('pm_task_set_step_jumps: jumps step and returns JSON', async () => {

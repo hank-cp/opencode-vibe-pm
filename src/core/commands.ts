@@ -140,6 +140,8 @@ export function registerTools(
     }
   }
 
+  tools.pm_task_verify = createVerifyOutputTool(engine);
+
   return tools;
 }
 
@@ -187,8 +189,7 @@ function createTaskSetStepTool(engine: FlowEngine, memory: MemorySystem): ToolDe
   });
 }
 
-function createTaskCloseTool(engine: FlowEngine): ToolDefinition {
-  const cmdI18n = i18n().tool;
+function createTaskCloseTool(engine: FlowEngine): ToolDefinition {  const cmdI18n = i18n().tool;
   return tool({
     description:
       cmdI18n.commandDesc['pm-task-close'] ?? 'Close the current task and trigger analysis',
@@ -247,6 +248,28 @@ function createTaskCurrentStepTool(memory: MemorySystem): ToolDefinition {
           step: task.currentStep,
           stepName: task.currentStepName,
         });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : cmdI18n.unknownError;
+        return JSON.stringify({ ok: false, error: msg });
+      }
+    },
+  });
+}
+
+function createVerifyOutputTool(engine: FlowEngine): ToolDefinition {
+  const cmdI18n = i18n().tool;
+  return tool({
+    description:
+      'Declare the current step output as complete and request the verification flow configured for that step (self-check checklist / review agent / human review). Acts on the active task\'s current step. Use this when a step\'s work is done before moving to the next step.',
+    args: {},
+    async execute(_args: Record<string, never>, toolCtx: ToolContext): Promise<string> {
+      const sessionId = toolCtx.sessionID;
+      if (!sessionId) {
+        return JSON.stringify({ ok: false, error: cmdI18n.noSessionIdShort });
+      }
+
+      try {
+        return JSON.stringify(await engine.verifyOutput(sessionId));
       } catch (err) {
         const msg = err instanceof Error ? err.message : cmdI18n.unknownError;
         return JSON.stringify({ ok: false, error: msg });

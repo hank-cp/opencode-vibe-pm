@@ -478,6 +478,25 @@ FSM mermaid 图扩展约定：审查不通过的回跳边必须在 mermaid 图�
 | 子 session 创建失败 | 启动失败 | 审查 Agent 启动失败，转为加强自查+人工审查 | 降级模式 |
 | 审查超时 | 超时 | 审查超时，请人工确认 | 转人工审查 |
 
+#### 审查 Agent 输出格式约定
+
+> Phase 2 启动补充（S4 修改）：本约定是审查子 session 输出文本与 ReviewResult 解析器之间的接口契约，两者必须一致。
+
+审查 Agent 的固定框架 prompt 要求审查输出按以下约定返回：
+
+- 审查结论以 **JSON fenced block**（` ```json ` 包裹）输出，字段如下：
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `conclusion` | 枚举 | 是 | `pass` / `fail` |
+| `failReason` | 枚举 | 条件必填 | 仅 `conclusion = fail` 时必填；取值：`Execution problem` / `Design problem` / `Unreasonable acceptance criteria` |
+| `feedback` | 文本 | 是 | 审查意见与修改建议 |
+| `nextInput` | 文本 | 是 | 产出主流程下一轮输入的审查结论简报 |
+
+- JSON block 之外允许补充说明文本，解析器仅取 JSON block 内容。
+- 解析器对 JSON block 执行运行时校验（Zod）：
+  - 解析或校验失败（无 JSON block / 字段缺失 / 枚举非法）→ 按「不通过-执行问题」保守处理，`feedback` 附带原始审查输出文本（对应「边界与错误处理」章节「审查结果解析失败」条目）。
+
 #### 记录员 Agent（内部接口）
 
 | 方面 | 详情 |
@@ -564,7 +583,7 @@ FSM mermaid 图扩展约定：审查不通过的回跳边必须在 mermaid 图�
 1. 收集记录输入：步骤变更（from/to）、变更点后的会话消息（含用户消息与 LLM 回复）。
 2. 后台创建记录员子 session（fire-and-forget，不阻塞主会话）。
 3. 记录员按四类内容生成简明简报：任务进展简报、用户关键决策与反馈、审查总结、理解偏差与纠正。篇幅约束：每类 1-3 行。
-4. 增量追加到 `.vibe-pm/journal/{task_id}.md`（首次写入自动创建目录与文件，文件头含任务元信息）。
+4. 增量追加到 `.vibe-pm/journal/{task_id}.md`（首次写入自动创建目录与文件，文件头含任务元信息：Task ID、Flow、任务摘要、任务启动时间）。
 5. 失败静默降级，不打扰主流程。
 
 ### 交互设计
@@ -913,21 +932,23 @@ graph TD
 - [x] 单元测试：解析正确性、非法跳转警告、首次进入校验、降级路径、0.1 文档不校验
   - 已知风险：mermaid 子集解析器的边界定义（note 块、多行标签）
 
-### [ ] Milestone 2 — Phase 2: 审查 Agent 机制
+### [x] Milestone 2 — Phase 2: 审查 Agent 机制
 
-- [ ] 输出验证入口工具注册
-- [ ] Review Agent Manager（子 session 创建、同步等待、结果解析）
-- [ ] 固定审查框架 prompt 设计（通用审查原则）
-- [ ] 审查结果注入与回跳编排
-- [ ] 降级路径（启动失败/超时/解析失败）
-  - 已知风险：同步等待期间主会话体验；审查 prompt 质量需迭代调优
+- [x] 输出验证入口工具注册（独立无参工具 `pm_task_verify`，已裁决项 D）
+- [x] Review Agent Manager（子 session 创建、同步等待、结果解析；超时 Promise.race + 降级）
+- [x] 固定审查框架 prompt 设计（通用审查原则五条 + JSON fenced block 输出契约；`review-framework.ts`，可经 `agents.reviewFramework` 配置覆盖）
+- [x] 审查结果注入与回跳编排（`getRollbackTarget` 按判定原因解析 FSM 回跳边；无匹配边保守回本步骤）
+- [x] 降级路径（启动失败 → 加强自查+人工；超时 → 转人工；解析失败 → 保守不通过-执行问题）
+- [x] 审查记录落库（`reviews` 表）
+  - 已知风险：同步等待期间主会话体验；SDK tools 白名单语义需 Phase 4 端到端实测确认
 
-### [ ] Milestone 3 — Phase 3: 记录员 Agent 机制
+### [x] Milestone 3 — Phase 3: 记录员 Agent 机制
 
-- [ ] Journal Manager（子 session 调度、目录管理、增量追加）
-- [ ] 记录员简报 prompt 设计（四类内容、篇幅约束）
-- [ ] setStep 触发接入（fire-and-forget）
-  - 已知风险：连续快速切换的排队处理
+- [x] Journal Manager（子 session 调度、目录管理、增量追加；FIFO promise 队列串行化）
+- [x] 记录员简报 prompt 设计（四类内容、篇幅约束；`buildJournalPrompt`）
+- [x] setStep 触发接入（fire-and-forget，不阻塞主会话；无 client 环境自动跳过）
+- [x] journal 元数据落库（`journal_entries` 表）
+  - 已知风险：连续快速切换的排队处理（队列串行 + 时间戳条目已落地）
 
 ### [ ] Milestone 4 — Phase 4: 流程模板重构
 
@@ -946,14 +967,14 @@ graph TD
 |---|----------|------|
 | 1 | 废弃模板的已安装实例清理策略 | 用户已安装 design-spec/large-refactor 的项目，卸载提示 or 静默保留？ |
 | 2 | 审查 Agent 固定框架 prompt 的最终文本 | 需在 Phase 2 实现时起草并迭代 |
-| 3 | 输出验证入口的工具命名与形态 | 候选：独立工具 vs 复用现有步骤跳转工具的增强参数 |
 
-### 已裁决项（Phase 1 访谈）
+### 已裁决项
 
-> 以下为 Phase 1 启动前 S3 渐进式访谈的裁决结论，作为设计决策的可追溯来源。
+> 以下为渐进式访谈与评审的裁决结论，作为设计决策的可追溯来源。
 
 | # | 裁决项 | 结论 |
 |---|--------|------|
-| A | 首次进入步骤（当前步骤为空）的校验策略 | 严格校验 FSM 起点集合（`[*]` 出边目标）；目标不在起点集合 → 警告 + 状态不变 |
-| B | 0.1 旧流程是否启用 FSM 校验 | 仅 0.2 格式文档启用校验；0.1 文档保持自由跳转（现状行为） |
+| A | 首次进入步骤（当前步骤为空）的校验策略 | 严格校验 FSM 起点集合（`[*]` 出边目标）；目标不在起点集合 → 警告 + 状态不变（Phase 1 访谈） |
+| B | 0.1 旧流程是否启用 FSM 校验 | 仅 0.2 格式文档启用校验；0.1 文档保持自由跳转（现状行为）（Phase 1 访谈） |
 | C | 0.2 格式字段键语言 | 仅使用英文键；术语中英对照收录 `dictionary.md`（翻译控制列表）；流程文档内容可翻译为本地语言，但字段键必须保持英文（评审修订：不再禁止翻译流程文档，字段键由翻译控制列表约束） |
+| D | 输出验证入口的工具命名与形态 | 独立无参工具 `pm_task_verify`，作用于当前活跃任务的当前步骤；不复用步骤跳转工具的增强参数（Phase 2 启动裁决，依据本 Spec「接口设计 → 输出验证入口（新工具）」章节） |

@@ -138,6 +138,23 @@ Any of the following = FLOW EXECUTION FAILURE:
       `[vibe-pm] ⚠️ Invalid first entry: the task has not entered any step yet; only FSM start steps (${startSteps.join(' / ') || '(none)'}) are allowed, cannot enter ${target} directly.\nStep state unchanged. Enter a start step first.`,
     setStepDegradedNoValidation:
       '[vibe-pm] ℹ️ This flow has no usable FSM state machine (or parsing failed); step transitions are not validated.',
+    verifyNoTask: 'No active task. Start a flow task first.',
+    verifyNoReview:
+      'The current step declares no Output Review. Follow the flow document to confirm this step\'s verification mode, then continue.',
+    verifyNoReviewLegacy:
+      'This flow is legacy (0.1) and declares no Output Review. Follow the self-check/review conventions in the flow document, then proceed to the next step.',
+    verifyNonAgentHint: (modes: string) =>
+      `This step's verification mode is "${modes}" (no review agent). Verify against the checklist item by item, present the conclusions to the user, and use the question/confirm tool to wait for user confirmation before moving to the next step.`,
+    verifyModeSelfCheck: 'self-check',
+    verifyModeHuman: 'human review',
+    verifyDegraded:
+      'The review agent failed to start (host environment error); degraded mode: perform a strengthened self-check and tell the user that the human review of this step is more important. The flow continues.',
+    verifyDegradedNoClient:
+      'Review sub-sessions cannot be started in this environment (host client unavailable); degraded mode: perform a strengthened self-check and tell the user that the human review of this step is more important.',
+    verifyTimeout:
+      'The review timed out; switch to human review: present the step output summary to the user and use the question/confirm tool to wait for user confirmation.',
+    verifySelfCheckNoChecklist:
+      'This step includes self-check but declares no Output Checklist; draft your own check points from the acceptance standard and verify item by item.',
     codingStyleInstalled: (files: string[], regDir: string) =>
       files.length > 0
         ? `[vibe-pm] ✅ Coding style files installed to ${regDir}/:\n${files.map((f) => `- ${f}`).join('\n')}`

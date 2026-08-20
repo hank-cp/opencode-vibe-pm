@@ -14,8 +14,12 @@ import * as path from 'node:path';
 import { logger } from '../core';
 import type {
   CreateDiscussionInput,
+  CreateJournalEntryInput,
+  CreateReviewInput,
   CreateTaskInput,
   Discussion,
+  JournalEntry,
+  ReviewRecord,
   StepTokenMetrics,
   IMemorySystem,
   SessionTokenMetrics,
@@ -97,6 +101,12 @@ export class MemorySystem implements IMemorySystem {
 
   private stmtUpsertSubagentTokens!: Statement;
   private stmtGetSubagentTokens!: Statement;
+
+  private stmtInsertReview!: Statement;
+  private stmtGetReviewsByTask!: Statement;
+
+  private stmtInsertJournalEntry!: Statement;
+  private stmtGetJournalEntriesByTask!: Statement;
 
   /**
    * Initialize database connection and table schema.
@@ -204,6 +214,34 @@ export class MemorySystem implements IMemorySystem {
       );
 
       CREATE INDEX IF NOT EXISTS idx_subagent_tokens_parent_session_id ON subagent_tokens(parent_session_id);
+
+      CREATE TABLE IF NOT EXISTS reviews (
+        id              TEXT NOT NULL,
+        task_id         TEXT NOT NULL,
+        session_id      TEXT NOT NULL,
+        flow            TEXT NOT NULL,
+        step            TEXT NOT NULL,
+        conclusion      TEXT NOT NULL,
+        fail_reason     TEXT,
+        feedback        TEXT NOT NULL,
+        created_at      TEXT NOT NULL,
+        CONSTRAINT reviews_id_pkey PRIMARY KEY (id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_reviews_task_id ON reviews(task_id);
+
+      CREATE TABLE IF NOT EXISTS journal_entries (
+        id              TEXT NOT NULL,
+        task_id         TEXT NOT NULL,
+        from_step       TEXT NOT NULL,
+        to_step         TEXT NOT NULL,
+        at              TEXT NOT NULL,
+        file_path       TEXT NOT NULL,
+        created_at      TEXT NOT NULL,
+        CONSTRAINT journal_entries_id_pkey PRIMARY KEY (id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_journal_entries_task_id ON journal_entries(task_id);
     `.split(';')) {
       const trimmed = stmt.trim();
       if (trimmed) this.db.run(trimmed);
@@ -293,6 +331,22 @@ export class MemorySystem implements IMemorySystem {
     `);
     this.stmtGetSubagentTokens = this.db.prepare(
       'SELECT * FROM subagent_tokens WHERE parent_session_id = ?',
+    );
+
+    this.stmtInsertReview = this.db.prepare(`
+      INSERT INTO reviews (id, task_id, session_id, flow, step, conclusion, fail_reason, feedback, created_at)
+      VALUES ($id, $taskId, $sessionId, $flow, $step, $conclusion, $failReason, $feedback, $createdAt)
+    `);
+    this.stmtGetReviewsByTask = this.db.prepare(
+      'SELECT * FROM reviews WHERE task_id = ? ORDER BY created_at ASC',
+    );
+
+    this.stmtInsertJournalEntry = this.db.prepare(`
+      INSERT INTO journal_entries (id, task_id, from_step, to_step, at, file_path, created_at)
+      VALUES ($id, $taskId, $fromStep, $toStep, $at, $filePath, $createdAt)
+    `);
+    this.stmtGetJournalEntriesByTask = this.db.prepare(
+      'SELECT * FROM journal_entries WHERE task_id = ? ORDER BY created_at ASC',
     );
   }
 
@@ -695,6 +749,53 @@ export class MemorySystem implements IMemorySystem {
   }
 
   // ═══════════════════════════════════════════
+  // Reviews CRUD
+  // ═══════════════════════════════════════════
+
+  async recordReview(input: CreateReviewInput): Promise<ReviewRecord> {
+    const review: ReviewRecord = {
+      ...input,
+      id: generateId(),
+      createdAt: new Date().toISOString(),
+    };
+
+    this.stmtInsertReview.run(
+      prefixKeys({
+        ...review,
+        failReason: review.failReason ?? null,
+      }),
+    );
+
+    return review;
+  }
+
+  async getReviews(taskId: string): Promise<ReviewRecord[]> {
+    const rows = this.stmtGetReviewsByTask.all(taskId) as Record<string, unknown>[];
+    return rows.map((r) => this.rowToReview(r));
+  }
+
+  // ═══════════════════════════════════════════
+  // Journal Entries CRUD
+  // ═══════════════════════════════════════════
+
+  async recordJournalEntry(input: CreateJournalEntryInput): Promise<JournalEntry> {
+    const entry: JournalEntry = {
+      ...input,
+      id: generateId(),
+      createdAt: new Date().toISOString(),
+    };
+
+    this.stmtInsertJournalEntry.run(prefixKeys({ ...entry }));
+
+    return entry;
+  }
+
+  async getJournalEntries(taskId: string): Promise<JournalEntry[]> {
+    const rows = this.stmtGetJournalEntriesByTask.all(taskId) as Record<string, unknown>[];
+    return rows.map((r) => this.rowToJournalEntry(r));
+  }
+
+  // ═══════════════════════════════════════════
   // Row mapping helpers
   // ═══════════════════════════════════════════
 
@@ -780,6 +881,32 @@ export class MemorySystem implements IMemorySystem {
       apiReasoning: row['api_reasoning'] as number,
       apiCacheRead: row['api_cache_read'] as number,
       apiCacheWrite: row['api_cache_write'] as number,
+    };
+  }
+
+  private rowToReview(row: Record<string, unknown>): ReviewRecord {
+    return {
+      id: row['id'] as string,
+      taskId: row['task_id'] as string,
+      sessionId: row['session_id'] as string,
+      flow: row['flow'] as string,
+      step: row['step'] as string,
+      conclusion: row['conclusion'] as ReviewRecord['conclusion'],
+      failReason: (row['fail_reason'] as ReviewRecord['failReason']) ?? undefined,
+      feedback: row['feedback'] as string,
+      createdAt: row['created_at'] as string,
+    };
+  }
+
+  private rowToJournalEntry(row: Record<string, unknown>): JournalEntry {
+    return {
+      id: row['id'] as string,
+      taskId: row['task_id'] as string,
+      fromStep: row['from_step'] as string,
+      toStep: row['to_step'] as string,
+      at: row['at'] as string,
+      filePath: row['file_path'] as string,
+      createdAt: row['created_at'] as string,
     };
   }
 }

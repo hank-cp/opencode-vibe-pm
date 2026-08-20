@@ -47,6 +47,16 @@ export interface PromptsI18n {
     setStepInvalidTransition: (target: string, legalTargets: string[]) => string;
     setStepInvalidEntry: (target: string, startSteps: string[]) => string;
     setStepDegradedNoValidation: string;
+    verifyNoTask: string;
+    verifyNoReview: string;
+    verifyNoReviewLegacy: string;
+    verifyNonAgentHint: (modes: string) => string;
+    verifyModeSelfCheck: string;
+    verifyModeHuman: string;
+    verifyDegraded: string;
+    verifyDegradedNoClient: string;
+    verifyTimeout: string;
+    verifySelfCheckNoChecklist: string;
     commandDesc: Record<string, string>;
     [key: string]: unknown;
   };

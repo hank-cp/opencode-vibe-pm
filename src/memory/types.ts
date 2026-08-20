@@ -17,9 +17,7 @@ export interface StepTransition {
   toStep: string;
   /** Transition timestamp (ISO 8601) */
   at: string;
-}
-
-export interface Task {
+}export interface Task {
   id: string;
   sessionId: string;
   flow: string;
@@ -148,6 +146,65 @@ export interface SubagentTokenMetrics {
   apiCacheWrite: number;
 }
 
+// ─── Review Record ───
+
+/** Structured review conclusion written by the Review Agent Manager */
+export type ReviewConclusion = 'pass' | 'fail' | 'degraded' | 'timeout';
+
+/** Review failure reason classification (rollback target selector) */
+export type ReviewFailReason =
+  | 'Execution problem'
+  | 'Design problem'
+  | 'Unreasonable acceptance criteria';
+
+/** A step output review outcome, persisted per review-agent verification */
+export interface ReviewRecord {
+  id: string;
+  taskId: string;
+  sessionId: string;
+  flow: string;
+  step: string;
+  conclusion: ReviewConclusion;
+  /** Present only when conclusion is "fail" */
+  failReason?: ReviewFailReason;
+  feedback: string;
+  createdAt: string;
+}
+
+export interface CreateReviewInput {
+  taskId: string;
+  sessionId: string;
+  flow: string;
+  step: string;
+  conclusion: ReviewConclusion;
+  failReason?: ReviewFailReason;
+  feedback: string;
+}
+
+// ─── Journal Entry ───
+
+/** Metadata for one journaler briefing appended to the task journal file */
+export interface JournalEntry {
+  id: string;
+  taskId: string;
+  fromStep: string;
+  toStep: string;
+  /** The step transition timestamp (ISO 8601), inherited from setStep */
+  at: string;
+  /** Journal file path the briefing was appended to */
+  filePath: string;
+  /** Entry write time (ISO 8601) */
+  createdAt: string;
+}
+
+export interface CreateJournalEntryInput {
+  taskId: string;
+  fromStep: string;
+  toStep: string;
+  at: string;
+  filePath: string;
+}
+
 // ─── IMemorySystem ───
 
 export interface IMemorySystem {
@@ -206,6 +263,14 @@ export interface IMemorySystem {
     apiTelemetry?: ApiTelemetry
   ): Promise<void>;
   getSubagentTokens(parentSessionId: string): Promise<SubagentTokenMetrics[]>;
+
+  // Reviews
+  recordReview(input: CreateReviewInput): Promise<ReviewRecord>;
+  getReviews(taskId: string): Promise<ReviewRecord[]>;
+
+  // Journal Entries
+  recordJournalEntry(input: CreateJournalEntryInput): Promise<JournalEntry>;
+  getJournalEntries(taskId: string): Promise<JournalEntry[]>;
 
   // Initialization
   init(dataDir: string): Promise<void>;

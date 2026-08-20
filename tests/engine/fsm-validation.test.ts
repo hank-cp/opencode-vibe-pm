@@ -193,3 +193,53 @@ describe('FSM Validation: degraded V2 flows', () => {
     expect(result.notice).toBeTruthy();
   });
 });
+
+describe('Flow Parser: acceptance standard & rollback targets', () => {
+  it('parses the acceptance standard section for V2 flows', async () => {
+    const { parseFlowDocument } = await import('../../src/engine/flow-parser.js');
+    const raw = fs.readFileSync(path.join(FIXTURES, `flow-${V2_FULL}.md`), 'utf-8');
+    const definition = parseFlowDocument(raw, V2_FULL);
+    expect(definition.acceptanceStandard).toBe('Code changes + tests passing');
+
+    const legacy = parseFlowDocument(
+      fs.readFileSync(path.join(FIXTURES, `flow-${V1_LEGACY}.md`), 'utf-8'),
+      V1_LEGACY,
+    );
+    expect(legacy.acceptanceStandard).toBe('');
+  });
+
+  it('resolves rollback targets from FSM edges per reason', async () => {
+    const { getRollbackTarget, parseFlowDocument } = await import(
+      '../../src/engine/flow-parser.js',
+    );
+    const raw = fs.readFileSync(path.join(FIXTURES, `flow-${V2_FULL}.md`), 'utf-8');
+    const definition = parseFlowDocument(raw, V2_FULL);
+
+    expect(getRollbackTarget(definition, 'S3', 'Execution problem')).toBe('S3');
+    expect(getRollbackTarget(definition, 'S3', 'Design problem')).toBe('S2');
+    expect(getRollbackTarget(definition, 'S3', 'Unreasonable acceptance criteria')).toBeNull();
+    expect(getRollbackTarget(definition, 'S1', 'Design problem')).toBeNull();
+  });
+
+  it('resolves Chinese rollback labels as aliases', async () => {
+    const { getRollbackTarget, parseFlowDocument } = await import(
+      '../../src/engine/flow-parser.js',
+    );
+    const raw = [
+      '**Template ID**: `t`',
+      '## 状态机',
+      '```mermaid',
+      'stateDiagram-v2',
+      '    [*] --> S1_Start',
+      '    S1_Start --> S2_Do: 审查不通过-执行问题',
+      '    S1_Start --> S3_Plan: 审查不通过-设计问题',
+      '```',
+      '### S1: Start',
+      '**Output**: x',
+    ].join('\n');
+    const definition = parseFlowDocument(raw, 't');
+
+    expect(getRollbackTarget(definition, 'S1', 'Execution problem')).toBe('S2');
+    expect(getRollbackTarget(definition, 'S1', 'Design problem')).toBe('S3');
+  });
+});

@@ -21,6 +21,11 @@ export const DEFAULT_CONFIG: PluginConfig = {
     maxStepTokens: 0, // 0 = no limit
     pruneIrrelevant: true,
   },
+  agents: {
+    reviewTimeoutMs: 600000,
+    journalMessageWindow: 20,
+    journalDir: '.vibe-pm/journal',
+  },
   debug: {
     logFullRequest: false,
   },
@@ -47,6 +52,13 @@ export function loadConfig(projectDir: string): PluginConfig {
       merged.contextInjection = {
         ...DEFAULT_CONFIG.contextInjection,
         ...parsed.contextInjection,
+      };
+    }
+
+    if (parsed.agents) {
+      merged.agents = {
+        ...DEFAULT_CONFIG.agents,
+        ...parsed.agents,
       };
     }
 

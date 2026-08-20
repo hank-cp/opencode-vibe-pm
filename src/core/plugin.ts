@@ -8,7 +8,7 @@ import {
 } from './commands.js';
 import { initLogger, logger } from './logger.js';
 import { MemorySystem } from '../memory';
-import { FlowEngine } from '../engine';
+import { createSubsessionClient, FlowEngine } from '../engine';
 import type { ApiTelemetry, ModelInfo, TokenCount } from '../token';
 import type { Config, Hooks, IPluginContext, Plugin, PluginInput } from './types.js';
 import type { AssistantMessage, UserMessage } from '@opencode-ai/sdk';
@@ -31,7 +31,10 @@ export const VibePMPlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => 
   const memory = new MemorySystem();
   await memory.init(dataDir);
 
-  const engine = new FlowEngine(memory, ctx.directory);
+  const engine = new FlowEngine(memory, ctx.directory, {
+    subsessionClient: createSubsessionClient(ctx.client),
+    agents: config.agents,
+  });
 
   const packs = discoverLanguagePacks();
   const validLocales = new Set(packs.map((p) => p.locale));

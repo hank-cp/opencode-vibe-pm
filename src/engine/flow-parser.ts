@@ -61,6 +61,12 @@ export interface FlowDefinition {
    * only for V2 documents).
    */
   isV2: boolean;
+  /**
+   * Task-level default acceptance standard, parsed from the
+   * `## 默认交付物与交付标准` / `## Default Deliverables & Acceptance` section.
+   * Empty when the section is absent.
+   */
+  acceptanceStandard: string;
   steps: FlowStep[];
   /** All parsed FSM edges, including `[*]` start/end edges */
   edges: TransitionEdge[];
@@ -335,6 +341,38 @@ function findStateDiagramBlock(raw: string): string | null {
   return null;
 }
 
+// ─── Acceptance Standard Parsing ───
+
+const ACCEPTANCE_SECTION_HEADING_RE =
+  /^##\s+(?:默认交付物与交付标准|Default\s+Deliverables?\s*(?:&|and)\s+Acceptance\s+(?:Standards?|Criteria))\s*$/i;
+
+/**
+ * Extract the task-level default acceptance standard from the
+ * `## 默认交付物与交付标准` section: raw body text between that heading
+ * and the next `## ` heading (or end of document).
+ */
+function parseAcceptanceStandard(raw: string): string {
+  const lines = raw.split('\n');
+  let inSection = false;
+  const body: string[] = [];
+
+  for (const line of lines) {
+    if (inSection) {
+      if (/^##\s+/.test(line) || /^-{3,}\s*$/.test(line.trim())) break;
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      if (trimmed.startsWith('>')) continue;
+      body.push(trimmed.replace(/^[-*]\s+/, ''));
+      continue;
+    }
+    if (ACCEPTANCE_SECTION_HEADING_RE.test(line.trim())) {
+      inSection = true;
+    }
+  }
+
+  return body.join('\n').trim();
+}
+
 // ─── Public API ───
 
 export function parseFlowDocument(raw: string, flowName: string): FlowDefinition {
@@ -363,6 +401,7 @@ export function parseFlowDocument(raw: string, flowName: string): FlowDefinition
     templateId,
     version,
     isV2,
+    acceptanceStandard: parseAcceptanceStandard(raw),
     steps,
     edges: fsm.edges,
     startSteps: fsm.startSteps,
@@ -388,4 +427,43 @@ export function getLegalTargets(definition: FlowDefinition, fromStep: string): s
 export function getStepName(definition: FlowDefinition, stepId: string): string | null {
   const step = definition.steps.find((s) => s.id === stepId);
   return step && step.name !== '' ? step.name : null;
+}
+
+// ─── Rollback Target Resolution ───
+
+const ROLLBACK_REASON_ALIASES: Record<string, string[]> = {
+  'Execution problem': ['Execution problem', '执行问题'],
+  'Design problem': ['Design problem', '设计问题'],
+  'Unreasonable acceptance criteria': ['Unreasonable acceptance criteria', '验收标准不合理'],
+};
+
+/**
+ * Resolve the rollback target for a review failure reason, per the Spec
+ * decision table:
+ *
+ *   - Execution problem → redo the current step (self-loop; conservative
+ *     fallback when the FSM defines no matching self-loop edge).
+ *   - Design problem / Unreasonable acceptance criteria → the target of the
+ *     matching `Review failed-{reason}` rollback edge; null when the FSM
+ *     defines none (caller falls back to the current step).
+ */
+export function getRollbackTarget(
+  definition: FlowDefinition,
+  fromStep: string,
+  reason: string,
+): string | null {
+  const aliases = ROLLBACK_REASON_ALIASES[reason] ?? [reason];
+  const normalize = (s: string): string => s.trim().toLowerCase().replace(/\s+/g, ' ');
+
+  for (const edge of definition.edges) {
+    if (edge.from !== fromStep || !edge.isRollback || !edge.label) continue;
+    for (const alias of aliases) {
+      if (normalize(edge.label).endsWith(normalize(alias))) {
+        return edge.to === TERMINAL_STATE ? null : edge.to;
+      }
+    }
+  }
+
+  if (aliases.includes('Execution problem')) return fromStep;
+  return null;
 }

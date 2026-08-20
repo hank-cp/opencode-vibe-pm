@@ -23,6 +23,18 @@ export { tool } from '@opencode-ai/plugin';
 
 // ─── PluginConfig ───
 
+/** Phase 2/3 agent orchestration settings (all optional, defaults filled by config loader) */
+export interface AgentsConfig {
+  /** Review sub-session sync-wait timeout in milliseconds (default 600000 = 10 min) */
+  reviewTimeoutMs?: number;
+  /** Journaler input window: most recent N conversation messages (default 20) */
+  journalMessageWindow?: number;
+  /** Journal directory relative to the project root (default `.vibe-pm/journal`) */
+  journalDir?: string;
+  /** Override for the built-in review framework prompt (default: built-in framework) */
+  reviewFramework?: string;
+}
+
 export interface PluginConfig {
   language: string;
   dataDir: string;
@@ -34,6 +46,7 @@ export interface PluginConfig {
     maxStepTokens: number;
     pruneIrrelevant: boolean;
   };
+  agents?: AgentsConfig;
   debug?: {
     /** Output full request context at end of system.transform (default false) */
     logFullRequest?: boolean;

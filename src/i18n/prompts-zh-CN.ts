@@ -143,6 +143,23 @@ const zhCN = {
       `[vibe-pm] ⚠️ 首次进入步骤校验失败：任务尚未进入任何步骤，仅允许进入 FSM 起点步骤（${startSteps.join(' / ') || '（无）'}），不能直接进入 ${target}。\n步骤状态未改变。请先进入起点步骤。`,
     setStepDegradedNoValidation:
       '[vibe-pm] ℹ️ 该流程未定义可用的 FSM 状态机（或解析失败），步骤跳转不校验。',
+    verifyNoTask: '当前无活跃任务。请先启动一个流程任务。',
+    verifyNoReview:
+      '当前步骤未声明输出审查（Output Review）。请按流程文档确认本步骤的验证方式后继续。',
+    verifyNoReviewLegacy:
+      '该流程为旧格式（0.1），未声明输出审查。请按流程文档中的自查/审查约定执行，完成后自行进入下一步骤。',
+    verifyNonAgentHint: (modes: string) =>
+      `本步骤验证方式为「${modes}」（无审查 Agent）。请按自查清单逐项核对后，向用户说明核对结论，并使用 question/confirm 工具等待用户确认，再进入下一步骤。`,
+    verifyModeSelfCheck: '自查',
+    verifyModeHuman: '人工审查',
+    verifyDegraded:
+      '审查 Agent 启动失败（宿主环境异常），已转为降级模式：请执行加强版自查，并提示用户本步骤的人工审查更为重要。流程不中断。',
+    verifyDegradedNoClient:
+      '当前环境无法启动审查子会话（宿主 client 不可用），已转为降级模式：请执行加强版自查，并提示用户本步骤的人工审查更为重要。',
+    verifyTimeout:
+      '审查超时，请转人工审查：向用户展示本步骤输出摘要，使用 question/confirm 工具等待用户确认。',
+    verifySelfCheckNoChecklist:
+      '本步骤验证方式含自查但未定义自查清单（Output Checklist），请按验收标准自行拟定核对要点逐项核对。',
     codingStyleInstalled: (files: string[], regDir: string) =>
       files.length > 0
         ? `[vibe-pm] ✅ 编码风格文件已安装到 ${regDir}/：\n${files.map((f) => `- ${f}`).join('\n')}`
