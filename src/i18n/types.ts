@@ -44,6 +44,9 @@ export interface PromptsI18n {
     uninstallSuccess: (name: string) => string;
     uninstallFailure: (msg: string) => string;
     flowStartNoSession: string;
+    setStepInvalidTransition: (target: string, legalTargets: string[]) => string;
+    setStepInvalidEntry: (target: string, startSteps: string[]) => string;
+    setStepDegradedNoValidation: string;
     commandDesc: Record<string, string>;
     [key: string]: unknown;
   };

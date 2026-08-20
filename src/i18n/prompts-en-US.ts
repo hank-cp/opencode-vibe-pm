@@ -132,6 +132,12 @@ Any of the following = FLOW EXECUTION FAILURE:
     uninstallFailure: (msg: string) => `[vibe-pm] ❌ Uninstall failed: ${msg}`,
     noSessionIdShort: 'Cannot get current Session ID',
     flowStartNoSession: 'Cannot get current Session ID.',
+    setStepInvalidTransition: (target: string, legalTargets: string[]) =>
+      `[vibe-pm] ⚠️ Illegal step transition: cannot jump from the current step to ${target}.\nLegal targets: ${legalTargets.join(' / ') || '(none)'}\nStep state unchanged. Choose a legal target per the FSM diagram, or explain the jump to the user.`,
+    setStepInvalidEntry: (target: string, startSteps: string[]) =>
+      `[vibe-pm] ⚠️ Invalid first entry: the task has not entered any step yet; only FSM start steps (${startSteps.join(' / ') || '(none)'}) are allowed, cannot enter ${target} directly.\nStep state unchanged. Enter a start step first.`,
+    setStepDegradedNoValidation:
+      '[vibe-pm] ℹ️ This flow has no usable FSM state machine (or parsing failed); step transitions are not validated.',
     codingStyleInstalled: (files: string[], regDir: string) =>
       files.length > 0
         ? `[vibe-pm] ✅ Coding style files installed to ${regDir}/:\n${files.map((f) => `- ${f}`).join('\n')}`

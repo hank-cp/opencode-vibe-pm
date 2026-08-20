@@ -6,7 +6,13 @@ import { logger } from '../core';
 import { FlowNotFoundError } from './errors.js';
 import { Part } from '@opencode-ai/sdk';
 import type { ControlPromptTemplate } from '../i18n';
-import { getControlPromptTemplate } from '../i18n';
+import { getControlPromptTemplate, i18n } from '../i18n';
+import {
+  getLegalTargets,
+  getStepName,
+  parseFlowDocument,
+  type FlowDefinition,
+} from './flow-parser.js';
 
 export interface StartTaskParams {
   sessionId: string;
@@ -15,9 +21,26 @@ export interface StartTaskParams {
   userRequest: string;
 }
 
+/** Outcome of a setStep call — carries validation warnings back to the caller */
+export interface SetStepResult {
+  ok: boolean;
+  /** The step the task is now on (present when ok) */
+  step?: string;
+  /** Resolved step name (present when ok) */
+  stepName?: string;
+  /** Validation warning (present when the transition was rejected) */
+  warning?: string;
+  /** Legal transition targets (present when the transition was rejected) */
+  legalTargets?: string[];
+  /** Degraded-mode notice (present when validation is unavailable but the switch succeeded) */
+  notice?: string;
+}
+
 export class FlowEngine {
   private projectDir: string;
   private commandFlowCache: Map<string, string> | null = null;
+  private flowDefinitionCache: Map<string, { mtimeMs: number; definition: FlowDefinition }> =
+    new Map();
   private promptTemplate: ControlPromptTemplate | null = null;
 
   constructor(
@@ -141,15 +164,36 @@ export class FlowEngine {
     }
   }
 
-  async setStep(sessionId: string, step: string): Promise<void> {
+  async setStep(sessionId: string, step: string): Promise<SetStepResult> {
     const task = await this.memory.getActiveTask(sessionId);
     if (!task) throw new Error(`No active task for session ${sessionId}`);
 
-    if (step === task.currentStep) return;
+    if (step === task.currentStep) {
+      return { ok: true, step };
+    }
+
+    const flowName = task.flow;
+    const definition = this.loadFlowDefinition(flowName);
+
+    if (definition.isV2 && !definition.fsmDegraded) {
+      const legalTargets = getLegalTargets(definition, task.currentStep);
+      if (!legalTargets.includes(step)) {
+        const t = i18n().tool;
+        const warning = task.currentStep
+          ? t.setStepInvalidTransition(step, legalTargets)
+          : t.setStepInvalidEntry(step, legalTargets);
+        logger.warn(
+          `setStep: rejected transition ${task.currentStep || '(start)'} → ${step} (flow ${flowName})`,
+        );
+        return { ok: false, warning, legalTargets };
+      }
+    }
+
+    const degradedNotice =
+      definition.isV2 && definition.fsmDegraded ? i18n().tool.setStepDegradedNoValidation : undefined;
 
     const oldStep = task.currentStep;
-    const flowName = task.flow;
-    const stepName = this.tryParseStepName(flowName, step) ?? step;
+    const stepName = getStepName(definition, step) ?? this.tryParseStepName(flowName, step) ?? step;
     const now = Date.now();
 
     await this.memory.updateStep(task.id, step, stepName);
@@ -167,6 +211,7 @@ export class FlowEngine {
 
     await this.memory.incrementStepCount(sessionId, flowName, step, stepName, task.summary);
     logger.info(`setStep: ${oldStep} → ${step} (${stepName})`);
+    return { ok: true, step, stepName, notice: degradedNotice };
   }
 
   async closeTask(sessionId: string): Promise<Task | null> {
@@ -191,10 +236,40 @@ export class FlowEngine {
   }
 
   private flowExists(flowName: string): boolean {
+    return this.resolveFlowFilePath(flowName) !== null;
+  }
+
+  private resolveFlowFilePath(flowName: string): string | null {
     const d = path.join(this.projectDir, 'docs', 'flow');
-    return [path.join(d, `flow-${flowName}.md`), path.join(d, `${flowName}.md`)].some((c) =>
-      fs.existsSync(c),
-    );
+    for (const fp of [path.join(d, `flow-${flowName}.md`), path.join(d, `${flowName}.md`)]) {
+      if (fs.existsSync(fp)) return fp;
+    }
+    return null;
+  }
+
+  private loadFlowDefinition(flowName: string): FlowDefinition {
+    const fp = this.resolveFlowFilePath(flowName);
+    if (!fp) return parseFlowDocument('', flowName);
+
+    let mtimeMs = 0;
+    let raw = '';
+    try {
+      mtimeMs = fs.statSync(fp).mtimeMs;
+      raw = fs.readFileSync(fp, 'utf-8');
+    } catch (err) {
+      logger.warn(`FlowEngine.loadFlowDefinition: read failed for ${fp}: ${err}`);
+      return parseFlowDocument('', flowName);
+    }
+
+    const cached = this.flowDefinitionCache.get(flowName);
+    if (cached && cached.mtimeMs === mtimeMs) return cached.definition;
+
+    const definition = parseFlowDocument(raw, flowName);
+    this.flowDefinitionCache.set(flowName, { mtimeMs, definition });
+    for (const warning of definition.parseWarnings) {
+      logger.warn(`FlowParser(${flowName}): ${warning}`);
+    }
+    return definition;
   }
 
   private tryParseStepName(flowName: string, stepId: string): string | null {

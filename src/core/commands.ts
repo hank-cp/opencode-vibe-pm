@@ -159,7 +159,14 @@ function createTaskSetStepTool(engine: FlowEngine, memory: MemorySystem): ToolDe
       }
 
       try {
-        await engine.setStep(sessionId, args.step);
+        const result = await engine.setStep(sessionId, args.step);
+        if (!result.ok) {
+          return JSON.stringify({
+            ok: false,
+            error: result.warning ?? cmdI18n.unknownError,
+            legalTargets: result.legalTargets ?? [],
+          });
+        }
         const task = await memory.getActiveTask(sessionId);
         if (!task) {
           return JSON.stringify({ ok: false, error: cmdI18n.setStepNoTask });
@@ -170,6 +177,7 @@ function createTaskSetStepTool(engine: FlowEngine, memory: MemorySystem): ToolDe
           taskId: task.id,
           step: task.currentStep,
           stepName: task.currentStepName,
+          notice: result.notice,
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : cmdI18n.unknownError;

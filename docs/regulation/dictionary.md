@@ -28,6 +28,12 @@
 | Step Transition       | 步骤流转    | 从一个步骤推进到下一个步骤                                     |
 | Context Injection     | 上下文注入   | 根据当前步骤向对话注入相关内容                                   |
 | Flow Control Prompt   | 流程控制提示词 | 用于控制流程执行的提示词                                      |
+| Output                | 输出      | 步骤级执行目标（Step-level execution target）                |
+| Output Review         | 输出审查    | 步骤输出的验证环节                                          |
+| Output Checklist      | 自查清单    | self-check 验证依据的条目列表                                |
+| Upon completion       | 完成后     | 步骤转移条件描述（0.2 格式字段键）                             |
+| Deliverable           | 交付物     | 任务级交付目标                                             |
+| Acceptance Standard   | 交付标准    | 交付物验收标准                                             |
 
 ## 技术栈
 
@@ -43,6 +49,12 @@
   - FSM
   - Human-in-loop
   - Command
-  - Spec
+  - Spec 
+  - Goal
+  - Output
+  - Output Checklist
+  - Output Review
+  - Referenced Regulation
+  - Upon completion
 - Flow文档的Meta信息字段标题不翻译
   - Flow第3-7行的字段标题部分不翻译

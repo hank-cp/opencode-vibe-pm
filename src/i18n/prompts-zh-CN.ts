@@ -137,6 +137,12 @@ const zhCN = {
       `[vibe-pm] 流程 "${name}" 已移除。\n\n⚠️ 请重启 OpenCode 使变更生效。`,
     uninstallFailure: (msg: string) => `[vibe-pm] 卸载失败：${msg}`,
     flowStartNoSession: '无法获取当前 Session ID。',
+    setStepInvalidTransition: (target: string, legalTargets: string[]) =>
+      `[vibe-pm] ⚠️ 非法步骤跳转：不允许从当前步骤跳转到 ${target}。\n合法的转移目标：${legalTargets.join(' / ') || '（无）'}\n步骤状态未改变。请按 FSM 状态图选择合法目标重新跳转，或向用户说明跳转理由。`,
+    setStepInvalidEntry: (target: string, startSteps: string[]) =>
+      `[vibe-pm] ⚠️ 首次进入步骤校验失败：任务尚未进入任何步骤，仅允许进入 FSM 起点步骤（${startSteps.join(' / ') || '（无）'}），不能直接进入 ${target}。\n步骤状态未改变。请先进入起点步骤。`,
+    setStepDegradedNoValidation:
+      '[vibe-pm] ℹ️ 该流程未定义可用的 FSM 状态机（或解析失败），步骤跳转不校验。',
     codingStyleInstalled: (files: string[], regDir: string) =>
       files.length > 0
         ? `[vibe-pm] ✅ 编码风格文件已安装到 ${regDir}/：\n${files.map((f) => `- ${f}`).join('\n')}`

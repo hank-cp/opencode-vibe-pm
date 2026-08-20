@@ -41,7 +41,7 @@ function createMockEngine() {
         startAt: new Date().toISOString(),
       }),
     ),
-    setStep: mock(() => Promise.resolve(undefined)),
+    setStep: mock(() => Promise.resolve({ ok: true, step: 'S3', stepName: '测试步骤' })),
     closeTask: mock(() =>
       Promise.resolve({
         id: taskId,
