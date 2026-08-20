@@ -33,23 +33,23 @@
 
 ```mermaid
 stateDiagram-v2
-    [*] --> S1_{step abbrev}: Trigger task
-    S1_{step abbrev} --> S2_{step abbrev}: Auto after completion
-    S2_{step abbrev} --> S3_{step abbrev}: Auto after completion
-    S3_{step abbrev} --> S4_{step abbrev}: Auto after completion
-    S4_{step abbrev} --> S4_{step abbrev}: Continue follow-up
-    S4_{step abbrev} --> S5_{step abbrev}: User confirms no more questions
-    S5_{step abbrev} --> S6_{step abbrev}: Auto after completion
-    S6_{step abbrev} --> S7_{step abbrev}: User approves
-    S6_{step abbrev} --> S5_{step abbrev}: User requests revision
-    S6_{step abbrev} --> S4_{step abbrev}: New ambiguity found
-    S7_{step abbrev} --> [*]: Task ends
+    [*] --> S1_step_abbrev: Trigger task
+    S1_step_abbrev --> S2_step_abbrev: Auto after completion
+    S2_step_abbrev --> S3_step_abbrev: Auto after completion
+    S3_step_abbrev --> S4_step_abbrev: Auto after completion
+    S4_step_abbrev --> S4_step_abbrev: Continue follow-up
+    S4_step_abbrev --> S5_step_abbrev: User confirms no more questions
+    S5_step_abbrev --> S6_step_abbrev: Auto after completion
+    S6_step_abbrev --> S7_step_abbrev: User approves
+    S6_step_abbrev --> S5_step_abbrev: User requests revision
+    S6_step_abbrev --> S4_step_abbrev: New ambiguity found
+    S7_step_abbrev --> [*]: Task ends
 
-    note right of S4_{step abbrev}
+    note right of S4_step_abbrev
         ⚠️ Requires user intervention
     end note
 
-    note right of S6_{step abbrev}
+    note right of S6_step_abbrev
         ⚠️ Requires user intervention
     end note
 ```
