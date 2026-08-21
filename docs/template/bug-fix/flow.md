@@ -98,7 +98,7 @@ stateDiagram-v2
 **Output**: Fix plan (produced after confirming design preferences and acceptance criteria)
 **Output Checklist**:
 - Fix plan covers the confirmed root cause
-- Fix is minimal — only changes the root cause code
+- Fix is elegant — clean, readable code with duplication removed
 - Regression test scenarios identified
 - Acceptance criteria clear and verifiable
 **Output Review**: self-check + human
@@ -126,13 +126,14 @@ stateDiagram-v2
 **Output Checklist**:
 - LSP diagnostics zero error
 - Build passes
-- All tests pass (including regression tests covering the reproduction scenario)
+- All tests pass (including regression tests covering
+- the reproduction scenario)
 - No type escapes (any / @ts-ignore)
-- Fix is minimal — no unrelated refactoring
+- Code is elegant and clean — follows code quality first, reduces duplication
 **Output Review**: self-check + review-agent + human
 **Referenced Regulation**: /docs/regulation/constitution.md, coding_style.md
 
-1. Write the minimal fix — only change the root cause code; do not introduce unrelated refactoring
+1. Write the fix with code quality first — make the change as elegant as possible: clean, readable code that reduces duplication
 2. Write regression tests: cover the reproduction scenario, edge cases, and related functionality (prevent side effects); do NOT delete failing tests
 3. Run verification (LSP diagnostics / build / tests); verify the original bug scenario no longer reproduces
 4. Declare output complete (call the output verification entry `pm_task_verify`); the review agent verifies the step output, then the user confirms
