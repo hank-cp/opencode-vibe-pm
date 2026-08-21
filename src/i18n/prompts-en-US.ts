@@ -39,10 +39,22 @@ Current step S{n}:
   ✅ 2. Read ONLY S{n} "**Goal**" and instructions — do NOT peek at later steps
   ✅ 3. Execute ALL required actions for this step — no leapfrogging
   ✅ 4. ⚠️ marked → question/confirm tool   — block and wait for user
-  ✅ 5. Check "**On Complete**" → follow FSM diagram
+  ✅ 5. Check "**Upon completion**" → follow FSM diagram
   ✅ 6. FSM reaches [*] → immediately call pm_task_close() to end task
 
   Do NOT proceed to the next step until 1-6 are fully completed.
+
+> 🔍 **Output Verification (0.2 format flows)**: If the current step declares **Output Review**,
+> call the pm_task_verify tool AFTER completing all step actions to trigger verification:
+> - Tool returns the self-check checklist (Output Checklist) → verify item by item
+> - Steps with review-agent → the tool launches a review agent and waits synchronously for the result
+> - Review passed → continue with remaining verification modes (human, etc.)
+> - Review failed → call pm_task_set_step to roll back to the returned rollbackTarget
+> - Steps without Output Review (or legacy 0.1 flows) → skip the tool, verify per the flow document
+
+> 🛡️ **FSM program validation**: Step transitions are validated by the plugin (0.2 format flows only).
+> Illegal transitions return a warning plus the list of legal targets; step state stays unchanged.
+> On warning: correct the transition per the legal targets, or explain the reason to the user.
 
 ## Flow Termination 🔚
 
@@ -60,8 +72,9 @@ When the final step completes and FSM reaches [*] (terminal state):
 
 | Step Type | Allowed | Forbidden |
 |-----------|---------|-----------|
-| S1 (Understanding) | Read descriptions, ask clarifying questions, explore code | Edit/create/delete files, create todos, start implementing |
+| S1 (Understanding) | Read descriptions, ask clarifying questions, explore code, **confirm deliverables and acceptance standards** | Edit/create/delete files, create todos, start implementing |
 | ⚠️ Marked | Present proposal first, then call question/confirm. **MUST receive explicit user approval** ("confirm"/"approved"/"go ahead"/"LGTM"). Ambiguous/weak affirmation ("looks ok"/"try it"/"hmm"/"should work") = NOT confirmed, must follow up. | Execute proposal before explicit user confirmation |
+| With Output Review | Call pm_task_verify after completing actions; only proceed to the next step after verification passes | Skip to the next step without calling pm_task_verify |
 | Coding | Change code per confirmed plan | Change files outside plan, introduce unrelated refactors |
 | Merge | Final verification, ask about commit | Skip verification and end directly |
 
@@ -76,18 +89,21 @@ Any of the following = FLOW EXECUTION FAILURE:
 | 3 | Treat user request as direct coding task | User says "optimize X", skip flow and edit files → ❌ |
 | 4 | ⚠️ step without calling question/confirm before execution | Judge and implement on your own → ❌ |
 | 5 | Skip steps: proceed before current step completes | Jump to next step before S1 is done → ❌ |
-| 6 | Read entire flow then jump to coding | Read all 12 steps then jump to S8 → ❌ |
+| 6 | Read entire flow then jump to coding | Read all later steps then jump to the coding step → ❌ |
 | 7 | Create todos before following flow steps | Call todowrite before executing S1 → ❌ |
 | 8 | Behavior conflicts with constitution | Constitution requires minimal changes, but you did a refactor → ❌ |
 | 9 | Read rule files via background tasks | Use explore/task agent to read /docs/flow and /docs/regulation → ❌ |
 | 10 | Proceed on weak confirmation | At ⚠️ step, user says "looks ok"/"try it", you proceed without explicit confirmation → ❌ |
 | 11 | FSM reaches [*] without calling pm_task_close() | Final step done but no pm_task_close() call before ending conversation → ❌ |
+| 12 | Skip to next step without calling pm_task_verify on a step with Output Review | Step has Output Review, you call pm_task_set_step directly after finishing actions → ❌ |
+| 13 | Proceed after review failure | pm_task_verify returns fail, you do not roll back to rollbackTarget and continue to the next step → ❌ |
 
 ## Compliance Reference
 
 - \`constitution.md\` → **highest priority**, type safety, mandatory verification, minimal changes
 - \`coding_style.md\` → naming conventions, formatting, type safety
 - \`dictionary.md\` → local language ↔ English term mapping
+- \`pm_task_verify\` → output verification entry: no-argument call, acts on the active task's current step, triggers that step's configured verification flow
 
 </protect>`;
   },

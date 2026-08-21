@@ -57,6 +57,30 @@ describe('getControlPromptTemplate', () => {
     expect(prompt).toContain('步骤门禁');
   });
 
+  it('zh-CN template covers 0.2 output verification mechanics', () => {
+    const tpl = getControlPromptTemplate('zh-CN');
+    const prompt = tpl.buildControlPrompt('bug-fix');
+    expect(prompt).toContain('pm_task_verify');
+    expect(prompt).toContain('Output Review');
+    expect(prompt).toContain('rollbackTarget');
+    expect(prompt).toContain('**Goal**');
+    expect(prompt).toContain('**Upon completion**');
+    expect(prompt).toContain('交付物与交付标准');
+    expect(prompt).toContain('FSM 程序校验');
+  });
+
+  it('en-US template covers 0.2 output verification mechanics', () => {
+    const tpl = getControlPromptTemplate('en-US');
+    const prompt = tpl.buildControlPrompt('bug-fix');
+    expect(prompt).toContain('pm_task_verify');
+    expect(prompt).toContain('Output Review');
+    expect(prompt).toContain('rollbackTarget');
+    expect(prompt).toContain('**Goal**');
+    expect(prompt).toContain('**Upon completion**');
+    expect(prompt).toContain('deliverables and acceptance standards');
+    expect(prompt).toContain('FSM program validation');
+  });
+
   it('returns en-US template with English content', () => {
     const tpl = getControlPromptTemplate('en-US');
     const prompt = tpl.buildControlPrompt('bug-fix');
