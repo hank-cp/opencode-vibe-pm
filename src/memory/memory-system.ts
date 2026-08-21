@@ -139,6 +139,8 @@ export class MemorySystem implements IMemorySystem {
         closed          INTEGER NOT NULL DEFAULT 0,
         summary         TEXT NOT NULL,
         user_request    TEXT,
+        deliverable     TEXT,
+        acceptance_standard TEXT,
         step_transitions TEXT,
         CONSTRAINT tasks_id_pkey PRIMARY KEY (id)
       );
@@ -257,10 +259,22 @@ export class MemorySystem implements IMemorySystem {
       /* column/index already exists */
     }
 
+    // Migration: add deliverable / acceptance_standard columns (idempotent, fails silently if columns exist)
+    try {
+      this.db.run('ALTER TABLE tasks ADD COLUMN deliverable TEXT');
+    } catch {
+      /* column already exists */
+    }
+    try {
+      this.db.run('ALTER TABLE tasks ADD COLUMN acceptance_standard TEXT');
+    } catch {
+      /* column already exists */
+    }
+
     // ─── Prepared Statements ───
     this.stmtInsertTask = this.db.prepare(`
-      INSERT INTO tasks (id, session_id, flow, current_step, current_step_name, started_at, ended_at, closed, summary, user_request, step_transitions)
-      VALUES ($id, $sessionId, $flow, $currentStep, $currentStepName, $startAt, $endAt, $closed, $summary, $userRequest, $stepTransitions)
+      INSERT INTO tasks (id, session_id, flow, current_step, current_step_name, started_at, ended_at, closed, summary, user_request, deliverable, acceptance_standard, step_transitions)
+      VALUES ($id, $sessionId, $flow, $currentStep, $currentStepName, $startAt, $endAt, $closed, $summary, $userRequest, $deliverable, $acceptanceStandard, $stepTransitions)
     `);
     this.stmtGetTaskBySession = this.db.prepare('SELECT * FROM tasks WHERE session_id = ? LIMIT 1');
     this.stmtGetActiveTaskBySession = this.db.prepare(
@@ -371,6 +385,8 @@ export class MemorySystem implements IMemorySystem {
         ...task,
         endAt: null,
         userRequest: task.userRequest ?? null,
+        deliverable: task.deliverable ?? null,
+        acceptanceStandard: task.acceptanceStandard ?? null,
         stepTransitions: null,
         closed: 0,
       }),
@@ -811,6 +827,8 @@ export class MemorySystem implements IMemorySystem {
       closed: !!row['closed'],
       summary: row['summary'] as string,
       userRequest: (row['user_request'] as string) ?? undefined,
+      deliverable: (row['deliverable'] as string) ?? undefined,
+      acceptanceStandard: (row['acceptance_standard'] as string) ?? undefined,
       stepTransitions: parseJSON<StepTransition[]>(row['step_transitions'], []) as
         StepTransition[] | undefined,
     };

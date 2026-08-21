@@ -22,7 +22,7 @@
 
 ---
 
-## Default Deliverables & Acceptance Standards
+## Default Deliverables
 
 - Code changes + tests passing
 

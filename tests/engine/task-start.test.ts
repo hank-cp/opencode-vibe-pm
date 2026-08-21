@@ -65,6 +65,36 @@ describe('Task Start', () => {
     expect(task.summary).toBe('Test task creation');
   });
 
+  it('start_task_with_deliverable: persists deliverable and acceptanceStandard', async () => {
+    const task = await engine.startTask({
+      sessionId: 'ses_deliv',
+      flow: 'test-flow',
+      summary: 'Deliverable test',
+      userRequest: 'deliverable test',
+      deliverable: '自定义交付物：分析报告',
+      acceptanceStandard: '报告覆盖全部调研问题并附来源',
+    });
+
+    expect(task.deliverable).toBe('自定义交付物：分析报告');
+    expect(task.acceptanceStandard).toBe('报告覆盖全部调研问题并附来源');
+
+    const stored = await memory.getActiveTask('ses_deliv');
+    expect(stored!.deliverable).toBe('自定义交付物：分析报告');
+    expect(stored!.acceptanceStandard).toBe('报告覆盖全部调研问题并附来源');
+  });
+
+  it('start_task_without_deliverable: fields are undefined when omitted', async () => {
+    const task = await engine.startTask({
+      sessionId: 'ses_no_deliv',
+      flow: 'test-flow',
+      summary: 'No deliverable test',
+      userRequest: 'no deliverable test',
+    });
+
+    expect(task.deliverable).toBeUndefined();
+    expect(task.acceptanceStandard).toBeUndefined();
+  });
+
   it('start_task_rejects_duplicate: rejects duplicate active task', async () => {
     await engine.startTask({
       sessionId: 'ses_dup',

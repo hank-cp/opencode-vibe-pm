@@ -30,6 +30,10 @@ export interface StepTransition {
   summary: string;
   /** User's original request content (text within <user-request> tag), used for deduplication */
   userRequest?: string;
+  /** Deliverable re-specified by the user at task start (overrides the flow document default) */
+  deliverable?: string;
+  /** Acceptance standard re-specified by the user at task start (overrides the flow document default) */
+  acceptanceStandard?: string;
   /** Step transition history in chronological order. From the second record onward, dwell time can be computed from the `at` delta of adjacent records. */
   stepTransitions?: StepTransition[];
 }
@@ -42,6 +46,8 @@ export interface CreateTaskInput {
   startAt: string;
   summary: string;
   userRequest?: string;
+  deliverable?: string;
+  acceptanceStandard?: string;
 }
 
 // ─── Discussion ───

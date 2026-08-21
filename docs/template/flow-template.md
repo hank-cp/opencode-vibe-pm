@@ -22,7 +22,7 @@
 
 ---
 
-## Default Deliverables & Acceptance Standards
+## Default Deliverables
 
 - {deliverable 1}
 - {deliverable 2}

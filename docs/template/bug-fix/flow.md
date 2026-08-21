@@ -2,9 +2,9 @@
 
 **Template ID**: `bug-fix`
 **Category**: maintenance
-**Description**: Standardized bug fix workflow (root cause analysis → fix → regression → acceptance)
+**Description**: Standardized bug fix workflow (understand & root-cause → fix plan → code & test → deliver)
 **Command**: `/pm-bug-fix`
-**Version**: 1.0.0
+**Version**: 0.2.0
 
 ---
 
@@ -12,13 +12,14 @@
 
 - Bug fixes in production or development environments
 - Non-trivial fixes requiring root cause analysis
+- Fixes requiring regression tests
 
 ---
 
 ## Input Requirements
 
-| Input | Required | Description |
-|--------|------|------|
+| Input Item | Required | Description |
+|------------|----------|-------------|
 | Bug Description | Yes | Symptoms, reproduction steps, impact scope |
 | Related Code/Logs | No | Information to help locate the issue |
 
@@ -26,9 +27,11 @@
 
 ## Default Deliverables
 
-- Root cause analysis report
-- Fix code + regression tests
-- Delivery report
+- Root cause analysis conclusion (produced in S1)
+- Fix code + regression tests (produced in S3)
+- Delivery report (produced in S4)
+
+> The user may re-specify deliverables when starting a task; in S1 the LLM must re-confirm deliverables and acceptance standards with the user.
 
 ---
 
@@ -36,153 +39,129 @@
 
 ```mermaid
 stateDiagram-v2
-    [*] --> S1_UnderstandingBug: Trigger
-    S1_UnderstandingBug --> S2_RootCauseAnalysis
-    S2_RootCauseAnalysis --> S3_ReviewPlan
-    S3_ReviewPlan --> S2_RootCauseAnalysis: Needs revision
-    S3_ReviewPlan --> S4_WriteFix: Approved
-    S4_WriteFix --> S5_WriteTests
-    S5_WriteTests --> S6_RegressionVerification
-    S6_RegressionVerification --> S7_SelfCheck
-    S7_SelfCheck --> S8_UserAcceptance: Pass
-    S7_SelfCheck --> S4_WriteFix: Needs fix
-    S8_UserAcceptance --> S9_Merge: Pass
-    S8_UserAcceptance --> S4_WriteFix: Needs fix
-    S9_Merge --> [*]
+    [*] --> S1_UnderstandAndRootCause: Trigger task
+    S1_UnderstandAndRootCause --> S2_FixPlan: Auto after completion
+    S2_FixPlan --> S3_CodeAndTest: User approves fix plan
+    S3_CodeAndTest --> S4_Delivery: Auto after completion
+    S3_CodeAndTest --> S3_CodeAndTest: Review failed-Execution problem
+    S3_CodeAndTest --> S2_FixPlan: Review failed-Design problem
+    S3_CodeAndTest --> S2_FixPlan: Review failed-Unreasonable acceptance criteria
+    S4_Delivery --> S3_CodeAndTest: User requests changes
+    S4_Delivery --> [*]: User approves deliverable
 
-    note right of S3_ReviewPlan: ⚠️ Human-in-loop
-    note right of S8_UserAcceptance: ⚠️ Human-in-loop
+    note right of S2_FixPlan
+        ⚠️ Requires user intervention
+    end note
+
+    note right of S4_Delivery
+        ⚠️ Requires user intervention
+    end note
 ```
 
 ---
 
 ## Task Steps
 
-### S1: Understand the Bug
+### S1: Understand Bug and Root Cause
 
-**Goal**: Accurately understand the bug symptoms, reproduction conditions, and impact scope.
+**Goal**: Accurately understand the bug and identify the root cause.
+**Output**: Bug understanding + root cause analysis conclusion
+**Output Checklist**: —
+**Output Review**: human
+**Referenced Regulation**: —
 
-1. Read the bug description, logs, and screenshots
-2. Confirm reproduction steps
-3. If the description is unclear, use the `question` tool to ask for clarification
-4. Assess impact scope (functionality, data, security)
+1. Read the bug description, logs, and screenshots; confirm reproduction steps; assess impact scope (functionality, data, security)
+2. If the description is unclear or ambiguous, clarify with the user through progressive questioning:
+   - Use `question` / `confirm` blocking tools — only one question at a time
+   - Wait for the user's response before asking the next question
+   - If the answer leads to a new direction, follow up deeply before returning to the original path
+   - Loop until the user confirms "no further questions"
+   - **Never** batch multiple questions in plain text
+3. Read relevant source code and trace the call chain to identify the root cause (cite specific file and line numbers)
+4. If the observed facts are vague, ambiguous, or contradictory, clarify with the user through progressive questioning:
+   - Use `question` / `confirm` blocking tools — only one question at a time
+   - Wait for the user's response before asking the next question
+   - If the answer leads to a new direction, follow up deeply before returning to the original path
+   - Loop until the user confirms "no further questions"
+   - **Never** batch multiple questions in plain text
+5. Analyze test coverage: do existing tests cover this path? Why did they not catch it (weak assertions / ideal mocks / skipped tests)? Which test scenario is missing?
+6. Present the root cause analysis and use the `confirm` tool to wait for user acceptance
 
-**On completion**: Automatically advance to S2
-
----
-
-### S2: Root Cause Analysis
-
-**Goal**: Identify the root cause and propose a fix plan.
-
-1. Read relevant source code
-2. Trace the call chain
-3. Analyze and identify the root cause
-4. Analyze test case coverage:
-   - Search for existing test cases related to the affected code (`{affected_module}_test.go`)
-   - Determine whether existing tests cover this abnormal path:
-     - If **covered**, explain why the existing tests did not catch this bug (assertions not precise enough? mock data too ideal? tests skipped?)
-     - If **not covered**, describe which test scenario is missing
-   - Determine whether new or modified test cases are needed after the fix
-5. Propose a fix plan: follow the project constitution's "Code Quality First" principle — strive for elegance, directness, and readable, maintainable code
-
-```markdown
-## Root Cause Analysis
-
-- **Symptom**: {what the user observed}
-- **Trigger Condition**: {under what conditions it triggers}
-- **Root Cause**: {code-level reason for the failure, citing specific file and line numbers}
-- **Impact Scope**: {which features / which users are affected}
-
-
-```
-
-**On completion**: Automatically advance to S3
+**Upon completion**:
+- User accepts root cause → auto proceed to S2
 
 ---
 
-### S3: [Human-in-loop] Review Fix Plan ⚠️
+### S2: Design Fix Plan
 
-**Goal**: User reviews the fix plan.
+**Goal**: Produce an approved fix plan with confirmed preferences and acceptance criteria.
+**Output**: Fix plan (produced after confirming design preferences and acceptance criteria)
+**Output Checklist**:
+- Fix plan covers the confirmed root cause
+- Fix is minimal — only changes the root cause code
+- Regression test scenarios identified
+- Acceptance criteria clear and verifiable
+**Output Review**: self-check + human
+**Referenced Regulation**: —
 
-1. Present: root cause, fix plan, alternatives, risk assessment
-2. Use the `confirm` tool to wait for confirmation
+1. Identify the key fix design decision points (fix approach, whether to add a compatibility layer, test scope)
+2. For each key design point where multiple viable options exist, present 2-3 design alternatives using the `question` tool and let the user choose the one closest to their design intent:
+   - One design point at a time
+   - Each alternative states its trade-offs briefly
+   - Loop until all key design points are decided
+   - **Never** batch multiple questions in plain text
+3. Confirm acceptance criteria with the user
+4. Design the fix plan: changes to make, tests to add, risk assessment
+5. Present the fix plan (root cause, fix, alternatives, risks) and use the `confirm` tool to wait for approval
 
-**On completion**: Approved → S4, Needs revision → S2
-
----
-
-### S4: Write the Fix
-
-**Goal**: Write the fix according to the approved plan.
-**Referenced Regulation**: coding_style.md
-
-1. Minimal fix — only change the root cause code
-2. Do not introduce unrelated refactoring
-3. Run project build / type check to verify
-
-**On completion**: Automatically advance to S5
-
----
-
-### S5: Write Tests
-
-**Goal**: Write regression tests to prevent recurrence.
-**Referenced Regulation**: coding_style.md
-
-1. Cover the reproduction scenario
-2. Cover edge cases
-3. Cover related functionality (prevent side effects)
-
-**On completion**: Automatically advance to S6
+**Upon completion**:
+- User approves fix plan → auto proceed to S3
 
 ---
 
-### S6: Regression Verification
+### S3: Code and Test
 
-**Goal**: Confirm the fix is effective and there is no regression.
+**Goal**: Implement the approved fix and pass all verification.
+**Output**: Code changes and test results
+**Output Checklist**:
+- LSP diagnostics zero error
+- Build passes
+- All tests pass (including regression tests covering the reproduction scenario)
+- No type escapes (any / @ts-ignore)
+- Fix is minimal — no unrelated refactoring
+**Output Review**: self-check + review-agent + human
+**Referenced Regulation**: /docs/regulation/constitution.md, coding_style.md
 
-1. Run all tests
-2. Verify the original bug scenario no longer reproduces
-3. Check that related functionality works correctly
+1. Write the minimal fix — only change the root cause code; do not introduce unrelated refactoring
+2. Write regression tests: cover the reproduction scenario, edge cases, and related functionality (prevent side effects); do NOT delete failing tests
+3. Run verification (LSP diagnostics / build / tests); verify the original bug scenario no longer reproduces
+4. Declare output complete (call the output verification entry `pm_task_verify`); the review agent verifies the step output, then the user confirms
 
-**On completion**: Automatically advance to S7
-
----
-
-### S7: Self-Check
-
-**Goal**: Thoroughly self-review fix quality.
-
-1. Does the fix comply with the code quality first principle?
-2. Do all tests pass?
-3. Have any new issues been introduced?
-4. Does documentation need updating?
-
-**On completion**: Pass → S8, Needs fix → S4
-
----
-
-### S8: [Human-in-loop] User Acceptance ⚠️
-
-**Goal**: User confirms the fix result.
-
-1. Present the fix report (root cause, changes, test results)
-2. Use the `confirm` tool to wait for confirmation
-
-**On completion**: Approved → S9, Needs fix → S4
+**Upon completion**:
+- Review passed + user confirms → auto proceed to S4
+- Review failed-Execution problem → redo S3
+- Review failed-Design problem → return to S2
+- Review failed-Unreasonable acceptance criteria → return to S2
 
 ---
 
-### S9: Merge
+### S4: Delivery
 
-**Goal**: Final verification, wrap-up documentation, ask whether to commit.
+**Goal**: Deliverable acceptance and task closure.
+**Output**: Acceptance conclusion + task closed
+**Output Checklist**: —
+**Output Review**: human
+**Referenced Regulation**: /docs/regulation/checklist.md
 
-1. Run final build check and tests
-2. Update Spec and Plan documents (if needed)
-3. Use the `question` tool to ask the user: "Execute `git commit`?"
+1. Present the fix report (root cause, changes, test results) and the deliverables vs acceptance standards comparison
+2. Use the `confirm` tool to wait for user acceptance (not accepted → return to S3 per FSM edge)
+3. Run final verification (LSP diagnostics / build / tests)
+4. Use the `question` tool to ask the user: "Execute `git commit`?"
    - If the user selects "Yes": run `git add -A && git commit`, using the fix summary as the commit message
-   - If the user selects "No": skip commit
-   - ⚠️ User selection does not affect task completion
+   - If the user selects "No": skip the commit
+   - ⚠️ The user's choice does not affect task completion
+5. Call `pm_task_close()` to end the task and trigger analysis
 
-**On completion**: Task ends
+**Upon completion**:
+- User approves deliverable → task ends (terminal state)
+- User requests changes → return to S3

@@ -950,14 +950,14 @@ graph TD
 - [x] journal 元数据落库（`journal_entries` 表）
   - 已知风险：连续快速切换的排队处理（队列串行 + 时间戳条目已落地）
 
-### [ ] Milestone 4 — Phase 4: 流程模板重构
+### [x] Milestone 4 — Phase 4: 流程模板重构
 
-- [ ] 6 个内置流程按 0.2 格式重写（research/arch-design/feat-design/spec-driven-dev/bug-fix/side-job）
-- [ ] arch-design、feat-design 新模板（含步骤指令详情）
-- [ ] design-spec、large-refactor 废弃处理（模板库移除与已安装清理策略）
-- [ ] 启动工具交付物参数扩展
-- [ ] 端到端集成测试
-  - 已知风险：新流程步骤指令细节需结合实践迭代
+- [x] 6 个内置流程按 0.2 格式重写（research/arch-design/feat-design/spec-driven-dev/bug-fix/side-job）
+- [x] arch-design、feat-design 新模板（含步骤指令详情）
+- [x] design-spec、large-refactor 废弃处理（模板库移除；已安装实例静默保留，裁决 E）
+- [x] 启动工具交付物参数扩展（工具参数 → StartTaskParams → Task → tasks 表幂等迁移）
+- [x] 端到端集成测试（仅模板解析测试：`tests/template/v2-templates.test.ts`，裁决 F）
+  - 已知风险：新流程步骤指令细节需结合实践迭代（S11 评审两轮迭代已落实：S1/S2 澄清循环、设计阶段 2-3 方案选择）
 
 ---
 
@@ -965,8 +965,9 @@ graph TD
 
 | # | 待决策项 | 说明 |
 |---|----------|------|
-| 1 | 废弃模板的已安装实例清理策略 | 用户已安装 design-spec/large-refactor 的项目，卸载提示 or 静默保留？ |
 | 2 | 审查 Agent 固定框架 prompt 的最终文本 | 需在 Phase 2 实现时起草并迭代 |
+
+> #1（废弃模板清理策略）已于 Phase 4 启动访谈裁决为「静默保留已安装实例」，见已裁决项 E。
 
 ### 已裁决项
 
@@ -978,3 +979,8 @@ graph TD
 | B | 0.1 旧流程是否启用 FSM 校验 | 仅 0.2 格式文档启用校验；0.1 文档保持自由跳转（现状行为）（Phase 1 访谈） |
 | C | 0.2 格式字段键语言 | 仅使用英文键；术语中英对照收录 `dictionary.md`（翻译控制列表）；流程文档内容可翻译为本地语言，但字段键必须保持英文（评审修订：不再禁止翻译流程文档，字段键由翻译控制列表约束） |
 | D | 输出验证入口的工具命名与形态 | 独立无参工具 `pm_task_verify`，作用于当前活跃任务的当前步骤；不复用步骤跳转工具的增强参数（Phase 2 启动裁决，依据本 Spec「接口设计 → 输出验证入口（新工具）」章节） |
+| E | 废弃模板的已安装实例清理策略 | 模板库（`docs/template/`）移除 design-spec/large-refactor 目录；已安装到 `docs/flow/` 的实例静默保留，不自动卸载，用户可自行用 `/pm-uninstall-flow` 处理（Phase 4 启动访谈裁决，原待决策项 #1） |
+| F | 端到端集成测试范围 | 仅模板解析测试：安装 6 个内置模板到临时项目 → flow-parser 解析断言 isV2/步骤数/FSM 边（含回跳边）；不启动任务、不覆盖交付物透传（Phase 4 启动访谈裁决） |
+| G | 新模板 Category 与 Command | arch-design: Category=development, Command=/pm-arch-design；feat-design: Category=design, Command=/pm-feat-design（Phase 4 启动访谈裁决） |
+| H | 0.2 格式模板 Version | 6 个内置模板统一 Version=0.2.0（与 0.2 主版本一致；Phase 4 启动访谈裁决） |
+| I | 验收标准区块标题 | 英文模板区块标题统一为 `## Default Deliverables`（与 flow-template.md 对齐，移除 `& Acceptance Standards`）；Flow Parser 兼容解析 `## Default Deliverables` 与旧格式 `## Default Deliverables & Acceptance Standards`（S12 交付合流裁决） |

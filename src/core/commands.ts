@@ -582,9 +582,22 @@ function createFlowStartTool(
         .string()
         .optional()
         .describe('用户原始请求全文 — 务必传递以保存任务上下文和去重'),
+      deliverable: tool.schema
+        .string()
+        .optional()
+        .describe('交付物重指定（覆盖流程文档默认交付物；可选）'),
+      acceptanceStandard: tool.schema
+        .string()
+        .optional()
+        .describe('交付标准重指定（覆盖流程文档默认交付标准；可选）'),
     },
     async execute(
-      args: { summary?: string; userRequest?: string },
+      args: {
+        summary?: string;
+        userRequest?: string;
+        deliverable?: string;
+        acceptanceStandard?: string;
+      },
       _toolCtx: ToolContext,
     ): Promise<string> {
       const { sessionID, messageID } = _toolCtx;
@@ -664,6 +677,8 @@ function createFlowStartTool(
           flow: flowName,
           summary,
           userRequest,
+          deliverable: args.deliverable,
+          acceptanceStandard: args.acceptanceStandard,
         });
         logger.info(
           `createFlowStartTool(${flowName}): task created id=${task.id} step=${task.currentStep}`,
@@ -677,6 +692,9 @@ function createFlowStartTool(
           flow: task.flow,
           summary: task.summary,
           startAt: task.startAt,
+          deliverable: task.deliverable,
+          acceptanceStandard: task.acceptanceStandard,
+          notice: 'S1: confirm the deliverables and acceptance standards with the user (use the values above if specified, otherwise the flow document defaults).',
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : cmdI18n.unknownError;

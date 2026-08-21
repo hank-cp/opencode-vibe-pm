@@ -344,12 +344,12 @@ function findStateDiagramBlock(raw: string): string | null {
 // ─── Acceptance Standard Parsing ───
 
 const ACCEPTANCE_SECTION_HEADING_RE =
-  /^##\s+(?:默认交付物与交付标准|Default\s+Deliverables?\s*(?:&|and)\s+Acceptance\s+(?:Standards?|Criteria))\s*$/i;
+  /^##\s+(?:默认交付物与交付标准|Default\s+Deliverables?(?:\s*(?:&|and)\s+Acceptance\s+(?:Standards?|Criteria))?)\s*$/i;
 
 /**
  * Extract the task-level default acceptance standard from the
- * `## 默认交付物与交付标准` section: raw body text between that heading
- * and the next `## ` heading (or end of document).
+ * `## Default Deliverables` (or `## 默认交付物与交付标准`) section: raw body
+ * text between that heading and the next `## ` heading (or end of document).
  */
 function parseAcceptanceStandard(raw: string): string {
   const lines = raw.split('\n');

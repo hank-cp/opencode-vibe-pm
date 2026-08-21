@@ -24,6 +24,10 @@ export interface StartTaskParams {
   flow: string;
   summary: string;
   userRequest: string;
+  /** User-re-specified deliverable, overrides the flow document default */
+  deliverable?: string;
+  /** User-re-specified acceptance standard, overrides the flow document default */
+  acceptanceStandard?: string;
 }
 
 /** Outcome of a setStep call — carries validation warnings back to the caller */
@@ -211,6 +215,8 @@ export class FlowEngine {
         startAt: new Date().toISOString(),
         summary: params.summary,
         userRequest: params.userRequest,
+        deliverable: params.deliverable,
+        acceptanceStandard: params.acceptanceStandard,
       });
       logger.info(`FlowEngine.startTask: task created id=${task.id}`);
       return task;

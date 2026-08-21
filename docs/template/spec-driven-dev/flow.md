@@ -2,9 +2,9 @@
 
 **Template ID**: `spec-driven-dev`
 **Category**: development
-**Description**: Spec-driven standardized development workflow (Understand/Design/Code/Test/Accept/Merge, 12 steps)
+**Description**: Spec-driven standardized development workflow (Understand/Design/Plan/Code/Test/Deliver, 6 steps)
 **Command**: `/pm-spec-driven-dev`
-**Version**: 1.2.0
+**Version**: 0.2.0
 
 ---
 
@@ -13,23 +13,26 @@
 - Medium-to-large new feature development
 - Tasks involving multi-module interaction
 - Complex tasks requiring requirement clarification
+- Feature modification with an existing Spec document
 
 ---
 
 ## Input Requirements
 
 | Input Item | Required | Description |
-|--------|------|------|
-| Spec Document | Yes | Existing specification document |
+|------------|----------|-------------|
+| Spec Document | No | Existing specification document (read when present; write/update during S3) |
 | Change Request | Yes | What to change and why |
 
 ---
 
 ## Default Deliverables
 
-- Updated Spec document
-- Code implementation + test code
-- Delivery report
+- Updated Spec document (feature design, produced in S3)
+- Code implementation + test code (produced in S5)
+- Delivery report (produced in S6)
+
+> The user may re-specify deliverables when starting a task; in S1 the LLM must re-confirm deliverables and acceptance standards with the user.
 
 ---
 
@@ -37,35 +40,28 @@
 
 ```mermaid
 stateDiagram-v2
-    [*] --> S1_Understand_Requirements_and_Current_State: Trigger
-    S1_Understand_Requirements_and_Current_State --> S2_Identify_Gaps
-    S2_Identify_Gaps --> S3_Progressive_Interview
-    S3_Progressive_Interview --> S3_Progressive_Interview: Continue inquiry
-    S3_Progressive_Interview --> S2_Identify_Gaps: Re-analyze based on clarified answers
-    S2_Identify_Gaps --> S3_Progressive_Interview: New questions discovered
-    S2_Identify_Gaps --> S4_Modify_Spec: No more questions
-    S4_Modify_Spec --> S5_Review_Spec_Changes: Auto
-    S5_Review_Spec_Changes --> S4_Modify_Spec: Revisions needed
-    S5_Review_Spec_Changes --> S6_Design_Implementation_Plan: Approved
-    S6_Design_Implementation_Plan --> S7_Review_Plan: Auto
-    S7_Review_Plan --> S6_Design_Implementation_Plan: Revisions needed
-    S7_Review_Plan --> S8_Write_Code: Approved
-    S8_Write_Code --> S9_Write_Tests
-    S9_Write_Tests --> S9_Write_Tests: Tests fail
-    S9_Write_Tests --> S10_Self_Check: All passed
-    S10_Self_Check --> S11_Review_Confirmation: Self-check passed, no high-risk items
-    S10_Self_Check --> S8_Write_Code: High-risk items need fixing
-    S11_Review_Confirmation --> S12_Deliver_and_Merge: Approved
-    S11_Review_Confirmation --> S8_Write_Code: Fixes needed
-    S11_Review_Confirmation --> S4_Modify_Spec: Design issue
-    S12_Deliver_and_Merge --> [*]
+    [*] --> S1_UnderstandIntent: Trigger task
+    S1_UnderstandIntent --> S2_ExploreFacts: Auto after completion
+    S2_ExploreFacts --> S3_FeatureDesign: Auto after completion
+    S3_FeatureDesign --> S4_Plan: User approves design
+    S4_Plan --> S5_CodeAndTest: User approves plan
+    S5_CodeAndTest --> S6_Delivery: Auto after completion
+    S5_CodeAndTest --> S5_CodeAndTest: Review failed-Execution problem
+    S5_CodeAndTest --> S3_FeatureDesign: Review failed-Design problem
+    S5_CodeAndTest --> S4_Plan: Review failed-Unreasonable acceptance criteria
+    S6_Delivery --> S5_CodeAndTest: User requests changes
+    S6_Delivery --> [*]: User approves deliverable
 
-    note right of S3_Progressive_Interview: ⚠️ User intervention required
-    note right of S5_Review_Spec_Changes: ⚠️ User intervention required
-    note right of S7_Review_Plan: ⚠️ User intervention required
-    note right of S11_Review_Confirmation
-        ⚠️ User intervention required
-        Design issue → Fall back to S4
+    note right of S3_FeatureDesign
+        ⚠️ Requires user intervention
+    end note
+
+    note right of S4_Plan
+        ⚠️ Requires user intervention
+    end note
+
+    note right of S6_Delivery
+        ⚠️ Requires user intervention
     end note
 ```
 
@@ -73,348 +69,149 @@ stateDiagram-v2
 
 ## Task Steps
 
-### S1: Understand Requirements and Current State
+### S1: Understand Intent
 
-**Goal**: Accurately understand the change intent and the current code state.
+**Goal**: Accurately understand the change intent, current code state, and delivery requirements.
+**Output**: Clear development intent + confirmed deliverables and acceptance standards
+**Output Checklist**: —
+**Output Review**: human
+**Referenced Regulation**: —
 
 1. Read the user-submitted change request
 2. Extract core intent — what needs to change? why?
 3. Locate and read the corresponding Spec document from the `docs/spec/` directory (do NOT skip this step), then read related source code
 4. Mark covered, vague, and missing information
-5. Assess whether the Spec document's technical approach is clear enough to directly guide execution — flag any vague, underspecified, or ambiguous technical decisions that would block implementation
+5. If the intent is vague or ambiguous, clarify with the user through progressive questioning:
+   - Use `question` / `confirm` blocking tools — only one question at a time
+   - Wait for the user's response before asking the next question
+   - If the answer leads to a new direction, follow up deeply before returning to the original path
+   - Loop until the user confirms "no further questions"
+   - **Never** batch multiple questions in plain text
+6. Present the deliverables and acceptance standards (user-specified values if provided at task start, otherwise the defaults), and use the `confirm` tool to confirm with the user
 
-**On completion**: Automatically proceed to S2
+**Upon completion**:
+- Auto proceed to S2
 
 ---
 
-### S2: Identify Information Gaps and Contradictions
+### S2: Explore Facts
 
-**Goal**: Systematically identify vague, missing, and conflicting items.
+**Goal**: Establish a knowledge baseline of requirements, gaps, and constraints.
+**Output**: Knowledge baseline (facts, gaps, and constraints)
+**Output Checklist**: —
+**Output Review**: human
+**Referenced Regulation**: —
 
 1. Cross-reference the Spec against the change request, marking missing items, vague items, and contradictions
-2. Sort by impact level
-3. Prepare a list of interview questions, one per topic
-4. **Re-analyze after interview**: Upon returning from S3, re-examine the original S2 gap list based on clarified answers:
-   - Do the clarified answers introduce new ambiguities?
-   - Do the clarified conclusions conflict with the Spec or change request?
-   - Are there previously undiscovered missing items?
-5. If new questions are found → compile a new question list and return to S3 to continue interviewing; if no new questions → proceed to S4
+2. Sort gaps by impact level
+3. Clarify ambiguous points with the user through progressive questioning:
+   - Use `question` / `confirm` blocking tools — only one question at a time
+   - Wait for the user's response before asking the next question
+   - If the answer leads to a new direction, follow up deeply before returning to the original path
+   - Loop until the user confirms "no further questions"
+   - **Never** batch multiple questions in plain text
+4. Re-analyze the gap list based on clarified answers; if new questions emerge, continue interviewing; otherwise consolidate the knowledge baseline
 
-**On completion**: No new questions → automatically proceed to S4; new questions found → return to S3
-
----
-
-### S3: [Human-in-loop] Progressive Interview ⚠️
-
-> **⚠️ This step requires user intervention.** Ask only 1 question at a time.
-
-**Goal**: Clarify ambiguities one question at a time.
-
-1. Use the question / confirm blocking tool
-2. Ask only 1 question at a time
-3. Loop until the user confirms "no more questions"
-
-**On completion**: User confirms "no more questions" → return to S2 for re-analysis
+**Upon completion**:
+- Auto proceed to S3
 
 ---
 
-### S4: Modify Spec Design
+### S3: Detailed Feature Design
 
-**Goal**: Based on the requirements clarified through S3 interviews, directly modify the Spec documents to reflect the clarified requirements. Every change must be traceable to an S3 interview conclusion.
+**Goal**: Produce the feature design (and update the Spec document) based on confirmed preferences.
+**Output**: Feature design (produced after confirming design preferences; Spec document updated)
+**Output Checklist**:
+- Design covers all clarified requirements
+- Third-party dependency skills verified before design finalization
+- Design aligns with existing project patterns
+- Spec document updated to reflect the confirmed design (every change traceable to an interview conclusion)
+**Output Review**: self-check + human
 **Referenced Regulation**: /docs/regulation/spec-template.md
 
-1. **Third-party library skill check (MUST complete before Spec modification)**:
-   - Review the change requirements and identify any third-party component libraries or frameworks involved (e.g., UI libraries, database drivers, API clients, authentication SDKs, etc.)
-   - For each identified dependency, check if a corresponding skill is installed locally using the `skill` tool
-   - ⚠️ If any required skill is missing:
-     - Inform the user which library lacks a skill
-     - Use the `question` tool to ask the user to install or create the required skill
-     - **Do NOT proceed** with Spec modification. Block and wait until the user confirms the skill has been installed, then re-check.
-   - Once all required skills are available (or no third-party dependencies exist), proceed to step 2
-2. **Review S3 interview results**: Revisit all Q&A sessions, distill the clarified core requirements
-3. **Locate and read relevant Spec documents**: List the involved Spec documents (`docs/spec/`), understand the existing chapter structure
-4. **Apply Spec changes directly**: For each chapter, determine and execute the change:
-   - **Modify** — Content is outdated, inaccurate, or needs supplementation → edit the file
-   - **Add** — New concepts, interfaces, constraints, or flows → write new sections
-   - **Delete** — Deprecated design → remove or mark as deprecated
-   - **Affected** — Cross-references or dependencies impacted by other changes → update links and references
-5. **Annotate traceability**: Each change should include a brief note linking back to the specific S3 interview conclusion that motivated it
-6. **Keep Spec consistent**: Ensure no contradictions between sections after modifications
+1. Identify the key feature design decision points (tech selection, interface style, data model approach, implementation approach)
+2. For each key design point where multiple viable options exist, present 2-3 design alternatives using the `question` tool and let the user choose the one closest to their design intent:
+   - One design point at a time
+   - Each alternative states its trade-offs briefly
+   - Loop until all key design points are decided
+   - **Never** batch multiple questions in plain text
+3. Design the feature based on the chosen preferences: data model, interfaces, behavior, edge cases
+4. Update the Spec document to reflect the confirmed design (modify / add / delete sections; keep Spec consistent; traceability to interview conclusions)
+5. Present the design summary and use the `confirm` tool to wait for user approval
 
-> ⚠️ **Important**: This step modifies Spec documents ONLY. Do NOT write code or create implementation plans yet. Changes must be minimal and directly traceable to interview conclusions.
-
-**On completion**: Automatically proceed to S5
+**Upon completion**:
+- User approves design → auto proceed to S4
 
 ---
 
-### S5: [Human-in-loop] Review Spec Changes ⚠️
+### S4: Plan
 
-> **⚠️ This step requires user intervention.** Present the Spec modifications to the user for review before proceeding to the implementation plan.
+**Goal**: Produce an execution plan based on the approved design and confirmed acceptance criteria.
+**Output**: Execution plan (produced after confirming acceptance criteria)
+**Output Checklist**:
+- File list is complete; each change maps to a Spec section
+- Test cases cover all change points
+- Risks have corresponding mitigations
+- Plan saved to `docs/plan/plan-{taskId}.md`
+**Output Review**: self-check + human
+**Referenced Regulation**: —
 
-**Goal**: User reviews the Spec changes to confirm they correctly capture the clarified requirements.
+1. Confirm acceptance criteria with the user: present the proposed acceptance criteria for each change point and use the `confirm` / `question` tools to finalize them
+2. Read relevant source code and design code change points for each confirmed Spec change
+3. Design test cases for each change point
+4. Perform Spec vs code conflict analysis (interface mismatches, constraint gaps, terminology drift); annotate a recommended alignment direction for each conflict
+5. Save the Plan as a file `docs/plan/plan-{taskId}.md` (S5 and S6 depend on it)
+6. Present the Plan (code changes + conflict points) and use the `confirm` tool to wait for user approval; for each conflict point, use the `question` tool to ask the user for the alignment direction
 
-1. Call `pm_task_set_step(step="S5")` to declare entry
-2. Present a summary of Spec changes:
-   - Which Spec documents were modified
-   - Summary of each change (chapter/section, change type, brief rationale)
-   - Diff highlights for key modifications
-3. ⚠️ Use the `confirm` tool to wait for user approval:
-   - **Must** receive **strongly affirmative** instructions such as "confirm / agree / approved / no problem / go ahead / LGTM" before proceeding
-   - Vague or weak affirmative responses ("looks OK", "let's try", "mm", "should be fine") are treated as **unconfirmed**; must follow up for explicit approval
-4. **Strictly prohibited** from writing implementation plans or code before receiving explicit confirmation
-5. If the user requests revisions → return to S4 to modify the Spec
-
-**State transitions**:
-- User explicitly approves → S6
-- User requests revisions → return to S4
-
-**On completion**: Explicitly confirmed → S6
-
----
-
-### S6: Design Implementation Plan
-
-**Goal**: Based on the confirmed Spec changes (from S5), design the code implementation plan, perform Spec vs Code conflict analysis, and **save the Plan as a file** for S7 review.
-
-> ⚠️ **Critical**: This step MUST save the Plan as a file `docs/plan/plan-{taskId}.md`. The S7 review step depends on this file.
-
-#### Analysis Steps
-
-##### Phase 1: Code Change Analysis
-
-1. **Read relevant source code**: Locate affected source files and understand existing implementations
-2. **Design code change points**: Map each confirmed Spec change point to an implementation path at the code level
-3. **Design test cases**: Design verification plans for each change point
-
-##### Phase 2: Conflict Analysis
-
-4. **Spec vs Code cross-comparison**: Compare the confirmed Spec changes against code change points item by item, identifying inconsistencies:
-   - Spec-defined interface signatures don't match code implementations
-   - Spec-described constraints are not enforced or are implemented oppositely in code
-   - Spec and code use different terminology for the same concept
-   - Code contains implicit behaviors not covered by the Spec
-5. **Annotate alignment direction**: Provide a recommendation for each conflict (align to Spec / align to Code / compromise), for the user to decide during S7
-
-#### Plan Document Format
-
-```markdown
-# Implementation Plan
-
-> Related Spec: [spec document path]
-> Based on S3 interview results: [one-sentence summary of core conclusion]
-> Goal: [one-sentence goal summary]
+**Upon completion**:
+- User approves plan → auto proceed to S5
 
 ---
 
-## 1. Code Changes
+### S5: Code and Test
 
-### File List
+**Goal**: Implement per the approved plan, write tests, and pass all verification.
+**Output**: Code changes and test results
+**Output Checklist**:
+- LSP diagnostics zero error
+- Build passes
+- All tests pass
+- No type escapes (any / @ts-ignore)
+- Change scope matches the plan
+**Output Review**: self-check + review-agent + human
+**Referenced Regulation**: /docs/regulation/constitution.md, coding_style.md, checklist.md
 
-| File | Operation | Description |
-|------|------|------|
-| path/to/file.ts | Modify | ... |
-| path/to/new.ts | Add | ... |
+1. Implement change points from the Plan one by one (run build/type-check after each change)
+2. Write tests according to the Plan's test cases; run tests and fix failures; do NOT delete failing tests
+3. Perform self-check: all Plan tasks implemented, build + tests pass, Spec fully implemented, no unnecessary refactoring
+4. Run the code review phase (if `/code-review-skill` is available) and output a severity-classified review report; fix critical items
+5. Declare output complete (call the output verification entry `pm_task_verify`); the review agent verifies the step output, then the user confirms
 
-### Change Details
-
-#### CHG-C1: [File/Module Name] — [Operation Type]
-
-- **Related Spec**: [corresponding Spec section]
-- **Goal**: [what to change]
-- **Approach**: [how to change, brief technical path]
-- **Impact**: [which other modules are affected]
-- **Test Points**: [what needs to be verified]
-
-#### CHG-C2: ...
-
-### Configuration Items (if applicable)
-
-| Config Item | Location | Change Description |
-|--------|------|----------|
-| ... | ... | ... |
-
-### Risks and Mitigations
-
-| Risk | Impact | Mitigation |
-|------|------|----------|
-| ... | ... | ... |
-
-### Test Plan
-
-| Test Type | Test Content | Expected Result |
-|----------|----------|----------|
-| Unit test | ... | ... |
-| Integration test | ... | ... |
+**Upon completion**:
+- Review passed + user confirms → auto proceed to S6
+- Review failed-Execution problem → redo S5
+- Review failed-Design problem → return to S3
+- Review failed-Unreasonable acceptance criteria → return to S4
 
 ---
 
-## 2. Spec vs Code Conflicts ⚠️
+### S6: Delivery
 
-> Listed below are inconsistencies between the confirmed Spec and code implementation.
-> Each conflict includes a **recommended alignment direction**. Please decide during S7 review.
+**Goal**: Deliverable acceptance and task closure.
+**Output**: Acceptance conclusion + task closed
+**Output Checklist**: —
+**Output Review**: human
+**Referenced Regulation**: /docs/regulation/checklist.md
 
-| # | Conflict Description | Spec Definition | Code Status | Impact Scope | Recommended Alignment |
-|------|----------|-----------|----------|----------|-------------|
-| CF-1 | [brief conflict description] | [what Spec says] | [how code is implemented] | [affected modules] | Align to Spec / Align to Code / Compromise: [brief plan] |
-| CF-2 | ... | ... | ... | ... | ... |
+1. Summarize all task outputs; update the Spec document's Implementation Plan section to reflect actual changes
+2. Present the deliverables vs acceptance standards comparison; use the `confirm` tool to wait for user acceptance (not accepted → return to S5 per FSM edge)
+3. Run final verification (LSP diagnostics / build / tests)
+4. Use the `question` tool to ask the user: "Execute `git commit`?"
+   - If the user selects "Yes": run `git add -A && git commit`, using the development summary as the commit message
+   - If the user selects "No": skip the commit
+   - ⚠️ The user's choice does not affect task completion
+5. Call `pm_task_close()` to end the task and trigger analysis
 
-> If no conflicts, write "None — Spec and Code are consistent".
-```
-
-#### Self-Check Checklist
-
-After saving the Plan file, confirm the following item by item:
-
-- [ ] **Code section**: File list is complete; each CHG-C is linked to a corresponding Spec section
-- [ ] **Conflict section**: Spec vs Code compared item by item; no missed implicit inconsistencies
-- [ ] Plan file saved to `docs/plan/plan-{taskId}.md`
-- [ ] Risks have corresponding mitigations
-- [ ] Test plan covers all change points
-
-**On completion**: Plan file saved → automatically proceed to S7
-
----
-
-### S7: [Human-in-loop] Review Plan ⚠️
-
-**Goal**: User reviews the implementation Plan (Code changes + Conflicts) in one pass, and makes alignment decisions on conflict points.
-
-1. Present the two sections of the Plan document
-2. ⚠️ For each CF-* entry in the "Spec vs Code Conflicts" table, use the `question` tool to ask the user for the alignment direction item by item:
-   - Options: `Align to Spec` / `Align to Code` / `Compromise`
-   - If the user chooses Compromise, follow up to ask for specific compromise details
-3. After collecting all decisions, use the `confirm` tool to wait for the user's final confirmation of the overall Plan:
-    - **Must** receive **strongly affirmative** instructions from the user such as "confirm / agree / approved / no problem / go ahead / LGTM" before proceeding
-    - Vague or weak affirmative responses ("looks OK", "let's try", "mm", "should be fine") are treated as **unconfirmed**; must follow up for explicit approval
-4. **Strictly prohibited** from performing any code modifications, file edits, or todo creation before receiving explicit confirmation
-
-**On completion**: Explicitly confirmed → S8; revisions needed → S6; new ambiguities → S3
-
----
-
-### S8: Write Code
-
-**Goal**: Implement according to the Plan.
-**Referenced Regulation**: coding_style.md
-
-1. Implement change points from the Plan one by one
-2. Run build/type-check after each change
-3. Follow code quality-first principles
-
-**On completion**: All implemented → S9.
-
-> ⚠️ **Iteration Counter**: Each execution of S8 (including re-executions after being sent back from S10 for fixes or from S11 for fixes) increments the S8 iteration count by 1. This count is read by S10 during self-check to determine whether to trigger deep iteration review (threshold: > 5 rounds).
-
----
-
-### S9: Write Tests and Fix
-
-**Goal**: Write test code and ensure all pass.
-**Referenced Regulation**: coding_style.md
-
-1. Write tests according to the Plan's test cases
-2. Run tests, fix failures
-3. Do NOT delete failing tests
-
-**On completion**: All passed → S10
-
----
-
-### S10: Self-Check and Code Review
-
-**Goal**: Perform a comprehensive self-check and use code review tools to discover potential issues.
-
-> ⚠️ **Deep Iteration Review Trigger Condition**: If S8 iteration count > 5 rounds, the code review phase automatically upgrades to "Deep Review", additionally checking for ineffective modifications and excessive refactoring.
-
-#### Phase 1: Basic Self-Check
-
-1. Are all Plan tasks fully implemented
-2. Do build + tests pass
-3. Is the Spec fully implemented
-4. Is there any unnecessary refactoring
-
-Basic self-check passed → proceed to Phase 2.
-Issues found → return to S8 for fixes.
-
-#### Precursor: Deep Iteration Review (triggered when S8 iteration count > 5)
-
-When S8 has taken more than 5 iterations to reach this step, it indicates the code may have undergone extensive back-and-forth modifications. Before entering formal code review, perform additional deep review:
-
-1. **Ineffective Modification Detection**:
-   - Check for patterns of modifying the same code back and forth (changed, then changed back)
-   - Identify intermediate changes that were overwritten/deprecated by subsequent modifications
-   - Detect residual artifacts from multiple mutually exclusive approaches attempted for the same problem
-
-2. **Excessive Refactoring Detection**:
-   - Whether "passing refactoring" beyond the Plan scope introduced unnecessary complexity
-   - Whether new abstraction layers, utility functions, or configuration items not covered by the Plan were introduced
-   - Whether there is over-engineering for "possible future needs"
-
-3. Output deep review conclusions:
-   - Flag suspicious ineffective modification points, recommend whether to roll back some changes
-   - Flag out-of-scope excessive refactoring, recommend retention or removal
-   - Classify issues found in deep review into the 🔴/🟡/🟢 severity levels below
-
-> If S8 iteration count ≤ 5, skip this phase and go directly to Phase 2.
-
-#### Phase 2: Code Review
-
-> **Conditional execution**: Check if the `/code-review-skill` command is available.
-> - If available → perform code review
-> - If unavailable → skip this phase, go directly to S11
-
-1. Call `skill(name="/code-review-skill")` to retrieve the code review guide
-2. Perform a comprehensive review of the changed files according to the review guide
-3. Output a review report, categorized by severity
-
-##### Review Severity Classification
-
-| Severity | Definition | Handling |
-|--------|------|----------|
-| 🔴 Critical | Security vulnerabilities, data loss risk, logic errors, type safety violations | Must return to S8 for fixes |
-| 🟡 Medium | Performance issues, code smells, maintainability issues, missing edge cases | Recorded in report; user decides in S11 whether to fix |
-| 🟢 Low | Style issues, naming suggestions, documentation improvements | Recorded in report; user decides in S11 whether to fix |
-
-##### Flow Rules
-
-- **Critical items exist (🔴 > 0)**: Output review report, automatically return to S8 for fixes. Fix each critical item one by one; after fixes, re-enter S9 (tests) → S10 (self-check).
-- **No critical items (🔴 = 0)**: Output complete review report (including medium and low severity items), automatically proceed to S11. Medium and low items are left for user decision during review confirmation.
-
-**On completion**: No critical items → S11; critical items exist → S8
-
----
-
-### S11: [Human-in-loop] Review Confirmation ⚠️
-
-**Goal**: User confirms deliverables and code review results.
-
-1. Present the delivery report
-2. If there is an S10 code review report, present the list of medium and low severity items, and use the `question` tool to ask the user:
-   - "Code review found N medium items and M low items. Should they be fixed in this round?"
-   - Options: "Ignore all, accept directly" / "Fix medium items only" / "Fix all"
-3. Use the `confirm` tool to wait for final confirmation
-
-> ⚠️ **Design Issues vs Code Issues**:
-> - **Code Issues**: Implementation bugs, missed edge cases, insufficient test coverage → return to S8 for fixes
-> - **Design Issues**: User points out the overall approach direction is wrong, Spec understanding is off, architecture choice needs adjustment, the change points designed in the Plan themselves are unreasonable → return to S4 to redesign the Spec
-
-**On completion**:
-- Approved (or user chooses to ignore fix items) → S12
-- Fixes needed (code-level bugs/omissions) → S8
-- Design issue (user points out design direction is wrong, approach is not viable, etc.) → S4 to redesign Spec
-
----
-
-### S12: Deliver and Merge
-
-**Goal**: Wrap up, update documentation, prepare for commit.
-
-1. Save the delivery report to the Plan
-2. Update the Spec document — specifically the **Implementation Plan** section, reflecting the actual code changes made
-3. Run final verification
-4. Use the `question` tool to ask the user: "Perform `git commit`?"
-   - If the user selects "Yes": execute `git add -A && git commit`, using the development summary as the commit message
-   - If the user selects "No": skip commit
-   - ⚠️ User choice does not affect task completion
-
-**On completion**: Call `pm_task_close()` to end the task and trigger analysis
+**Upon completion**:
+- User approves deliverable → task ends (terminal state)
+- User requests changes → return to S5
