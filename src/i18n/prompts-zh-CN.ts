@@ -52,7 +52,7 @@ const zhCN = {
 > 🔍 **输出验证（0.2 格式流程）**：若当前步骤声明了 **Output Review**（输出审查），
 > 完成该步骤全部动作后，必须先调用 pm_task_verify 工具触发验证：
 > - 工具返回自查清单（Output Checklist）→ 逐项核对
-> - 声明了 review-agent 的步骤 → 工具会启动审查 Agent 并同步等待结果
+> - 声明了 review-agent 的步骤 → 工具会启动审查 Agent 并同步等待结果；工具同时返回审查清单（Review Checklist），该清单已作为审查依据注入审查 Agent 的 prompt
 > - 审查通过 → 继续后续验证环节（human 等）
 > - 审查不通过 → 按工具返回的 rollbackTarget（回跳目标）调用 pm_task_set_step 跳回重做
 > - 未声明 Output Review 的步骤（或 0.1 旧流程）→ 无需调用，按流程文档自行验证

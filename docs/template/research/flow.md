@@ -4,7 +4,7 @@
 **Category**: research
 **Description**: Research workflow for organizing requirements, design documents, and analysis
 **Command**: `/pm-research`
-**Version**: 0.2.0
+**Version**: 0.3.0
 
 ---
 
@@ -62,6 +62,7 @@ stateDiagram-v2
 **Goal**: Accurately understand the core intent of the user's input and confirm deliverables.
 **Output**: Clear task intent + confirmed deliverables and acceptance standards
 **Output Checklist**: —
+**Review Checklist**: —
 **Output Review**: human
 **Referenced Regulation**: —
 
@@ -86,6 +87,7 @@ stateDiagram-v2
 **Goal**: Search for relevant internal and external information to establish a knowledge baseline.
 **Output**: Knowledge baseline (list of known facts)
 **Output Checklist**: —
+**Review Checklist**: —
 **Output Review**: human
 **Referenced Regulation**: —
 
@@ -112,6 +114,7 @@ stateDiagram-v2
 **Goal**: Design the execution path based on clarified requirements and confirmed preferences.
 **Output**: Execution path plan (produced after confirming design preferences)
 **Output Checklist**: —
+**Review Checklist**: —
 **Output Review**: human
 **Referenced Regulation**: —
 
@@ -135,11 +138,12 @@ stateDiagram-v2
 **Goal**: Execute the approved path and produce the final deliverables.
 **Output**: Specified deliverable (research report / Spec document / technical proposal)
 **Output Checklist**:
-- The deliverable answers the research question / covers all confirmed requirements
+- The deliverable answers the research question / covers all confirmed requirements (each mapped)
 - Conclusions are supported by the gathered facts with sources noted
 - Edge cases and constraints identified in S2/S3 are addressed
 - No out-of-scope changes beyond the approved path
-**Output Review**: human
+**Review Checklist**: —
+**Output Review**: self-check + human
 **Referenced Regulation**: —
 
 1. Execute subtasks in the planned order to produce the final deliverable

@@ -72,7 +72,8 @@
 | 交付物（Deliverable） | 任务级交付目标 |
 | 交付标准（Acceptance Standard） | 交付物验收标准 |
 | 输出审查（Output Review） | 步骤输出的验证环节 |
-| 自查清单（Output Checklist） | 步骤级静态定义的自查条目列表，self-check 验证的依据 |
+| 自查清单（Output Checklist） | 步骤级静态定义的自查条目列表，self-check 验证的依据——客观、机械可验证条目（LSP 诊断/构建/测试/类型安全/产物完整性） |
+| 审查清单（Review Checklist） | 步骤级静态定义的审查条目列表，review-agent 验证的依据——主观判断条目（代码质量/设计匹配度/一致性/范围纪律）；注入审查 Agent prompt |
 | 自查（self-check） | LLM 按自查清单对自身输出进行核对 |
 | 审查 Agent（review-agent） | 插件启动的后台 LLM 子 session 审查 |
 | 人工审查（human） | 用户通过 question/confirm 工具确认 |
@@ -93,7 +94,7 @@
 
 1. LLM 完成 S5 执行，先按审查清单自查（运行测试、LSP 诊断、代码审查）。
 2. 自查通过后，LLM 声明 S5 输出完成（调用输出验证入口工具）。
-3. 插件在后台启动审查 Agent 子 session，将 S5 的输出摘要、验收标准、审查原则注入审查 prompt。
+3. 插件在后台启动审查 Agent 子 session，将 S5 的输出摘要、验收标准、审查原则与步骤级审查清单（Review Checklist）注入审查 prompt。
 4. 主 Session 等待审查 Agent 完成（同步等待）。
 5. 审查 Agent 返回「通过」→ 审查结果注入主会话，LLM 继续执行「人工审查」环节（用户确认）→ 用户确认通过 → LLM 按 FSM 进入 S6 交付合流。
 
@@ -169,7 +170,7 @@
 
 | 模块 | 职责 | 依赖 | 暴露 |
 |------|------|------|------|
-| Flow Parser（新） | 解析 flow.md 的 0.2 格式：步骤元数据（编号/名称/输出/输出审查/引用规则）+ mermaid FSM 图 → 结构化 FlowDefinition | 文件系统 | FlowDefinition、解析错误 |
+| Flow Parser（新） | 解析 flow.md 的 0.2 格式：步骤元数据（编号/名称/输出/自查清单/审查清单/输出审查/引用规则）+ mermaid FSM 图 → 结构化 FlowDefinition | 文件系统 | FlowDefinition、解析错误 |
 | Flow Engine（扩展） | 步骤流转、FSM 转移校验、审查/记录员触发编排、交付物确认上下文注入 | Memory System、Flow Parser | setStep（含校验）、verifyOutput、getFlowDefinition |
 | Review Agent Manager（新） | 审查 Agent 子 session 启动、同步等待、结果解析与回传、失败降级 | OpenCode SDK client、Flow Engine | startReview、review 结果 |
 | Journal Manager（新） | 记录员子 session 调度（fire-and-forget）、journal 文件增量追加、篇幅约束 | OpenCode SDK client、Memory System | appendJournal（内部触发） |
@@ -261,11 +262,14 @@ graph TD
 | 编号（`### S{n}: {名称}`） | 是 | 从 S1 开始连续编号 | 步骤标题 |
 | **Goal** | 是 | 一句话 | 步骤目标 |
 | **Output** | 是 | 交付物类型描述 | 步骤执行目标（如「Spec 文档」「工程骨架」） |
-| **Output Checklist** | 条件必填 | 验证方式含 `self-check` 时必填；否则标注「—」 | 自查条目列表，self-check 的依据 |
+| **Output Checklist** | 条件必填 | 验证方式含 `self-check` 时必填；否则标注「—」 | 自查条目列表，self-check 的依据——客观、机械可验证条目 |
+| **Review Checklist** | 条件必填 | 验证方式含 `review-agent` 时必填；否则标注「—」 | 审查条目列表，review-agent 的依据——主观判断条目；注入审查 Agent prompt |
 | **Output Review** | 是 | 枚举组合 | 格式：`self-check` / `review-agent` / `human`，可 `+` 组合 |
 | **Referenced Regulation** | 否 | 文件路径列表 | 引用规则 |
 | 指令列表 | 是 | 有序列表 | 步骤执行指令 |
 | **Upon completion** | 是 | 转移条件描述 | 与 FSM 图转移边一致 |
+
+> **清单职责划分**：自查清单（Output Checklist）承载编译、自动测试、LSP 诊断、类型安全等客观机械检查；审查清单（Review Checklist）承载代码质量、设计/需求匹配度、一致性、范围纪律等主观判断检查。无 review-agent 的步骤不得设置主观判断条目——其主观质量由 human 审查兑底。
 
 FSM mermaid 图扩展约定：审查不通过的回跳边必须在 mermaid 图中显式定义，边标签格式 `Review failed-{reason}`，`{reason}` 取值：`Execution problem` / `Design problem` / `Unreasonable acceptance criteria`（对应中文概念：执行问题 / 设计问题 / 验收标准不合理）。
 
@@ -321,6 +325,7 @@ FSM mermaid 图扩展约定：审查不通过的回跳边必须在 mermaid 图�
 **Goal**: 准确理解任务意图与交付要求
 **Output**: 明确的任务意图 + 确认后的交付物与交付标准
 **Output Checklist**: —
+**Review Checklist**: —
 **Output Review**: human
 **Referenced Regulation**: —
 
@@ -337,6 +342,7 @@ FSM mermaid 图扩展约定：审查不通过的回跳边必须在 mermaid 图�
 **Goal**: 建立任务所需的知识基线
 **Output**: 已知事实清单
 **Output Checklist**: —
+**Review Checklist**: —
 **Output Review**: human
 **Referenced Regulation**: —
 
@@ -353,9 +359,9 @@ FSM mermaid 图扩展约定：审查不通过的回跳边必须在 mermaid 图�
 **Output**: 设计方案（含验收标准）
 **Output Checklist**:
 - 方案覆盖任务描述的全部要点
-- 方案符合项目既有模式
 - 验收标准明确可验证
 - 无超出任务范围的改动
+**Review Checklist**: —
 **Output Review**: self-check + human
 **Referenced Regulation**: —
 
@@ -377,6 +383,10 @@ FSM mermaid 图扩展约定：审查不通过的回跳边必须在 mermaid 图�
 - 测试全部通过
 - 无类型逃逸（any / @ts-ignore）
 - 变更范围与方案一致
+**Review Checklist**:
+- 代码质量：优雅、可读、无重复
+- 实现与确认方案一致
+- 无超出方案的隐藏改动
 **Output Review**: self-check + review-agent + human
 **Referenced Regulation**: constitution.md, coding_style.md
 
@@ -392,6 +402,7 @@ FSM mermaid 图扩展约定：审查不通过的回跳边必须在 mermaid 图�
 **Goal**: 用户验收交付物并结束任务
 **Output**: 验收结论 + 任务关闭
 **Output Checklist**: —
+**Review Checklist**: —
 **Output Review**: human
 **Referenced Regulation**: —
 
@@ -423,6 +434,7 @@ FSM mermaid 图扩展约定：审查不通过的回跳边必须在 mermaid 图�
 |------|------|------|
 | review-required | 布尔值 | 是否需要审查 Agent 验证 |
 | self-check-checklist | 文本列表 | 自查清单（来自流程文档该步骤的 Output Checklist，无则空） |
+| review-checklist | 文本列表 | 审查清单（来自流程文档该步骤的 Review Checklist，无则空；供 LLM 了解审查 Agent 的审查依据） |
 | result | 枚举 | 验证结论（通过/不通过/等待审查中） |
 
 **错误情况**：
@@ -460,6 +472,7 @@ FSM mermaid 图扩展约定：审查不通过的回跳边必须在 mermaid 图�
 | parent-session-id | 文本 | 是 | 主会话 ID | — |
 | step-output-summary | 文本 | 是 | 待审查步骤的输出摘要 | — |
 | acceptance-standard | 文本 | 是 | 该步骤验收标准 | — |
+| review-checklist | 文本列表 | 否 | 步骤级审查清单（来自流程文档该步骤的 Review Checklist；无则空） | 空 |
 | review-framework | 文本 | 是 | 固定审查框架 prompt | 内置默认框架 |
 
 **输出**：
@@ -559,7 +572,7 @@ FSM mermaid 图扩展约定：审查不通过的回跳边必须在 mermaid 图�
 1. 读取当前步骤 OutputReview 定义、验收标准与 Output Checklist（自查清单）。
 2. IF 验证方式含 self-check THEN 注入该步骤的 Output Checklist，LLM 逐项核对并声明自查结论。
 3. IF 验证方式含 review-agent THEN：
-   a. 构造审查 prompt = 固定框架（通用审查原则） + 生成内容（步骤输出摘要 + 验收标准 + 任务上下文）。
+   a. 构造审查 prompt = 固定框架（通用审查原则） + 步骤级审查清单（Review Checklist，若存在）+ 生成内容（步骤输出摘要 + 验收标准 + 任务上下文）。
    b. 创建审查子 session（parentID = 主会话 ID），发送审查 prompt，同步等待。
    c. 解析审查结果为结构化 ReviewResult。
    d. IF pass THEN 注入「通过+审查意见」进主会话 → 进入下一步骤 ELSE 注入「不通过+判定原因+修改意见」→ 查 FSM 回跳边 → LLM 按回跳边跳转。
@@ -604,7 +617,7 @@ sequenceDiagram
         M->>M: 执行自查
     end
     alt 含 review-agent
-        P->>R: 创建子session+审查prompt(固定框架+生成内容)
+        P->>R: 创建子session+审查prompt(固定框架+步骤级审查清单+生成内容)
         P->>P: 同步等待审查完成
         R->>P: 审查结论(pass/fail+原因+意见)
         P->>M: 注入审查结果(下一轮输入)

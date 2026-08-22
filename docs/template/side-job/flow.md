@@ -4,7 +4,7 @@
 **Category**: side-job
 **Description**: Quick turnaround task flow — LLM must confirm the plan with the user before execution
 **Command**: `/pm-side-job`
-**Version**: 0.2.0
+**Version**: 0.3.0
 
 ---
 
@@ -70,6 +70,7 @@ stateDiagram-v2
 **Goal**: Accurately understand what the user wants to do, and confirm deliverables.
 **Output**: Clear intent + confirmed deliverables and acceptance standards
 **Output Checklist**: —
+**Review Checklist**: —
 **Output Review**: human
 **Referenced Regulation**: —
 
@@ -96,6 +97,7 @@ stateDiagram-v2
 **Goal**: Establish a knowledge baseline for the task.
 **Output**: Knowledge baseline (known facts and constraints)
 **Output Checklist**: —
+**Review Checklist**: —
 **Output Review**: human
 **Referenced Regulation**: —
 
@@ -120,9 +122,9 @@ stateDiagram-v2
 **Output**: Design plan (produced after confirming design preferences and acceptance criteria)
 **Output Checklist**:
 - Plan covers the full task description
-- Plan aligns with existing project patterns
 - Acceptance criteria clear and verifiable
 - No out-of-scope changes beyond the task
+**Review Checklist**: —
 **Output Review**: self-check + human
 **Referenced Regulation**: —
 
@@ -138,6 +140,7 @@ stateDiagram-v2
    - **Execution Steps**: Which specific files to modify, what changes to make (order and dependencies)
    - **Scope of Impact**: Modules or features that may be affected
    - **Risk Points**: Areas to watch out for (if any)
+   - Follow existing project patterns identified in S2
 5. ⚠️ Use the `confirm` / `question` tools to wait for the user's explicit confirmation:
    - **Must** receive a **strongly affirmative** instruction such as "confirmed / agree / approved / no problem / OK / go ahead / LGTM" before proceeding
    - Vague or weakly affirmative language ("looks doable", "give it a try", "mm", "should be fine") is treated as **unconfirmed** — must follow up with the user for a clear stance
@@ -158,6 +161,10 @@ stateDiagram-v2
 - Tests pass (where applicable)
 - No type escapes (any / @ts-ignore)
 - Change scope matches the plan
+**Review Checklist**:
+- Code quality: elegant, readable, no duplication
+- Implementation follows the plan confirmed in S3
+- No unnecessary refactoring or hidden changes
 **Output Review**: self-check + review-agent + human
 **Referenced Regulation**: /docs/regulation/constitution.md, coding_style.md
 
@@ -183,6 +190,7 @@ stateDiagram-v2
 **Goal**: Deliverable acceptance and task closure.
 **Output**: Acceptance conclusion + task closed
 **Output Checklist**: —
+**Review Checklist**: —
 **Output Review**: human
 **Referenced Regulation**: /docs/regulation/checklist.md
 

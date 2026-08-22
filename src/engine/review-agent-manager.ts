@@ -25,6 +25,8 @@ export interface StartReviewInput {
   stepId: string;
   stepName: string;
   acceptanceStandard: string;
+  /** Step-level review checklist items (may be empty) */
+  reviewChecklist: string[];
   conversationExcerpt: string;
 }
 
@@ -68,6 +70,7 @@ export class ReviewAgentManager {
         stepId: input.stepId,
         stepName: input.stepName,
         acceptanceStandard: input.acceptanceStandard,
+        reviewChecklist: input.reviewChecklist,
         conversationExcerpt: input.conversationExcerpt,
       },
       this.options.framework,

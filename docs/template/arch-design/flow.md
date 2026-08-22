@@ -4,7 +4,7 @@
 **Category**: development
 **Description**: Architecture design and project cold-start workflow (intent → facts → architecture & layering → scaffold → delivery)
 **Command**: `/pm-arch-design`
-**Version**: 0.2.0
+**Version**: 0.3.0
 
 ---
 
@@ -60,6 +60,7 @@ stateDiagram-v2
 **Goal**: Accurately understand the architecture design intent and confirm deliverables.
 **Output**: Clear architecture intent + confirmed deliverables and acceptance standards
 **Output Checklist**: —
+**Review Checklist**: —
 **Output Review**: human
 **Referenced Regulation**: —
 
@@ -83,6 +84,7 @@ stateDiagram-v2
 **Goal**: Establish a knowledge baseline for the architecture design.
 **Output**: Knowledge baseline (existing code structure, constraints, conventions)
 **Output Checklist**: —
+**Review Checklist**: —
 **Output Review**: human
 **Referenced Regulation**: —
 
@@ -108,8 +110,16 @@ stateDiagram-v2
 
 **Goal**: Produce an architecture & layering design (Spec document) based on confirmed preferences.
 **Output**: Spec document (architecture & layering design, produced after confirming design preferences)
-**Output Checklist**: —
-**Output Review**: human
+**Output Checklist**:
+- Spec document follows the Spec template structure (spec-template.md)
+- All diagrams use Mermaid (no ASCII art)
+- Each architecture decision traceable to interview conclusions
+**Review Checklist**:
+- Architecture rationality: layering and module boundaries are justified
+- Module independence: no cross-module internal access
+- Tech stack fits the project constraints and goals
+- Design consistency: no contradictions between modules and data flow
+**Output Review**: self-check + review-agent + human
 **Referenced Regulation**: /docs/regulation/spec-template.md
 
 1. Identify the key architecture decision points (tech stack, module boundaries, layering approach, conventions)
@@ -136,8 +146,10 @@ stateDiagram-v2
 - Base config (build, test, lint) is in place and runnable
 - LSP diagnostics zero error
 - Build passes
+**Review Checklist**:
+- Scaffold matches the approved architecture design (structure, layering, config)
 - No out-of-scope changes beyond the approved architecture
-**Output Review**: self-check + human
+**Output Review**: self-check + review-agent + human
 **Referenced Regulation**: /docs/regulation/constitution.md, coding_style.md
 
 1. Create the directory structure per the approved architecture
@@ -157,6 +169,7 @@ stateDiagram-v2
 **Goal**: Deliverable acceptance and task closure.
 **Output**: Acceptance conclusion + task closed
 **Output Checklist**: —
+**Review Checklist**: —
 **Output Review**: human
 **Referenced Regulation**: —
 

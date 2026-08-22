@@ -17,6 +17,7 @@ const INPUT = {
   stepId: 'S5',
   stepName: 'Write Code & Tests',
   acceptanceStandard: 'Tests pass',
+  reviewChecklist: ['Code quality is elegant', 'No unnecessary refactoring'],
   conversationExcerpt: '--- assistant ---\ndone',
 };
 
@@ -130,5 +131,25 @@ describe('ReviewAgentManager', () => {
       INPUT,
     );
     expect(promptText).toBe('Custom: S5');
+  });
+
+  it('injects the review checklist into the default framework prompt', async () => {
+    let promptText = '';
+    const capturingClient: SubsessionClient = {
+      async createSession() {
+        return 'ses_review_sub';
+      },
+      async prompt(_sessionId: string, text: string, _tools: Record<string, boolean>) {
+        promptText = text;
+        return PASS_OUTPUT;
+      },
+      async fetchRecentMessages() {
+        return '';
+      },
+    };
+    await new ReviewAgentManager(capturingClient).startReview(INPUT);
+    expect(promptText).toContain('## Step review checklist');
+    expect(promptText).toContain('- Code quality is elegant');
+    expect(promptText).toContain('- No unnecessary refactoring');
   });
 });

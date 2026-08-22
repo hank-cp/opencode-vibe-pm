@@ -47,7 +47,7 @@ Current step S{n}:
 > 🔍 **Output Verification (0.2 format flows)**: If the current step declares **Output Review**,
 > call the pm_task_verify tool AFTER completing all step actions to trigger verification:
 > - Tool returns the self-check checklist (Output Checklist) → verify item by item
-> - Steps with review-agent → the tool launches a review agent and waits synchronously for the result
+> - Steps with review-agent → the tool launches a review agent and waits synchronously for the result; the tool also returns the review checklist (Review Checklist), which is injected into the review agent's prompt as its review basis
 > - Review passed → continue with remaining verification modes (human, etc.)
 > - Review failed → call pm_task_set_step to roll back to the returned rollbackTarget
 > - Steps without Output Review (or legacy 0.1 flows) → skip the tool, verify per the flow document

@@ -4,7 +4,7 @@
 **Category**: development
 **Description**: Spec-driven standardized development workflow (Understand/Design/Plan/Code/Test/Deliver, 6 steps)
 **Command**: `/pm-spec-driven-dev`
-**Version**: 0.2.0
+**Version**: 0.3.0
 
 ---
 
@@ -74,6 +74,7 @@ stateDiagram-v2
 **Goal**: Accurately understand the change intent, current code state, and delivery requirements.
 **Output**: Clear development intent + confirmed deliverables and acceptance standards
 **Output Checklist**: —
+**Review Checklist**: —
 **Output Review**: human
 **Referenced Regulation**: —
 
@@ -99,6 +100,7 @@ stateDiagram-v2
 **Goal**: Establish a knowledge baseline of requirements, gaps, and constraints.
 **Output**: Knowledge baseline (facts, gaps, and constraints)
 **Output Checklist**: —
+**Review Checklist**: —
 **Output Review**: human
 **Referenced Regulation**: —
 
@@ -122,11 +124,15 @@ stateDiagram-v2
 **Goal**: Produce the feature design (and update the Spec document) based on confirmed preferences.
 **Output**: Feature design (produced after confirming design preferences; Spec document updated)
 **Output Checklist**:
-- Design covers all clarified requirements
+- Design covers all clarified requirements (each requirement mapped to a design section)
 - Third-party dependency skills verified before design finalization
-- Design aligns with existing project patterns
 - Spec document updated to reflect the confirmed design (every change traceable to an interview conclusion)
-**Output Review**: self-check + human
+**Review Checklist**:
+- Design aligns with existing project patterns and the constitution
+- Interfaces are explicit: inputs, outputs, types, and boundary conditions
+- Design consistency: no logical contradictions between Spec sections
+- No over-design beyond the confirmed requirements
+**Output Review**: self-check + review-agent + human
 **Referenced Regulation**: /docs/regulation/spec-template.md
 
 1. Identify the key feature design decision points (tech selection, interface style, data model approach, implementation approach)
@@ -151,8 +157,10 @@ stateDiagram-v2
 **Output Checklist**:
 - File list is complete; each change maps to a Spec section
 - Test cases cover all change points
+- Spec vs code conflict analysis complete; each conflict annotated with an alignment direction
 - Risks have corresponding mitigations
 - Plan saved to `docs/plan/plan-{taskId}.md`
+**Review Checklist**: —
 **Output Review**: self-check + human
 **Referenced Regulation**: —
 
@@ -178,6 +186,11 @@ stateDiagram-v2
 - All tests pass
 - No type escapes (any / @ts-ignore)
 - Change scope matches the plan
+**Review Checklist**:
+- Code quality: elegant, readable, follows the constitution's code quality principles
+- Implementation aligns with the approved design and Spec
+- Tests genuinely cover the change points and boundary conditions (no weak assertions / ideal mocks)
+- No unnecessary refactoring or hidden changes
 **Output Review**: self-check + review-agent + human
 **Referenced Regulation**: /docs/regulation/constitution.md, coding_style.md, checklist.md
 
@@ -200,6 +213,7 @@ stateDiagram-v2
 **Goal**: Deliverable acceptance and task closure.
 **Output**: Acceptance conclusion + task closed
 **Output Checklist**: —
+**Review Checklist**: —
 **Output Review**: human
 **Referenced Regulation**: /docs/regulation/checklist.md
 

@@ -135,6 +135,7 @@ describe('FlowEngine.verifyOutput', () => {
     await engine.setStep('ses_v2_s2b', 'S2');
     const result = await engine.verifyOutput('ses_v2_s2b');
     expect(result.selfCheckChecklist).toEqual(['Covers all points', 'Follows project patterns']);
+    expect(result.reviewChecklist).toEqual([]);
   });
 
   it('runs the review agent and returns pass for S3', async () => {
@@ -148,11 +149,36 @@ describe('FlowEngine.verifyOutput', () => {
     expect(result.feedback).toBe('clean');
     expect(result.nextInput).toBe('proceed');
     expect(result.rollbackTarget).toBeUndefined();
+    expect(result.reviewChecklist).toEqual([
+      'Implementation aligns with the design',
+      'No unnecessary refactoring',
+    ]);
 
     const reviews = await memory.getReviews((await memory.getActiveTask('ses_pass'))!.id);
     expect(reviews).toHaveLength(1);
     expect(reviews[0].conclusion).toBe('pass');
     expect(reviews[0].step).toBe('S3');
+  });
+
+  it('injects the step Review Checklist into the review agent prompt', async () => {
+    let promptText = '';
+    const client: SubsessionClient = {
+      async createSession() {
+        return 'ses_review_sub';
+      },
+      async prompt(_sessionId: string, text: string, _tools: Record<string, boolean>) {
+        promptText = text;
+        return PASS_OUTPUT;
+      },
+      async fetchRecentMessages() {
+        return '';
+      },
+    };
+    const engine = createEngine(client);
+    await startAndReachS3(engine, 'ses_prompt_inject');
+    await engine.verifyOutput('ses_prompt_inject');
+    expect(promptText).toContain('- Implementation aligns with the design');
+    expect(promptText).toContain('- No unnecessary refactoring');
   });
 
   it('resolves rollback target per reason (design problem → S2)', async () => {

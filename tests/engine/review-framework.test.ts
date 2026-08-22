@@ -20,6 +20,7 @@ const REVIEW_INPUT = {
   stepId: 'S5',
   stepName: 'Write Code & Tests',
   acceptanceStandard: 'All tests pass, no type escape',
+  reviewChecklist: [] as string[],
   conversationExcerpt: '--- user ---\nimplement it\n--- assistant ---\ndone',
 };
 
@@ -52,6 +53,23 @@ describe('buildReviewPrompt', () => {
     });
     expect(prompt).toContain('Not specified');
     expect(prompt).toContain('(no excerpt available)');
+  });
+
+  it('injects the review checklist as bullets', () => {
+    const prompt = buildReviewPrompt({
+      ...REVIEW_INPUT,
+      reviewChecklist: ['Implementation aligns with the design', 'No unnecessary refactoring'],
+    });
+    expect(prompt).toContain('## Step review checklist');
+    expect(prompt).toContain('- Implementation aligns with the design');
+    expect(prompt).toContain('- No unnecessary refactoring');
+    expect(prompt).not.toContain('{reviewChecklist}');
+  });
+
+  it('injects a None marker when the review checklist is empty', () => {
+    const prompt = buildReviewPrompt(REVIEW_INPUT);
+    expect(prompt).toContain('None (no step-level review checklist declared)');
+    expect(prompt).not.toContain('{reviewChecklist}');
   });
 
   it('uses a custom framework override when provided', () => {

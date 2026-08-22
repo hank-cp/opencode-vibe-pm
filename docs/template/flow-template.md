@@ -89,7 +89,10 @@ stateDiagram-v2
 **Output Checklist**:
 - {Self-check item 1}
 - {Self-check item 2}
-**Output Review**: self-check + human
+**Review Checklist**:
+- {Review-agent item 1}
+- {Review-agent item 2}
+**Output Review**: self-check + review-agent + human
 **Referenced Regulation**: {—, or /docs/regulation/filenames comma-separated}
 
 1. {What to do first}
@@ -103,12 +106,18 @@ stateDiagram-v2
 {Add more steps as needed}
 
 > **Step Format Convention**:
-> - Each step block uses these field keys, in this order: `**Goal**`, `**Output**`, `**Output Checklist**`, `**Output Review**`, `**Referenced Regulation**`, then the numbered instruction list, then `**Upon completion**`
+> - Each step block uses these field keys, in this order: `**Goal**`, `**Output**`, `**Output Checklist**`, `**Review Checklist**`, `**Output Review**`, `**Referenced Regulation**`, then the numbered instruction list, then `**Upon completion**`
 > - `**Goal**` (required): one sentence describing the step's objective
 > - `**Output**` (required): the step's execution target
-> - `**Output Checklist**` (required when `**Output Review**` includes `self-check`, otherwise `—`): bullet list of self-check items
+> - `**Output Checklist**` (required when `**Output Review**` includes `self-check`, otherwise `—`): bullet list of self-check items — objective, mechanically verifiable checks (LSP diagnostics, build, tests, type safety, files saved, coverage completeness)
+> - `**Review Checklist**` (required when `**Output Review**` includes `review-agent`, otherwise `—`): bullet list of review-agent items — subjective judgment checks (code quality, design alignment, consistency, scope discipline). These items are injected into the review agent's prompt as its review basis
 > - `**Output Review**` (required): enum combination of `self-check` / `review-agent` / `human`, joinable with `+`
 > - `**Referenced Regulation**` (optional): comma-separated file paths, or `—` if none
 > - `**Upon completion**` (required): bullet list matching the FSM outgoing edges — one line per edge in `{condition} → {target step}` format
 > - Field keys are English and MUST NOT be translated to Chinese. Documents using Chinese keys (e.g. `目标` / `完成后`) are treated as legacy 0.1 format.
 > - `⚠️` placed after the step name + blockquote = step requiring user intervention
+>
+> **Checklist responsibility split**:
+> - **self-check** (Output Checklist): objective verification the LLM can perform itself — compilation, automated tests, LSP diagnostics, type safety, artifact completeness
+> - **review-agent** (Review Checklist): subjective quality judgment requiring an independent third-party view — code quality, design/requirement alignment, consistency, scope discipline, code review
+> - **human**: final verdict on deliverables and design preferences

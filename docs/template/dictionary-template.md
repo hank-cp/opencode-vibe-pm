@@ -14,6 +14,10 @@
 | Regulation            | 规则      | 项目中的规则文档，包括宪法、编码风格等, 与Coding Agent常用的Rules区别是按需加载 |
 | Constitution          | 宪法      | 始终加载的最高规则，位于 `/docs/regulation/constitution.md`   |
 | Checklist             | 检查清单    | 质量门控自查列表                                          |
+| Output Checklist      | 自查清单    | 步骤级 self-check 依据：客观、机械可验证条目（LSP/构建/测试/类型安全）        |
+| Review Checklist      | 审查清单    | 步骤级 review-agent 依据：主观判断条目（代码质量/设计匹配度/一致性/范围纪律）    |
+| Self-check            | 自查      | LLM 按自查清单对自身输出进行核对                                |
+| Review Agent          | 审查Agent  | 插件启动的后台 LLM 子 session，按审查清单验证步骤输出                    |
 | Dictionary            | 字典      | 术语对照表（即本文件）                                       |
 | Discussion            | 讨论项     | 任务完成后自动生成的流程改进建议                                  |
 | TokenMetrics          | Token指标 | 按步骤采集的运行数据（次数/Token/耗时等）                          |
@@ -44,5 +48,12 @@
   - Human-in-loop
   - Command
   - Spec
+  - Goal
+  - Output
+  - Output Checklist
+  - Review Checklist
+  - Output Review
+  - Referenced Regulation
+  - Upon completion
 - Flow文档的Meta信息字段标题不翻译
   - Flow第3-7行的字段标题部分不翻译

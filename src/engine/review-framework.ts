@@ -18,6 +18,8 @@ export interface ReviewPromptInput {
   stepId: string;
   stepName: string;
   acceptanceStandard: string;
+  /** Step-level review checklist (`**Review Checklist**` items); empty when undeclared */
+  reviewChecklist: string[];
   conversationExcerpt: string;
 }
 
@@ -37,6 +39,9 @@ export const DEFAULT_REVIEW_FRAMEWORK = [
   '3. Scope discipline — no changes beyond the agreed scope.',
   '4. Quality gates — build/tests/diagnostics evidence is present and clean.',
   '5. Type safety — no type escape (any / @ts-ignore) or empty catch blocks.',
+  '',
+  '## Step review checklist',
+  '{reviewChecklist}',
   '',
   '## Step execution excerpt (recent conversation)',
   '{conversationExcerpt}',
@@ -60,12 +65,17 @@ export function buildReviewPrompt(
   input: ReviewPromptInput,
   framework: string = DEFAULT_REVIEW_FRAMEWORK,
 ): string {
+  const checklistText =
+    input.reviewChecklist.length > 0
+      ? input.reviewChecklist.map((item) => `- ${item}`).join('\n')
+      : 'None (no step-level review checklist declared)';
   return framework
     .replaceAll('{taskSummary}', input.taskSummary)
     .replaceAll('{flow}', input.flow)
     .replaceAll('{stepId}', input.stepId)
     .replaceAll('{stepName}', input.stepName)
     .replaceAll('{acceptanceStandard}', input.acceptanceStandard || 'Not specified')
+    .replaceAll('{reviewChecklist}', checklistText)
     .replaceAll('{conversationExcerpt}', input.conversationExcerpt || '(no excerpt available)');
 }
 

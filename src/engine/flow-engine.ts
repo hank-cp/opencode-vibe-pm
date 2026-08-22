@@ -54,6 +54,8 @@ export interface VerifyOutputResult {
   reviewRequired?: boolean;
   /** Self-check items from the step's Output Checklist (may be empty) */
   selfCheckChecklist?: string[];
+  /** Review items from the step's Review Checklist (may be empty) */
+  reviewChecklist?: string[];
   /** Review verdict (present when reviewRequired) */
   conclusion?: 'pass' | 'fail' | 'degraded' | 'timeout';
   /** Present when conclusion is "fail" */
@@ -304,6 +306,7 @@ export class FlowEngine {
         ok: true,
         reviewRequired: false,
         selfCheckChecklist: [],
+        reviewChecklist: [],
         notice: i18n().tool.verifyNoReviewLegacy,
       };
     }
@@ -314,12 +317,14 @@ export class FlowEngine {
         ok: true,
         reviewRequired: false,
         selfCheckChecklist: [],
+        reviewChecklist: [],
         notice: i18n().tool.verifyNoReview,
       };
     }
 
     const reviewRequired = step.outputReview.includes('review-agent');
     const selfCheckChecklist = step.outputChecklist;
+    const reviewChecklist = step.reviewChecklist;
     const selfCheckWithoutChecklist =
       step.outputReview.includes('self-check') && selfCheckChecklist.length === 0;
 
@@ -328,6 +333,7 @@ export class FlowEngine {
         ok: true,
         reviewRequired: false,
         selfCheckChecklist,
+        reviewChecklist,
         notice: this.buildNonAgentReviewHint(step.outputReview, selfCheckWithoutChecklist),
       };
     }
@@ -337,6 +343,7 @@ export class FlowEngine {
         ok: true,
         reviewRequired: true,
         selfCheckChecklist,
+        reviewChecklist,
         conclusion: 'degraded',
         notice: selfCheckWithoutChecklist
           ? `${i18n().tool.verifyDegradedNoClient} ${i18n().tool.verifySelfCheckNoChecklist}`
@@ -362,6 +369,7 @@ export class FlowEngine {
       stepId: step.id,
       stepName: step.name,
       acceptanceStandard: definition.acceptanceStandard,
+      reviewChecklist: step.reviewChecklist,
       conversationExcerpt: excerpt,
     });
 
@@ -395,6 +403,7 @@ export class FlowEngine {
       ok: true,
       reviewRequired: true,
       selfCheckChecklist,
+      reviewChecklist,
       conclusion: result.conclusion,
       failReason: result.failReason,
       feedback: result.feedback,

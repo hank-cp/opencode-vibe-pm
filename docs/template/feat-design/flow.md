@@ -4,7 +4,7 @@
 **Category**: design
 **Description**: Single feature module design workflow (intent → facts → detailed feature design)
 **Command**: `/pm-feat-design`
-**Version**: 0.2.0
+**Version**: 0.3.0
 
 ---
 
@@ -60,6 +60,7 @@ stateDiagram-v2
 **Goal**: Accurately understand the feature design intent and confirm deliverables.
 **Output**: Clear feature intent + confirmed deliverables and acceptance standards
 **Output Checklist**: —
+**Review Checklist**: —
 **Output Review**: human
 **Referenced Regulation**: —
 
@@ -84,6 +85,7 @@ stateDiagram-v2
 **Goal**: Establish a knowledge baseline for the feature design.
 **Output**: Knowledge baseline (relevant existing code, conventions, constraints)
 **Output Checklist**: —
+**Review Checklist**: —
 **Output Review**: human
 **Referenced Regulation**: —
 
@@ -110,12 +112,15 @@ stateDiagram-v2
 **Goal**: Produce the detailed feature design based on confirmed preferences.
 **Output**: Feature design deliverable (data model, interfaces, behavior, edge cases; produced after confirming design preferences)
 **Output Checklist**:
-- Design covers all confirmed requirements and known edge cases
-- Interfaces are explicit (inputs, outputs, types, boundary conditions)
-- Design aligns with existing project patterns and constraints
+- Design covers all confirmed requirements and known edge cases (each mapped)
 - Acceptance criteria are clear and verifiable
 - No out-of-scope design beyond the confirmed intent
-**Output Review**: self-check + human
+**Review Checklist**:
+- Interfaces are explicit (inputs, outputs, types, boundary conditions)
+- Design aligns with existing project patterns and constraints
+- Design consistency: data model, interfaces, and behavior have no contradictions
+- Edge cases adequately covered
+**Output Review**: self-check + review-agent + human
 **Referenced Regulation**: /docs/regulation/spec-template.md
 
 1. Identify the key feature design decision points (scope, interface style, data model approach, edge-case handling strategy)

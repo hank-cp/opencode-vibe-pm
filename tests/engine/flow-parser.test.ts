@@ -44,14 +44,24 @@ describe('Flow Parser: 0.2 format steps', () => {
     expect(s2.goal).toBe('Produce a confirmed design');
     expect(s2.output).toBe('Design document');
     expect(s2.outputChecklist).toEqual(['Covers all points', 'Follows project patterns']);
+    expect(s2.reviewChecklist).toEqual([]);
     expect(s2.outputReview).toEqual(['self-check', 'human']);
     expect(s2.referencedRegulations).toEqual(['constitution.md', 'coding_style.md']);
     expect(s2.uponCompletion).toBe('User confirms → S3');
   });
 
+  it('parses the Review Checklist field for review-agent steps', () => {
+    const s3 = def.steps[2];
+    expect(s3.reviewChecklist).toEqual([
+      'Implementation aligns with the design',
+      'No unnecessary refactoring',
+    ]);
+  });
+
   it('parses placeholder steps as empty collections', () => {
     const s1 = def.steps[0];
     expect(s1.outputChecklist).toEqual([]);
+    expect(s1.reviewChecklist).toEqual([]);
     expect(s1.outputReview).toEqual(['human']);
     expect(s1.referencedRegulations).toEqual([]);
   });

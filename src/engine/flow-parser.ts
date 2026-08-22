@@ -5,8 +5,8 @@
  * structured FlowDefinition:
  *
  *   - Step metadata: step heading + 0.2 format English field keys
- *     (`Goal` / `Output` / `Output Checklist` / `Output Review` /
- *     `Referenced Regulation` / `Upon completion`).
+ *     (`Goal` / `Output` / `Output Checklist` / `Review Checklist` /
+ *     `Output Review` / `Referenced Regulation` / `Upon completion`).
  *   - FSM transitions: the project-convention subset of mermaid
  *     `stateDiagram-v2` — state nodes (`S{n}_name`), `-->` edges,
  *     edge labels, `note` blocks (skipped), and `[*]` start/end states.
@@ -30,6 +30,8 @@ export interface FlowStep {
   output: string;
   /** `**Output Checklist**` items; empty when not declared or marked "—" */
   outputChecklist: string[];
+  /** `**Review Checklist**` items; empty when not declared or marked "—" */
+  reviewChecklist: string[];
   /** `**Output Review**` values split on `+`, e.g. ["self-check", "human"] */
   outputReview: string[];
   /** `**Referenced Regulation**` file basenames */
@@ -87,6 +89,7 @@ export interface FlowDefinition {
 /** 0.2 format English field keys, longest first for stable matching */
 const FIELD_KEYS = [
   'Output Checklist',
+  'Review Checklist',
   'Output Review',
   'Referenced Regulation',
   'Upon completion',
@@ -235,6 +238,7 @@ function extractStepFields(body: string): Omit<FlowStep, 'id' | 'name'> {
   const joined = (key: FieldKey): string => (values.get(key) ?? []).join('\n').trim();
 
   const checklist = joined('Output Checklist');
+  const reviewChecklist = joined('Review Checklist');
   const review = joined('Output Review');
   const regulations = joined('Referenced Regulation');
 
@@ -244,6 +248,10 @@ function extractStepFields(body: string): Omit<FlowStep, 'id' | 'name'> {
     outputChecklist:
       checklist && checklist !== EMPTY_PLACEHOLDER
         ? checklist.split('\n').map((s) => s.trim()).filter(Boolean)
+        : [],
+    reviewChecklist:
+      reviewChecklist && reviewChecklist !== EMPTY_PLACEHOLDER
+        ? reviewChecklist.split('\n').map((s) => s.trim()).filter(Boolean)
         : [],
     outputReview:
       review && review !== EMPTY_PLACEHOLDER ? splitByPlus(review) : [],

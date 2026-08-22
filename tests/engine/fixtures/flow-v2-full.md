@@ -89,6 +89,9 @@ stateDiagram-v2
 - LSP diagnostics clean
 - Build passes
 - Tests pass
+**Review Checklist**:
+- Implementation aligns with the design
+- No unnecessary refactoring
 **Output Review**: self-check + review-agent + human
 **Referenced Regulation**: —
 

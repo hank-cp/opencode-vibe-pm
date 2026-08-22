@@ -4,7 +4,7 @@
 **Category**: maintenance
 **Description**: Standardized bug fix workflow (understand & root-cause → fix plan → code & test → deliver)
 **Command**: `/pm-bug-fix`
-**Version**: 0.2.0
+**Version**: 0.3.0
 
 ---
 
@@ -67,6 +67,7 @@ stateDiagram-v2
 **Goal**: Accurately understand the bug and identify the root cause.
 **Output**: Bug understanding + root cause analysis conclusion
 **Output Checklist**: —
+**Review Checklist**: —
 **Output Review**: human
 **Referenced Regulation**: —
 
@@ -98,9 +99,9 @@ stateDiagram-v2
 **Output**: Fix plan (produced after confirming design preferences and acceptance criteria)
 **Output Checklist**:
 - Fix plan covers the confirmed root cause
-- Fix is elegant — clean, readable code with duplication removed
 - Regression test scenarios identified
 - Acceptance criteria clear and verifiable
+**Review Checklist**: —
 **Output Review**: self-check + human
 **Referenced Regulation**: —
 
@@ -111,7 +112,7 @@ stateDiagram-v2
    - Loop until all key design points are decided
    - **Never** batch multiple questions in plain text
 3. Confirm acceptance criteria with the user
-4. Design the fix plan: changes to make, tests to add, risk assessment
+4. Design the fix plan with the simplest viable approach: changes to make, tests to add, risk assessment
 5. Present the fix plan (root cause, fix, alternatives, risks) and use the `confirm` tool to wait for approval
 
 **Upon completion**:
@@ -126,10 +127,13 @@ stateDiagram-v2
 **Output Checklist**:
 - LSP diagnostics zero error
 - Build passes
-- All tests pass (including regression tests covering
-- the reproduction scenario)
+- All tests pass, including regression tests covering the reproduction scenario
 - No type escapes (any / @ts-ignore)
+**Review Checklist**:
+- Fix targets the confirmed root cause (no band-aid patches)
 - Code is elegant and clean — follows code quality first, reduces duplication
+- Regression tests adequately cover edge cases and related functionality
+- No unrelated changes beyond the fix scope
 **Output Review**: self-check + review-agent + human
 **Referenced Regulation**: /docs/regulation/constitution.md, coding_style.md
 
@@ -151,6 +155,7 @@ stateDiagram-v2
 **Goal**: Deliverable acceptance and task closure.
 **Output**: Acceptance conclusion + task closed
 **Output Checklist**: —
+**Review Checklist**: —
 **Output Review**: human
 **Referenced Regulation**: /docs/regulation/checklist.md
 
