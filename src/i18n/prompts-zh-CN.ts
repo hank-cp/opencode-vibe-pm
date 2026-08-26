@@ -61,6 +61,9 @@ const zhCN = {
 > 非法跳转会返回警告与合法转移目标列表，步骤状态不变。
 > 收到警告后：按合法目标列表修正跳转，或向用户说明跳转理由。
 
+> ⏭️ **用户明确要求跳步**：若用户在对话中明确要求跳过某步骤，可调用 pm_task_set_step(step="S{n}", force=true) 强制跳转（跳过 FSM 校验，目标步骤必须存在于流程文档中）。
+> 仅当用户明确表达跳步意图时使用；含糊表达需先追问确认，不得擅用 force。
+
 ## 流程终结 🔚
 
 当最后的步骤完成后，FSM 转移到 [*]（终止状态）。此时必须：
@@ -93,7 +96,7 @@ const zhCN = {
 | 2 | S1 阶段编辑/创建/删除文件 | "我先改一下这个" → ❌ |
 | 3 | 把用户请求直接当成编码任务 | 用户说"优化 X"，跳过流程直接改文件 → ❌ |
 | 4 | ⚠️ 步骤不调用 question/confirm 就直接执行 | 自己判断后直接实现 → ❌ |
-| 5 | 跳步：一个步骤没完成就进入下一步 | S1 没执行完就开始改代码 → ❌ |
+| 5 | 跳步：一个步骤没完成就进入下一步（用户明确要求跳步、用 force=true 强制跳转除外） | S1 没执行完就开始改代码 → ❌ |
 | 6 | 预读全流程后直奔编码步骤 | 读完后续全部步骤直接跳到编码步骤 → ❌ |
 | 7 | 先创建 todo 再走流程步骤 | 在 S1 执行前调用 todowrite → ❌ |
 | 8 | 行为与 constitution 冲突 | constitution 要求最小变更，但你做了重构 → ❌ |
@@ -159,6 +162,10 @@ const zhCN = {
       `[vibe-pm] ⚠️ 首次进入步骤校验失败：任务尚未进入任何步骤，仅允许进入 FSM 起点步骤（${startSteps.join(' / ') || '（无）'}），不能直接进入 ${target}。\n步骤状态未改变。请先进入起点步骤。`,
     setStepDegradedNoValidation:
       '[vibe-pm] ℹ️ 该流程未定义可用的 FSM 状态机（或解析失败），步骤跳转不校验。',
+    setStepForcedNotice: (target: string) =>
+      `[vibe-pm] ⏭️ 已按用户明确要求强制跳转至 ${target}（跳过 FSM 校验）。`,
+    setStepForceTargetMissing: (target: string) =>
+      `[vibe-pm] ❌ 强制跳转失败：目标步骤 ${target} 不存在于流程文档中。\n步骤状态未改变。请检查步骤 ID 拼写。`,
     verifyNoTask: '当前无活跃任务。请先启动一个流程任务。',
     verifyNoReview:
       '当前步骤未声明输出审查（Output Review）。请按流程文档确认本步骤的验证方式后继续。',
@@ -184,7 +191,7 @@ const zhCN = {
       'pm-install-flow': '从模板库安装流程',
       'pm-uninstall-flow': '移除一个流程',
       'pm-refine-flow': '迭代优化流程定义',
-      'pm-task-set-step': '手动跳转到指定步骤',
+      'pm-task-set-step': '手动跳转到指定步骤（支持用户授权跳步 force）',
       'pm-task-close': '关闭任务，触发分析',
       'pm-task-current-step': '获取当前活跃任务所在步骤',
       'pm-config': '查看或修改插件配置',

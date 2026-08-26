@@ -150,18 +150,25 @@ export function registerTools(
 function createTaskSetStepTool(engine: FlowEngine, memory: MemorySystem): ToolDefinition {
   const cmdI18n = i18n().tool;
   return tool({
-    description: cmdI18n.commandDesc['pm-task-set-step'] ?? 'Manually jump to a specific step',
+    description:
+      'Manually jump to a specific step. Pass force=true ONLY when the user explicitly requested to skip steps; it bypasses FSM transition validation (the target step must still exist in the flow document)',
     args: {
       step: tool.schema.string().describe('Target step ID, e.g. S1, S2'),
+      force: tool.schema
+        .boolean()
+        .optional()
+        .describe(
+          'Set true ONLY when the user explicitly requested to skip steps; bypasses FSM transition validation',
+        ),
     },
-    async execute(args: { step: string }, toolCtx: ToolContext): Promise<string> {
+    async execute(args: { step: string; force?: boolean }, toolCtx: ToolContext): Promise<string> {
       const sessionId = toolCtx.sessionID;
       if (!sessionId) {
         return JSON.stringify({ ok: false, error: cmdI18n.flowStartNoSession });
       }
 
       try {
-        const result = await engine.setStep(sessionId, args.step);
+        const result = await engine.setStep(sessionId, args.step, args.force === true);
         if (!result.ok) {
           return JSON.stringify({
             ok: false,
@@ -179,6 +186,7 @@ function createTaskSetStepTool(engine: FlowEngine, memory: MemorySystem): ToolDe
           taskId: task.id,
           step: task.currentStep,
           stepName: task.currentStepName,
+          forced: args.force === true,
           notice: result.notice,
         });
       } catch (err) {

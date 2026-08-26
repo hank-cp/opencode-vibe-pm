@@ -47,6 +47,8 @@ export interface PromptsI18n {
     setStepInvalidTransition: (target: string, legalTargets: string[]) => string;
     setStepInvalidEntry: (target: string, startSteps: string[]) => string;
     setStepDegradedNoValidation: string;
+    setStepForcedNotice: (target: string) => string;
+    setStepForceTargetMissing: (target: string) => string;
     verifyNoTask: string;
     verifyNoReview: string;
     verifyNoReviewLegacy: string;

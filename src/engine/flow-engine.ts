@@ -230,7 +230,7 @@ export class FlowEngine {
     }
   }
 
-  async setStep(sessionId: string, step: string): Promise<SetStepResult> {
+  async setStep(sessionId: string, step: string, force = false): Promise<SetStepResult> {
     const task = await this.memory.getActiveTask(sessionId);
     if (!task) throw new Error(`No active task for session ${sessionId}`);
 
@@ -241,7 +241,9 @@ export class FlowEngine {
     const flowName = task.flow;
     const definition = this.loadFlowDefinition(flowName);
 
-    if (definition.isV2 && !definition.fsmDegraded) {
+    const validationEnabled = definition.isV2 && !definition.fsmDegraded;
+
+    if (validationEnabled && !force) {
       const legalTargets = getLegalTargets(definition, task.currentStep);
       if (!legalTargets.includes(step)) {
         const t = i18n().tool;
@@ -255,8 +257,18 @@ export class FlowEngine {
       }
     }
 
+    if (force && validationEnabled && getStepName(definition, step) === null) {
+      const warning = i18n().tool.setStepForceTargetMissing(step);
+      logger.warn(
+        `setStep: forced transition rejected, unknown step ${step} (flow ${flowName})`,
+      );
+      return { ok: false, warning };
+    }
+
     const degradedNotice =
       definition.isV2 && definition.fsmDegraded ? i18n().tool.setStepDegradedNoValidation : undefined;
+    const forcedNotice =
+      force && validationEnabled ? i18n().tool.setStepForcedNotice(step) : undefined;
 
     const oldStep = task.currentStep;
     const stepName = getStepName(definition, step) ?? this.tryParseStepName(flowName, step) ?? step;
@@ -290,7 +302,7 @@ export class FlowEngine {
       transitionAt: new Date(now).toISOString(),
     });
 
-    return { ok: true, step, stepName, notice: degradedNotice };
+    return { ok: true, step, stepName, notice: forcedNotice ?? degradedNotice };
   }
 
   async verifyOutput(sessionId: string): Promise<VerifyOutputResult> {

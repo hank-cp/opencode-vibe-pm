@@ -56,6 +56,9 @@ Current step S{n}:
 > Illegal transitions return a warning plus the list of legal targets; step state stays unchanged.
 > On warning: correct the transition per the legal targets, or explain the reason to the user.
 
+> ⏭️ **User explicitly requests skipping steps**: If the user explicitly asks to skip a step in the conversation, call pm_task_set_step(step="S{n}", force=true) to force the transition (FSM validation bypassed; the target step must still exist in the flow document).
+> Use it ONLY when the user explicitly expressed the intent to skip; ask for clarification on ambiguous wording, never use force on your own judgment.
+
 ## Flow Termination 🔚
 
 When the final step completes and FSM reaches [*] (terminal state):
@@ -88,7 +91,7 @@ Any of the following = FLOW EXECUTION FAILURE:
 | 2 | Edit/create/delete files in S1 | "Let me just change this first" → ❌ |
 | 3 | Treat user request as direct coding task | User says "optimize X", skip flow and edit files → ❌ |
 | 4 | ⚠️ step without calling question/confirm before execution | Judge and implement on your own → ❌ |
-| 5 | Skip steps: proceed before current step completes | Jump to next step before S1 is done → ❌ |
+| 5 | Skip steps: proceed before current step completes (except when the user explicitly requests skipping via force=true) | Jump to next step before S1 is done → ❌ |
 | 6 | Read entire flow then jump to coding | Read all later steps then jump to the coding step → ❌ |
 | 7 | Create todos before following flow steps | Call todowrite before executing S1 → ❌ |
 | 8 | Behavior conflicts with constitution | Constitution requires minimal changes, but you did a refactor → ❌ |
@@ -154,6 +157,10 @@ Any of the following = FLOW EXECUTION FAILURE:
       `[vibe-pm] ⚠️ Invalid first entry: the task has not entered any step yet; only FSM start steps (${startSteps.join(' / ') || '(none)'}) are allowed, cannot enter ${target} directly.\nStep state unchanged. Enter a start step first.`,
     setStepDegradedNoValidation:
       '[vibe-pm] ℹ️ This flow has no usable FSM state machine (or parsing failed); step transitions are not validated.',
+    setStepForcedNotice: (target: string) =>
+      `[vibe-pm] ⏭️ Forced transition to ${target} per the user's explicit request (FSM validation bypassed).`,
+    setStepForceTargetMissing: (target: string) =>
+      `[vibe-pm] ❌ Forced transition rejected: target step ${target} does not exist in the flow document.\nStep state unchanged. Check the step ID spelling.`,
     verifyNoTask: 'No active task. Start a flow task first.',
     verifyNoReview:
       'The current step declares no Output Review. Follow the flow document to confirm this step\'s verification mode, then continue.',
@@ -179,7 +186,7 @@ Any of the following = FLOW EXECUTION FAILURE:
       'pm-install-flow': 'Install a flow from template library',
       'pm-uninstall-flow': 'Remove an installed flow',
       'pm-refine-flow': 'Iteratively refine a flow definition',
-      'pm-task-set-step': 'Manually jump to a specific step',
+      'pm-task-set-step': 'Manually jump to a specific step (supports user-authorized step skipping via force)',
       'pm-task-close': 'Close the current task and trigger analysis',
       'pm-task-current-step': 'Get current step of active task',
       'pm-config': 'View or modify plugin configuration',

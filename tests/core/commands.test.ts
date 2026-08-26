@@ -186,7 +186,7 @@ describe('registerTools', () => {
     expect(parsed.step).toBeTruthy();
     expect(parsed.sessionId).toBe('test');
     expect(parsed.taskId).toBeTruthy();
-    expect(engine.setStep).toHaveBeenCalledWith('test', 'S3');
+    expect(engine.setStep).toHaveBeenCalledWith('test', 'S3', false);
   });
 
   it('pm_task_close_closes_task: closes task and returns JSON', async () => {

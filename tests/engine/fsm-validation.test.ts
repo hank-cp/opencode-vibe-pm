@@ -129,6 +129,76 @@ describe('FSM Validation: V2 flow', () => {
   });
 });
 
+describe('FSM Validation: forced transitions', () => {
+  let tmpDir: string;
+  let memory: MemorySystem;
+  let engine: FlowEngine;
+
+  beforeAll(async () => {
+    tmpDir = createTestProject();
+    memory = new MemorySystem();
+    await memory.init(path.join(tmpDir, '.vibe-pm'));
+    engine = new FlowEngine(memory, tmpDir);
+  });
+
+  afterAll(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('force=true bypasses FSM validation and attaches a forced notice', async () => {
+    await startTask(engine, 'ses_v2_force_ok', V2_FULL);
+    await engine.setStep('ses_v2_force_ok', 'S1');
+
+    const result = await engine.setStep('ses_v2_force_ok', 'S4', true);
+    expect(result.ok).toBe(true);
+    expect(result.step).toBe('S4');
+    expect(result.notice).toBeTruthy();
+    expect(result.warning).toBeUndefined();
+
+    const task = await memory.getActiveTask('ses_v2_force_ok');
+    expect(task!.currentStep).toBe('S4');
+    expect(task!.stepTransitions).toHaveLength(2);
+  });
+
+  it('force=true rejects a target step that does not exist in the flow document', async () => {
+    await startTask(engine, 'ses_v2_force_missing', V2_FULL);
+    await engine.setStep('ses_v2_force_missing', 'S1');
+
+    const result = await engine.setStep('ses_v2_force_missing', 'S99', true);
+    expect(result.ok).toBe(false);
+    expect(result.warning).toContain('S99');
+
+    const task = await memory.getActiveTask('ses_v2_force_missing');
+    expect(task!.currentStep).toBe('S1');
+    expect(task!.stepTransitions).toHaveLength(1);
+  });
+
+  it('force=true allows first entry into a non-start step that exists', async () => {
+    await startTask(engine, 'ses_v2_force_entry', V2_FULL);
+
+    const result = await engine.setStep('ses_v2_force_entry', 'S3', true);
+    expect(result.ok).toBe(true);
+    expect(result.step).toBe('S3');
+  });
+
+  it('still rejects an illegal transition without force (regression)', async () => {
+    await startTask(engine, 'ses_v2_force_regression', V2_FULL);
+    await engine.setStep('ses_v2_force_regression', 'S1');
+
+    const result = await engine.setStep('ses_v2_force_regression', 'S4');
+    expect(result.ok).toBe(false);
+  });
+
+  it('force=true on a legacy 0.1 flow behaves identically to a free transition', async () => {
+    await startTask(engine, 'ses_v1_force', V1_LEGACY);
+
+    const result = await engine.setStep('ses_v1_force', 'S2', true);
+    expect(result.ok).toBe(true);
+    expect(result.step).toBe('S2');
+    expect(result.notice).toBeUndefined();
+  });
+});
+
 describe('FSM Validation: legacy 0.1 flow', () => {
   let tmpDir: string;
   let memory: MemorySystem;
