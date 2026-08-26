@@ -55,5 +55,9 @@
   - Output Review
   - Referenced Regulation
   - Upon completion
+- `Output Review` 字段的取值不翻译（验证模式标识符）
+  - self-check（自查）
+  - review-agent（审查Agent）
+  - human（人工）
 - Flow文档的Meta信息字段标题不翻译
   - Flow第3-7行的字段标题部分不翻译
