@@ -221,8 +221,11 @@ describe('registerCommands', () => {
 
       const text = prompts[0]!.text;
       expect(text).toContain(
-        'Install a flow from template library — call the pm_install_flow tool with templateId',
+        'Install a flow from template library — call the pm_install_flow tool. Pass templateId for a single template.',
       );
+      // The `all` mapping rule must reach the model, otherwise it forwards
+      // "all" as a templateId and the install fails with `Template "all" not found`.
+      expect(text).toContain('pass all=true instead of templateId');
       expect(text).not.toContain('old template');
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -280,6 +283,33 @@ describe('registerTools', () => {
       expect(typeof schema.properties).toBe('object');
       expect(tool.description.length).toBeGreaterThan(0);
     }
+  });
+
+  it('pm_install_flow_all_ignores_template_id: all=true installs the whole library', async () => {
+    const engine = createMockEngine();
+    const memory = await createTempMemory();
+    const { editor, tools } = makeToolEditor();
+    registerTools(editor, mockCtx, engine, memory);
+
+    const templateDir = path.join(tmpDir, 'docs', 'template');
+    for (const id of ['alpha', 'beta']) {
+      const bundleDir = path.join(templateDir, id);
+      fs.mkdirSync(bundleDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(bundleDir, 'flow.md'),
+        `# ${id}\n\n**Template ID**: \`${id}\`\n**Category**: development\n**Description**: Test ${id}\n**Command**: \`/pm-${id}\`\n**Version**: 1.0.0\n`,
+      );
+    }
+
+    const result = await toolByName(tools, 'pm_install_flow').execute(
+      { all: true, templateId: 'alpha' },
+      mockToolCtx,
+    );
+
+    // templateId must be ignored — beta proves the batch ran.
+    expect(result.content).toContain('beta');
+    expect(fs.existsSync(path.join(tmpDir, 'docs', 'flow', 'flow-alpha.md'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'docs', 'flow', 'flow-beta.md'))).toBe(true);
   });
 
   it('pm_task_set_step_jumps: jumps step and returns JSON', async () => {

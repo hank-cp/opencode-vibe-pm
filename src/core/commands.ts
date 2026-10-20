@@ -27,6 +27,7 @@ import {
 } from './types.js';
 import {
   installTemplate,
+  installAllTemplates,
   scanTemplates,
   uninstallFlow,
   getPluginTemplateDir,
@@ -51,7 +52,10 @@ const COMMANDS: CommandMeta[] = [
   {
     name: 'pm-install-flow',
     template:
-      'Install a flow from template library — call the pm_install_flow tool with templateId',
+      'Install a flow from template library — call the pm_install_flow tool. ' +
+      'Pass templateId for a single template. When the user asks to install ALL built-in flows ' +
+      '(e.g. "all", "全部", "所有内置流程"), pass all=true instead of templateId ' +
+      '— never pass "all" as a templateId.',
     executable: true,
   },
   {
@@ -512,11 +516,65 @@ function normalizeLanguage(input: string): string {
   return aliasMap[lower] ?? input;
 }
 
+interface InstallContext {
+  config: PluginConfig;
+  languages: string[];
+  tpl: ReturnType<typeof getControlPromptTemplate>;
+  /** Remember the detected project languages — called only after a successful install */
+  persistLanguages: () => void;
+}
+
+/** Shared setup for both install modes (single template and batch). */
+function resolveInstallContext(
+  ctx: IPluginContext,
+  programmingLanguages: string | undefined,
+): InstallContext {
+  const config = loadConfig(ctx.projectDir);
+  const languages = resolveLanguages(programmingLanguages, config);
+
+  return {
+    config,
+    languages,
+    tpl: getControlPromptTemplate(config.language),
+    persistLanguages: () => {
+      if (languages.length > 0 && languages[0] !== 'General') {
+        config.programmingLanguages = languages;
+        writeConfig(ctx.projectDir, config);
+      }
+    },
+  };
+}
+
+/** Non-en-US installations ask the model to translate the freshly written files. */
+function buildTranslateSection(
+  tpl: ReturnType<typeof getControlPromptTemplate>,
+  flowPaths: string[],
+  regulationPaths: string[],
+  codingStylePaths: string[],
+): string {
+  let section = `\n\n${tpl.tool.translateMdFilePrompt}`;
+  for (const fp of flowPaths) section += `\n- Flow: ${fp}`;
+  for (const rp of regulationPaths) section += `\n- Regulation: ${rp}`;
+  for (const cp of codingStylePaths) section += `\n- Coding Style: ${cp}`;
+
+  const pluginTemplateDir = getPluginTemplateDir();
+  if (pluginTemplateDir) {
+    section += `\n- Dictionary template: ${path.join(pluginTemplateDir, 'dictionary-template.md')}`;
+  }
+
+  return section;
+}
+
 function createInstallFlowTool(ctx: IPluginContext): ToolInfo {
   const cmdI18n = i18n().tool;
   const input: JsonSchema.JsonSchema = {
     type: 'object',
     properties: {
+      all: {
+        type: 'boolean',
+        description:
+          'Set true to install ALL built-in flow templates at once (the user typed "/pm-install-flow all"). Mutually exclusive with templateId — when true, templateId is ignored. Never pass "all" as a templateId.',
+      },
       templateId: {
         type: 'string',
         description:
@@ -540,51 +598,78 @@ function createInstallFlowTool(ctx: IPluginContext): ToolInfo {
     description: cmdI18n.commandDesc['pm-install-flow'] ?? 'Install a flow from template library',
     input,
     async execute(raw: unknown): Promise<ToolResult> {
+      const all = argBoolean(raw, 'all') === true;
       const templateId = argString(raw, 'templateId');
       const programmingLanguages = argString(raw, 'programmingLanguages');
       const overwrite = argBoolean(raw, 'overwrite');
 
+      if (all) {
+        try {
+          const { config, languages, tpl, persistLanguages } = resolveInstallContext(
+            ctx,
+            programmingLanguages,
+          );
+
+          const result = installAllTemplates(ctx.projectDir, {
+            programmingLanguages: languages,
+            overwrite,
+            locale: config.language,
+          });
+
+          persistLanguages();
+
+          if (result.installed.length + result.skipped.length + result.failed.length === 0) {
+            return { content: cmdI18n.noTemplatesFound };
+          }
+
+          let response = tpl.tool.installAllSuccess(result);
+          if (config.language !== 'en-US' && result.installed.length > 0) {
+            response += buildTranslateSection(
+              tpl,
+              result.flowPaths,
+              result.regulationPaths,
+              result.codingStylePaths,
+            );
+          }
+          return { content: response };
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : cmdI18n.unknownError;
+          const tpl = getControlPromptTemplate(loadConfig(ctx.projectDir).language);
+          return { content: tpl.tool.installFailure(msg) };
+        }
+      }
+
       if (templateId) {
         try {
-          const config = loadConfig(ctx.projectDir);
-          const languages = resolveLanguages(programmingLanguages, config);
+          const { config, languages, tpl, persistLanguages } = resolveInstallContext(
+            ctx,
+            programmingLanguages,
+          );
 
-          const tpl = getControlPromptTemplate(config.language);
           const result = installTemplate(ctx.projectDir, templateId, {
             programmingLanguages: languages,
             overwrite,
             locale: config.language,
           });
 
-          if (languages.length > 0 && languages[0] !== 'General') {
-            config.programmingLanguages = languages;
-            writeConfig(ctx.projectDir, config);
-          }
+          persistLanguages();
 
           const needsTranslation = config.language !== 'en-US';
           let response = tpl.tool.installSuccess(templateId);
 
           if (needsTranslation && result.flowPath) {
-            response += `\n\n${tpl.tool.translateMdFilePrompt}`;
-            response += `\n- Flow: ${result.flowPath}`;
-            for (const rp of result.regulationPaths) {
-              response += `\n- Regulation: ${rp}`;
-            }
-            for (const cp of result.codingStylePaths) {
-              response += `\n- Coding Style: ${cp}`;
-            }
-            const pluginTemplateDir = getPluginTemplateDir();
-            if (pluginTemplateDir) {
-              const dictTemplatePath = path.join(pluginTemplateDir, 'dictionary-template.md');
-              response += `\n- Dictionary template: ${dictTemplatePath}`;
-            }
+            response += buildTranslateSection(
+              tpl,
+              [result.flowPath],
+              result.regulationPaths,
+              result.codingStylePaths,
+            );
           }
 
           return { content: response };
         } catch (err) {
-          const msg = err instanceof Error ? err.message : '未知错误';
-          const config = loadConfig(ctx.projectDir);
-          const tpl = getControlPromptTemplate(config.language);
+          const msg = err instanceof Error ? err.message : cmdI18n.unknownError;
+          const tpl = getControlPromptTemplate(loadConfig(ctx.projectDir).language);
           return { content: tpl.tool.installFailure(msg) };
         }
       }

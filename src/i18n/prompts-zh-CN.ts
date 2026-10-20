@@ -1,7 +1,7 @@
 /**
  * 中文 I18N — 单一导出，包含所有提示词、消息、工具字符串
  */
-import type { LanguagePack } from './types.js';
+import type { InstallAllSummary, LanguagePack } from './types.js';
 
 const zhCN = {
   locale: 'zh-CN',
@@ -146,12 +146,22 @@ const zhCN = {
     operationFailed: (msg: string) => `[vibe-pm] ❌ 操作失败：${msg}`,
     installSuccess: (id: string) =>
       `[vibe-pm] ✅ 流程 "${id}" 已成功安装。\n\n已安装到：\n- docs/flow/flow-${id}.md\n\n⚠️ 请重启 OpenCode 后使用 \`/pm-${id}\` 命令启动任务。`,
+    installAllSuccess: (result: InstallAllSummary) => {
+      const failures = result.failed.map((f) => `${f.id} — ${f.reason}`);
+      return (
+        `[vibe-pm] ✅ 批量安装完成。\n\n` +
+        `- 新安装 (${result.installed.length})：${result.installed.join('、') || '无'}\n` +
+        `- 已跳过 (${result.skipped.length})：${result.skipped.join('、') || '无'}\n` +
+        `- 失败 (${result.failed.length})：${failures.join('；') || '无'}\n\n` +
+        `⚠️ 请重启 OpenCode 后使用对应的 \`/pm-*\` 命令启动任务。`
+      );
+    },
     installFailure: (msg: string) => `[vibe-pm] ❌ 安装失败：${msg}`,
     translateMdFilePrompt:
       '请按 dictionary-template.md 的术语表翻译以下文件（Read → 翻译 → Write）。',
     noTemplatesFound: '[vibe-pm] 未在 docs/template/ 下找到任何模板。请确认模板目录结构正确。',
     templateList: (lines: string) =>
-      `[vibe-pm] 可用的模板列表：\n\n${lines}\n\n要安装一个流程，请运行：\n\`\`\`\n/pm-install-flow templateId: <模板ID>\n\`\`\``,
+      `[vibe-pm] 可用的模板列表：\n\n${lines}\n\n要安装一个流程，请运行：\n\`\`\`\n/pm-install-flow templateId: <模板ID>\n\`\`\`\n\n要一次性安装全部内置流程，请运行：\n\`\`\`\n/pm-install-flow all\n\`\`\``,
     uninstallSuccess: (name: string) =>
       `[vibe-pm] 流程 "${name}" 已移除。\n\n⚠️ 请重启 OpenCode 使变更生效。`,
     uninstallFailure: (msg: string) => `[vibe-pm] 卸载失败：${msg}`,

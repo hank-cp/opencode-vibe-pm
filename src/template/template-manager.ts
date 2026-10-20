@@ -32,6 +32,21 @@ export class TemplateConflictError extends Error {
 
 // ─── Internal Helpers ───
 
+/**
+ * True when the path exists and is a regular file.
+ *
+ * Used to tell "an installed flow document is already here" apart from "the
+ * target path is squatted by a directory" — the latter is not an existing
+ * installation and must surface its real error instead of being skipped.
+ */
+function isRegularFile(target: string): boolean {
+  try {
+    return fs.statSync(target).isFile();
+  } catch {
+    return false;
+  }
+}
+
 export function getPluginTemplateDir(): string | null {
   const candidates = [
     path.join(import.meta.dirname, 'docs', TEMPLATE_DIR),
@@ -199,16 +214,26 @@ export interface InstallResult {
   flowPath: string;
   regulationPaths: string[];
   codingStylePaths: string[];
+  /** True when the target flow already existed and `skipExisting` was enabled — nothing was written */
+  skipped: boolean;
+}
+
+export interface InstallTemplateOptions {
+  programmingLanguages?: string[];
+  overwrite?: boolean;
+  locale?: string;
+  /**
+   * When the target flow already exists and `overwrite` is not set, skip the
+   * installation instead of throwing `TemplateConflictError`. Defaults to false
+   * so the single-template behaviour stays unchanged.
+   */
+  skipExisting?: boolean;
 }
 
 export function installTemplate(
   projectDir: string,
   templateId: string,
-  options?: {
-    programmingLanguages?: string[];
-    overwrite?: boolean;
-    locale?: string;
-  },
+  options?: InstallTemplateOptions,
 ): InstallResult {
   const templates = scanTemplates(projectDir);
   const meta = templates.find((t) => t.id === templateId);
@@ -225,13 +250,47 @@ export function installTemplate(
   fs.mkdirSync(regDir, { recursive: true });
 
   const destFlow = path.join(flowDir, `flow-${meta.id}.md`);
-  if (fs.existsSync(destFlow) && !options?.overwrite) {
+  if (!isRegularFile(destFlow) && fs.existsSync(destFlow)) {
+    // The target is squatted by a directory (or a symlink to one). A flow
+    // document is never a directory, so this can never become a valid install.
     throw new TemplateConflictError(
-      `"${templateId}" already exists in /docs/flow/. Use --force to overwrite.`,
+      `"${templateId}" cannot be installed: docs/flow/flow-${meta.id}.md is occupied by a non-file entry. Remove it and retry.`,
     );
   }
-  fs.copyFileSync(meta.flowPath, destFlow);
+  if (isRegularFile(destFlow) && !options?.overwrite) {
+    if (!options?.skipExisting) {
+      throw new TemplateConflictError(
+        `"${templateId}" already exists in /docs/flow/. Use --force to overwrite.`,
+      );
+    }
+    // Nothing was written, so no regulation or coding style files were touched.
+return { flowPath: destFlow, regulationPaths, codingStylePaths: [], skipped: true };
+  }
 
+  // From here on the flow document is ours: any failure must undo it, or the
+  // next run would skip this template as "already installed" and never finish
+  // the remaining steps.
+  let installedFlowDoc = false;
+  try {
+    fs.copyFileSync(meta.flowPath, destFlow);
+    installedFlowDoc = true;
+
+    return installTemplateFiles(docsDir, regDir, destFlow, meta, options, regulationPaths);
+  } catch (err) {
+    if (installedFlowDoc) fs.rmSync(destFlow, { force: true });
+    throw err;
+  }
+}
+
+/** Copy regulations, constitution and coding style after the flow document landed. */
+function installTemplateFiles(
+  docsDir: string,
+  regDir: string,
+  destFlow: string,
+  meta: TemplateMeta,
+  options: InstallTemplateOptions | undefined,
+  regulationPaths: string[],
+): InstallResult {
   // Parse flow.md to find referenced regulations, then copy only those files
   const flowContent = fs.readFileSync(meta.flowPath, 'utf-8');
   const referencedRegs = extractReferencedRegulations(flowContent);
@@ -280,7 +339,78 @@ export function installTemplate(
     flowPath: destFlow,
     regulationPaths,
     codingStylePaths,
+    skipped: false,
   };
+}
+
+// ─── Batch Installation ───
+
+export interface InstallAllFailure {
+  /** Template ID that failed to install */
+  id: string;
+  /** Failure reason extracted from the thrown error */
+  reason: string;
+}
+
+export interface InstallAllResult {
+  /** Template IDs newly installed in this run */
+  installed: string[];
+  /** Template IDs skipped because their flow document already existed */
+  skipped: string[];
+  /** Per-template failures; one failure never aborts the batch */
+  failed: InstallAllFailure[];
+  /** Installed flow document paths */
+  flowPaths: string[];
+  regulationPaths: string[];
+  codingStylePaths: string[];
+}
+
+/**
+ * Install every built-in flow template.
+ *
+ * A template whose flow document already exists is skipped (unless `overwrite`
+ * is set); a template that throws is recorded in `failed` and the batch keeps
+ * going. Running this twice is a no-op — everything lands in `skipped`.
+ */
+export function installAllTemplates(
+  projectDir: string,
+  options?: InstallTemplateOptions,
+): InstallAllResult {
+  const templates = scanTemplates(projectDir);
+  const result: InstallAllResult = {
+    installed: [],
+    skipped: [],
+    failed: [],
+    flowPaths: [],
+    regulationPaths: [],
+    codingStylePaths: [],
+  };
+
+  for (const meta of templates) {
+    try {
+      const single = installTemplate(projectDir, meta.id, {
+        ...options,
+        skipExisting: true,
+      });
+
+      if (single.skipped) {
+        result.skipped.push(meta.id);
+        continue;
+      }
+
+      result.installed.push(meta.id);
+      result.flowPaths.push(single.flowPath);
+      result.regulationPaths.push(...single.regulationPaths);
+      result.codingStylePaths.push(...single.codingStylePaths);
+    } catch (err) {
+      result.failed.push({
+        id: meta.id,
+        reason: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  return result;
 }
 
 // ─── Regulation Installation ───

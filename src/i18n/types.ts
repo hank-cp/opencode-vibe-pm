@@ -19,6 +19,13 @@ export interface ErrorI18n {
   ) => string;
 }
 
+/** Batch install summary rendered by the `installAllSuccess` tool message. */
+export interface InstallAllSummary {
+  installed: string[];
+  skipped: string[];
+  failed: { id: string; reason: string }[];
+}
+
 export interface PromptsI18n {
   locale: Locale;
   buildControlPrompt: (flowName?: string) => string;
@@ -36,6 +43,7 @@ export interface PromptsI18n {
     configUpdated: (key: string, value: string) => string;
     operationFailed: (msg: string) => string;
     installSuccess: (id: string) => string;
+    installAllSuccess: (result: InstallAllSummary) => string;
     installFailure: (msg: string) => string;
     translateMdFilePrompt: string;
     codingStyleInstalled: (files: string[], regDir: string) => string;

@@ -1,4 +1,4 @@
-import type { LanguagePack } from './types.js';
+import type { InstallAllSummary, LanguagePack } from './types.js';
 
 const enUS = {
   locale: 'en-US',
@@ -139,13 +139,23 @@ Any of the following = FLOW EXECUTION FAILURE:
     operationFailed: (msg: string) => `[vibe-pm] ❌ Operation failed: ${msg}`,
     installSuccess: (id: string) =>
       `[vibe-pm] ✅ Flow "${id}" installed.\n\nInstalled to:\n- docs/flow/flow-${id}.md\n\n⚠️ Restart OpenCode then use \`/pm-${id}\`.`,
+    installAllSuccess: (result: InstallAllSummary) => {
+      const failures = result.failed.map((f) => `${f.id} — ${f.reason}`);
+      return (
+        `[vibe-pm] ✅ Batch install complete.\n\n` +
+        `- Installed (${result.installed.length}): ${result.installed.join(', ') || 'none'}\n` +
+        `- Skipped (${result.skipped.length}): ${result.skipped.join(', ') || 'none'}\n` +
+        `- Failed (${result.failed.length}): ${failures.join('; ') || 'none'}\n\n` +
+        `⚠️ Restart OpenCode then use the matching \`/pm-*\` commands.`
+      );
+    },
     installFailure: (msg: string) => `[vibe-pm] ❌ Install failed: ${msg}`,
     translateMdFilePrompt:
       'Translate using the dictionary-template.md terminology table (Read → Translate → Write).',
     noTemplatesFound:
       '[vibe-pm] No templates found under docs/template/. Check template directory.',
     templateList: (lines: string) =>
-      `[vibe-pm] Available templates:\n\n${lines}\n\nTo install: \`\`\`\n/pm-install-flow templateId: <ID>\n\`\`\``,
+      `[vibe-pm] Available templates:\n\n${lines}\n\nTo install one flow:\n\`\`\`\n/pm-install-flow templateId: <ID>\n\`\`\`\n\nTo install every built-in flow at once:\n\`\`\`\n/pm-install-flow all\n\`\`\``,
     uninstallSuccess: (name: string) =>
       `[vibe-pm] ✅ Flow "${name}" removed.\n\n⚠️ Restart OpenCode for changes to take effect.`,
     uninstallFailure: (msg: string) => `[vibe-pm] ❌ Uninstall failed: ${msg}`,
