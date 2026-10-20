@@ -1,21 +1,13 @@
 /**
- * TUI extension module exports
+ * TUI extension module entry
  *
- * Exports TuiPluginModule for OpenCode TUI loading.
+ * OpenCode V2 TUI plugin shape: `Plugin.define({ id, setup })`.
  * OpenCode only reads the default export, not named exports.
- * createTuiPlugin() is invoked immediately to produce a ready-to-use TuiPlugin function.
  */
 
-import type { TuiPluginModule } from '@opencode-ai/plugin/tui';
-import { createTuiPlugin } from './tui-plugin.jsx';
+import { Plugin } from '@opencode/plugin/tui';
+import { setup } from './tui-plugin.jsx';
 
-console.error('[vibe-pm TUI] module loaded');
-
-const plugin: TuiPluginModule & { id: string } = {
-  id: 'vibe-pm',
-  tui: createTuiPlugin(),
-};
-
-export default plugin;
+export default Plugin.define({ id: 'vibe-pm', setup });
 
 export type * from './types.js';

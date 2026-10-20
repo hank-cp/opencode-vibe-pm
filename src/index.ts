@@ -1,5 +1,5 @@
 /**
  * vibe-pm Plugin Main Entry
- * Exports the Plugin Core's VibePMPlugin function for OpenCode to load.
+ * Exports the V2 plugin definition for OpenCode to load.
  */
-export { VibePMPlugin } from './core/index.js';
+export { default, VibePMPlugin } from './core/index.js';

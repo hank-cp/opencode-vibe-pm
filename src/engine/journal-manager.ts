@@ -40,10 +40,6 @@ export interface JournalManagerOptions {
 export const DEFAULT_JOURNAL_DIR = '.vibe-pm/journal';
 export const DEFAULT_JOURNAL_MESSAGE_WINDOW = 20;
 
-const JOURNAL_TOOL_WHITELIST: Record<string, boolean> = {
-  read: true,
-};
-
 export class JournalManager {
   private queue: Promise<void> = Promise.resolve();
 
@@ -88,7 +84,7 @@ export class JournalManager {
         conversationExcerpt: excerpt,
       });
 
-      const briefing = await this.client.prompt(subSessionId, prompt, JOURNAL_TOOL_WHITELIST);
+      const briefing = await this.client.prompt(subSessionId, prompt);
 
       const filePath = this.appendJournalFile(input, briefing);
       await this.memory.recordJournalEntry({

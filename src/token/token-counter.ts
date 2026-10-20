@@ -1,13 +1,18 @@
 /**
  * TokenCounter — multi-model token counting + source classification
  *
- * Distinguishes user/assistant by message.info.role, and flowControl/text/tool/reasoning by part.type.
+ * Distinguishes user/assistant by `message.role`, and flowControl/text/tool/reasoning
+ * by content part `type` (V2 model: `{ role, content }`).
  * Auto-selects the correct tokenizer backend based on model.
  */
-import type { Part, ToolPart } from '@opencode-ai/sdk';
+import type { AIContentPart } from '../core/types.js';
 import type { MessagePack, TokenCount, ModelInfo, TokenizerBackend } from './types.js';
 import { resolveBackend } from './model-registry.js';
 import { logger } from '../core';
+
+type ToolCallPart = Extract<AIContentPart, { type: 'tool-call' }>;
+type ToolResultPart = Extract<AIContentPart, { type: 'tool-result' }>;
+type ToolResultValue = ToolResultPart['result'];
 
 const EMPTY_COUNT: TokenCount = {
   text: 0,
@@ -17,6 +22,42 @@ const EMPTY_COUNT: TokenCount = {
   tool: 0,
   reasoning: 0,
 };
+
+/** Read tool reading project regulation files (Constitution/Flow/Regulation) → flowControl */
+function isFlowControlToolCall(part: ToolCallPart): boolean {
+  if (part.name !== 'read') return false;
+  const input = part.input;
+  if (typeof input !== 'object' || input === null) return false;
+  const filePath = (input as Record<string, unknown>)['filePath'];
+  return typeof filePath === 'string' && /docs\/(regulation|flow)\//.test(filePath);
+}
+
+function stringifyValue(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (value === undefined) return '';
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function serializeToolResult(result: ToolResultValue): string {
+  switch (result.type) {
+    case 'content':
+      return result.value
+        .map((entry) =>
+          entry.type === 'text' ? entry.text : `${entry.name ?? ''} ${entry.uri}`.trim(),
+        )
+        .join('\n');
+    case 'text':
+    case 'json':
+    case 'error':
+      return stringifyValue(result.value);
+    default:
+      return stringifyValue(result);
+  }
+}
 
 export class TokenCounter {
   private backend: TokenizerBackend;
@@ -33,28 +74,43 @@ export class TokenCounter {
   }
 
   /**
-   * Classify part token source by part.type and content.
+   * Classify content-part token source by `type` and content.
+   *
+   * `flowControlToolCalls` carries the IDs of read-tool calls already classified as
+   * flowControl, so their separate V2 `tool-result` parts stay in the same bucket
+   * (V1 had a single combined tool part).
    */
-  private classifyPartType(part: Part): 'flowControl' | 'text' | 'tool' | 'reasoning' | null {
-    if (part.type === 'text') {
-      const pt = part as { type: 'text'; text: string };
-      if (pt.text?.includes('<protect>')) return 'flowControl';
-      return 'text';
+  private classifyPartType(
+    part: AIContentPart,
+    flowControlToolCalls: ReadonlySet<string>,
+  ): 'flowControl' | 'text' | 'tool' | 'reasoning' | null {
+    switch (part.type) {
+      case 'text':
+        return part.text.includes('<protect>') ? 'flowControl' : 'text';
+      case 'tool-call':
+        return isFlowControlToolCall(part) ? 'flowControl' : 'tool';
+      case 'tool-result':
+        return flowControlToolCalls.has(part.id) ? 'flowControl' : 'tool';
+      case 'reasoning':
+        return 'reasoning';
+      default:
+        return null;
     }
-    if (part.type === 'tool') {
-      // Read tool reading project regulation files (Constitution/Flow/Regulation) → flowControl
-      const tp = part as ToolPart;
-      if (tp.tool === 'read') {
-        const input = tp.state?.input as Record<string, unknown> | undefined;
-        const filePath = input?.filePath;
-        if (typeof filePath === 'string' && /docs\/(regulation|flow)\//.test(filePath)) {
-          return 'flowControl';
-        }
-      }
-      return 'tool';
+  }
+
+  /** Serialize one content part into the text that gets tokenized. */
+  private extractPartText(part: AIContentPart): string {
+    switch (part.type) {
+      case 'text':
+      case 'reasoning':
+        return part.text;
+      case 'tool-call':
+        return stringifyValue(part.input);
+      case 'tool-result':
+        return serializeToolResult(part.result);
+      default:
+        return '';
     }
-    if (part.type === 'reasoning') return 'reasoning';
-    return null;
   }
 
   /**
@@ -62,45 +118,22 @@ export class TokenCounter {
    */
   countContextTokens(message: MessagePack): TokenCount {
     const result: TokenCount = { ...EMPTY_COUNT };
-    if (!message.parts || message.parts.length === 0) return result;
+    const content = message.message.content;
+    if (content.length === 0) return result;
 
-    const role = message.info.role;
+    const role = message.message.role;
+    const flowControlToolCalls = new Set<string>();
     let totalTokens = 0;
 
-    for (const part of message.parts) {
-      const source = this.classifyPartType(part);
+    for (const part of content) {
+      const source = this.classifyPartType(part, flowControlToolCalls);
       if (!source) continue;
 
-      let tokenText = '';
-      if (part.type === 'text') {
-        tokenText = (part as { text?: string }).text ?? '';
-      } else if (part.type === 'tool') {
-        const tp = part as {
-          type: 'tool';
-          text?: string;
-          args?: unknown;
-          state?: { input?: unknown; output?: string; error?: string };
-        };
-        if (tp.text) {
-          tokenText = tp.text;
-        } else if (tp.state) {
-          const pieces: string[] = [];
-          if (tp.state.input !== undefined) {
-            pieces.push(
-              typeof tp.state.input === 'string' ? tp.state.input : JSON.stringify(tp.state.input),
-            );
-          }
-          if (tp.state.output) pieces.push(tp.state.output);
-          if (tp.state.error) pieces.push(tp.state.error);
-          tokenText = pieces.join('\n');
-        } else if (tp.args) {
-          tokenText = JSON.stringify(tp.args);
-        }
-      } else if (part.type === 'reasoning') {
-        tokenText = (part as { text?: string }).text ?? '';
+      if (source === 'flowControl' && part.type === 'tool-call') {
+        flowControlToolCalls.add(part.id);
       }
 
-      const tokens = this.countTokens(tokenText);
+      const tokens = this.countTokens(this.extractPartText(part));
       if (tokens > 0) {
         result[source] += tokens;
         totalTokens += tokens;

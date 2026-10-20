@@ -3,10 +3,13 @@
  *
  * Mock tiktoken (encoder returns fixed token count), no real tokenizer dependency.
  * Covers 6 source categories (text/user/assistant/flowControl/tool/reasoning) and edge cases.
+ *
+ * V2 message model: a message is `{ role, content: ContentPart[] }`; tool usage is split into
+ * a `tool-call` part and a `tool-result` part sharing one id.
  */
 
 import { describe, it, expect, mock, beforeAll, afterAll } from 'bun:test';
-import type { Part, Message } from '@opencode-ai/sdk';
+import type { AIMessage, AIContentPart } from '../../src/core/types.js';
 import type { MessagePack } from '../../src/token';
 import { TokenCounter } from '../../src/token/token-counter';
 
@@ -27,52 +30,52 @@ mock.module('tiktoken', () => {
 
 // ─── Helpers ───
 
-interface TextPartStub {
-  type: 'text';
-  text: string;
-}
-interface ToolPartStub {
-  type: 'tool';
-  tool?: string;
-  text?: string;
-  args?: unknown;
-  state?: { input?: unknown; output?: string; error?: string };
-}
-interface ReasoningPartStub {
-  type: 'reasoning';
-  text: string;
-}
+type TextPart = Extract<AIContentPart, { type: 'text' }>;
+type ToolCallPart = Extract<AIContentPart, { type: 'tool-call' }>;
+type ToolResultPart = Extract<AIContentPart, { type: 'tool-result' }>;
+type ReasoningPart = Extract<AIContentPart, { type: 'reasoning' }>;
 
-type PartStub = TextPartStub | ToolPartStub | ReasoningPartStub;
-
-function makeTextPart(text: string): TextPartStub {
+function makeTextPart(text: string): TextPart {
   return { type: 'text', text };
 }
 
-function makeFlowControlPart(text: string): TextPartStub {
+function makeFlowControlPart(text: string): TextPart {
   return { type: 'text', text };
 }
 
-function makeToolPart(overrides: Partial<ToolPartStub> = {}): ToolPartStub {
-  return { type: 'tool', ...overrides };
+function makeToolCall(id: string, name: string, input: unknown): ToolCallPart {
+  return { type: 'tool-call', id, name, input };
 }
 
-function makeReasoningPart(text: string): ReasoningPartStub {
+function makeToolResult(id: string, name: string, value: string): ToolResultPart {
+  return { type: 'tool-result', id, name, result: { type: 'text', value } };
+}
+
+function makeToolErrorResult(id: string, name: string, value: string): ToolResultPart {
+  return { type: 'tool-result', id, name, result: { type: 'error', value } };
+}
+
+function makeReasoningPart(text: string): ReasoningPart {
   return { type: 'reasoning', text };
 }
 
-function makeUserMessage(parts: PartStub[]): MessagePack {
-  return {
-    info: { role: 'user' } as Message,
-    parts: parts as Part[],
-  };
+/**
+ * Build a `MessagePack` from parts.
+ *
+ * `AIMessage` is an Effect `Schema.Class`, so the literal is asserted into the type rather
+ * than constructed: these tests deliberately feed structurally-typed stand-ins (including
+ * an unknown part type) to the counter.
+ */
+function makeMessage(role: AIMessage['role'], content: readonly AIContentPart[]): MessagePack {
+  return { message: { role, content } as AIMessage };
 }
 
-function makeAssistantMessage(parts: PartStub[]): MessagePack {
-  return {
-    info: { role: 'assistant' } as Message,
-    parts: parts as Part[],
-  };
+function makeUserMessage(content: readonly AIContentPart[]): MessagePack {
+  return makeMessage('user', content);
+}
+
+function makeAssistantMessage(content: readonly AIContentPart[]): MessagePack {
+  return makeMessage('assistant', content);
 }
 
 function expectedTokens(text: string): number {
@@ -147,8 +150,10 @@ describe('TokenCounter', () => {
       expect(result.flowControl).toBe(expectedTokens('<protect>Rules here</protect>'));
     });
 
-    it('classifies Tool part by type=tool', () => {
-      const msg = makeUserMessage([makeToolPart({ text: 'Tool result content' })]);
+    it('classifies tool-result part as tool', () => {
+      const msg = makeUserMessage([
+        makeToolResult('call-1', 'bash', 'Tool result content'),
+      ]);
       const result = counter.countContextTokens(msg);
 
       expect(result.tool).toBe(expectedTokens('Tool result content'));
@@ -164,13 +169,8 @@ describe('TokenCounter', () => {
 
     it('classifies Read tool of regulation file as flowControl', () => {
       const msg = makeAssistantMessage([
-        makeToolPart({
-          tool: 'read',
-          state: {
-            input: { filePath: 'docs/regulation/constitution.md' },
-            output: '## Core Principles\n\nType safety first.',
-          },
-        }),
+        makeToolCall('call-reg', 'read', { filePath: 'docs/regulation/constitution.md' }),
+        makeToolResult('call-reg', 'read', '## Core Principles\n\nType safety first.'),
       ]);
       const result = counter.countContextTokens(msg);
 
@@ -180,13 +180,8 @@ describe('TokenCounter', () => {
 
     it('classifies Read tool of flow file as flowControl', () => {
       const msg = makeAssistantMessage([
-        makeToolPart({
-          tool: 'read',
-          state: {
-            input: { filePath: 'docs/flow/flow-spec-driven-dev.md' },
-            output: '## Spec-Driven Dev\n\nS1: Understand requirements.',
-          },
-        }),
+        makeToolCall('call-flow', 'read', { filePath: 'docs/flow/flow-spec-driven-dev.md' }),
+        makeToolResult('call-flow', 'read', '## Spec-Driven Dev\n\nS1: Understand requirements.'),
       ]);
       const result = counter.countContextTokens(msg);
 
@@ -196,13 +191,8 @@ describe('TokenCounter', () => {
 
     it('classifies Read tool of non-rule file as tool (not flowControl)', () => {
       const msg = makeAssistantMessage([
-        makeToolPart({
-          tool: 'read',
-          state: {
-            input: { filePath: 'src/token/token-counter.ts' },
-            output: 'import { get_encoding } from tiktoken;',
-          },
-        }),
+        makeToolCall('call-src', 'read', { filePath: 'src/token/token-counter.ts' }),
+        makeToolResult('call-src', 'read', 'import { get_encoding } from tiktoken;'),
       ]);
       const result = counter.countContextTokens(msg);
 
@@ -226,7 +216,7 @@ describe('TokenCounter', () => {
     it('assistant role: total = sum of all part tokens', () => {
       const msg = makeAssistantMessage([
         makeTextPart('Here is the code:'),
-        makeToolPart({ text: 'Execution result' }),
+        makeToolResult('call-2', 'bash', 'Execution result'),
         makeReasoningPart('thinking'),
       ]);
       const result = counter.countContextTokens(msg);
@@ -255,7 +245,7 @@ describe('TokenCounter', () => {
     it('assistant role: assistant total includes tool + reasoning', () => {
       const msg = makeAssistantMessage([
         makeTextPart('Solution:'),
-        makeToolPart({ text: 'test passed' }),
+        makeToolResult('call-3', 'bash', 'test passed'),
         makeReasoningPart('analysis'),
       ]);
       const result = counter.countContextTokens(msg);
@@ -273,11 +263,8 @@ describe('TokenCounter', () => {
   // ─── countContextTokens — Edge Cases ──────────────
 
   describe('countContextTokens edge cases', () => {
-    it('returns all zeros for empty parts array', () => {
-      const msg: MessagePack = {
-        info: { role: 'user' } as Message,
-        parts: [],
-      };
+    it('returns all zeros for empty content array', () => {
+      const msg = makeUserMessage([]);
       const result = counter.countContextTokens(msg);
 
       expect(result.text).toBe(0);
@@ -288,52 +275,41 @@ describe('TokenCounter', () => {
       expect(result.reasoning).toBe(0);
     });
 
-    it('handles tool part with state.output', () => {
+    it('handles tool-call input + tool-result text', () => {
       const msg = makeUserMessage([
-        makeToolPart({
-          state: {
-            input: { key: 'value' },
-            output: 'Command executed successfully',
-          },
-        }),
+        makeToolCall('call-4', 'bash', { key: 'value' }),
+        makeToolResult('call-4', 'bash', 'Command executed successfully'),
       ]);
       const result = counter.countContextTokens(msg);
 
-      // state.input is JSON.stringified, state.output appended
-      const inputStr = JSON.stringify({ key: 'value' });
-      const combined = inputStr + '\n' + 'Command executed successfully';
-      expect(result.tool).toBe(expectedTokens(combined));
+      const expected =
+        expectedTokens(JSON.stringify({ key: 'value' })) +
+        expectedTokens('Command executed successfully');
+      expect(result.tool).toBe(expected);
     });
 
-    it('handles tool part with state.error', () => {
+    it('handles tool-result with error value', () => {
       const msg = makeUserMessage([
-        makeToolPart({
-          state: {
-            input: { file: 'test.ts' },
-            error: 'File not found',
-          },
-        }),
+        makeToolCall('call-5', 'read', { file: 'test.ts' }),
+        makeToolErrorResult('call-5', 'read', 'File not found'),
       ]);
       const result = counter.countContextTokens(msg);
 
-      const inputStr = JSON.stringify({ file: 'test.ts' });
-      const combined = inputStr + '\n' + 'File not found';
-      expect(result.tool).toBe(expectedTokens(combined));
+      const expected =
+        expectedTokens(JSON.stringify({ file: 'test.ts' })) + expectedTokens('File not found');
+      expect(result.tool).toBe(expected);
     });
 
-    it('handles tool part with args fallback', () => {
-      const msg = makeUserMessage([makeToolPart({ args: { key: 'value' } })]);
+    it('handles tool-call without a matching result', () => {
+      const msg = makeUserMessage([makeToolCall('call-6', 'bash', { key: 'value' })]);
       const result = counter.countContextTokens(msg);
 
       expect(result.tool).toBe(expectedTokens(JSON.stringify({ key: 'value' })));
     });
 
     it('ignores unknown part types', () => {
-      const msg: MessagePack = {
-        info: { role: 'user' } as Message,
-        parts: [{ type: 'unknown-type' } as unknown as Part],
-      };
-      const result = counter.countContextTokens(msg);
+      const unknown = { type: 'unknown-type' } as unknown as AIContentPart;
+      const result = counter.countContextTokens(makeUserMessage([unknown]));
 
       expect(result.text).toBe(0);
       expect(result.user).toBe(0);

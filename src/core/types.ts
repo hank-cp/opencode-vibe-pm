@@ -1,25 +1,26 @@
 /**
  * Plugin Core Type Definitions
  *
- * OpenCode interaction types are imported via the @opencode-ai/plugin SDK.
- * Project-specific domain types are defined here.
+ * OpenCode V2 interaction types come from `@opencode/plugin` (entrypoint/context/domains)
+ * and `@opencode/client` (server API shapes). Project-specific domain types live here.
+ *
+ * Design note: consumers depend on narrow structural interfaces declared here (Constitution V —
+ * interfaces are defined at the consumer side), not on the full OpenCode client. The plugin
+ * entrypoint wires the real `ctx` domains into these narrow shapes.
  */
 
 // ─── SDK Re-exports ───
 
-/** Subset of hooks a module can contribute, types from SDK */
-import type { ToolDefinition } from '@opencode-ai/plugin';
-import type { OpencodeClient } from '@opencode-ai/sdk';
-
+export type { Context as PluginContext, Cleanup } from '@opencode/plugin/promise/plugin';
 export type {
-  Plugin,
-  PluginInput,
-  Hooks,
-  Config,
   ToolContext,
-  ToolDefinition,
-} from '@opencode-ai/plugin';
-export { tool } from '@opencode-ai/plugin';
+  ToolEditor,
+  Info as ToolInfo,
+  Result as ToolResult,
+} from '@opencode/plugin/promise/tool';
+export type { CommandEditor, CommandInvocation } from '@opencode/plugin/promise/command';
+import type { SessionMessageInfo } from '@opencode/client';
+export type { SessionMessageInfo };
 
 // ─── PluginConfig ───
 
@@ -48,18 +49,30 @@ export interface PluginConfig {
   };
   agents?: AgentsConfig;
   debug?: {
-    /** Output full request context at end of system.transform (default false) */
+    /** Output full request context at the `context` hook (default false) */
     logFullRequest?: boolean;
   };
 }
 
 // ─── PluginContext ───
 
+/**
+ * The slice of the V2 session domain that command/tool implementations actually use.
+ *
+ * V2's plugin `SessionDomain` deliberately omits `message.get`, so message lookup goes through
+ * `context({ sessionID })` and an ID match — one call covers both the "message that triggered
+ * this tool" and "latest user message" cases.
+ */
+export interface SessionGateway {
+  /** Full ordered transcript for a session, oldest first. */
+  context(input: { sessionID: string }): Promise<readonly SessionMessageInfo[]>;
+}
+
 export interface IPluginContext {
   readonly config: PluginConfig;
   readonly projectDir: string;
   readonly dataDir: string;
-  readonly client: OpencodeClient;
+  readonly session: SessionGateway;
 }
 
 // ─── Logger ───
@@ -71,4 +84,23 @@ export interface ILogger {
   error(...args: unknown[]): void;
 }
 
-export type ToolDefinitionWithKey = ToolDefinition & { toolKey: string };
+// ─── Message Model ───
+
+/**
+ * The V2 outbound request message model (`@opencode/ai`).
+ *
+ * V1 exposed `{ info, parts }`; V2 flattens to `{ role, content }`. Content parts are tagged by
+ * `type`: `text | media | tool-call | tool-result | reasoning | compaction | effort`.
+ */
+export type AIMessage = import('@opencode/ai').Message;
+export type AIContentPart = import('@opencode/ai').ContentPart;
+export type AISystemPart = import('@opencode/ai').SystemPart;
+
+/** Extracts plain text from V2 content parts (text parts only, in order). */
+export function extractTextContent(parts: readonly AIContentPart[]): string {
+  return parts
+    .filter((p): p is Extract<AIContentPart, { type: 'text' }> => p.type === 'text')
+    .map((p) => p.text)
+    .join('\n')
+    .trim();
+}

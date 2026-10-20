@@ -1,8 +1,11 @@
 /**
  * Token Counting Integration Tests
  *
- * Verifies messages.transform and chat.message hook integration with TokenCounter.
- * Uses mock tiktoken + real MemorySystem + real TokenCounter.
+ * Verifies the `context` hook token pipeline (message counting → MemorySystem records)
+ * with mock tiktoken + real MemorySystem + real TokenCounter.
+ *
+ * V2 message model: `{ role, content: ContentPart[] }`; tool usage is a `tool-call` part plus
+ * a `tool-result` part sharing one id.
  */
 
 import { describe, it, expect, mock, beforeAll, afterAll } from 'bun:test';
@@ -11,7 +14,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { MemorySystem } from '../../src/memory';
 import { TokenCounter } from '../../src/token/token-counter';
-import type { Part, Message } from '@opencode-ai/sdk';
+import type { AIMessage, AIContentPart } from '../../src/core/types.js';
 import type { MessagePack } from '../../src/token';
 import type { CreateTaskInput } from '../../src/memory';
 
@@ -32,43 +35,33 @@ mock.module('tiktoken', () => {
 
 // ─── Helpers ───
 
-interface TextPartStub {
-  type: 'text';
-  text: string;
-}
-interface ToolPartStub {
-  type: 'tool';
-  text?: string;
-  args?: unknown;
-  state?: { input?: unknown; output?: string; error?: string };
-}
-interface ReasoningPartStub {
-  type: 'reasoning';
-  text: string;
-}
+type TextPart = Extract<AIContentPart, { type: 'text' }>;
+type ToolResultPart = Extract<AIContentPart, { type: 'tool-result' }>;
+type ReasoningPart = Extract<AIContentPart, { type: 'reasoning' }>;
 
-type PartStub = TextPartStub | ToolPartStub | ReasoningPartStub;
-
-function makeTextPart(text: string): TextPartStub {
+function makeTextPart(text: string): TextPart {
   return { type: 'text', text };
 }
 
-function makeToolPart(overrides: Partial<ToolPartStub> = {}): ToolPartStub {
-  return { type: 'tool', ...overrides };
+function makeToolResult(id: string, name: string, value: string): ToolResultPart {
+  return { type: 'tool-result', id, name, result: { type: 'text', value } };
 }
 
-function makeUserMessage(parts: PartStub[]): MessagePack {
-  return {
-    info: { role: 'user' } as Message,
-    parts: parts as Part[],
-  };
+function makeReasoningPart(text: string): ReasoningPart {
+  return { type: 'reasoning', text };
 }
 
-function makeAssistantMessage(parts: PartStub[]): MessagePack {
-  return {
-    info: { role: 'assistant' } as Message,
-    parts: parts as Part[],
-  };
+/** `AIMessage` is an Effect `Schema.Class`; tests feed structural stand-ins. */
+function makeMessage(role: AIMessage['role'], content: readonly AIContentPart[]): MessagePack {
+  return { message: { role, content } as AIMessage };
+}
+
+function makeUserMessage(content: readonly AIContentPart[]): MessagePack {
+  return makeMessage('user', content);
+}
+
+function makeAssistantMessage(content: readonly AIContentPart[]): MessagePack {
+  return makeMessage('assistant', content);
 }
 
 describe('Token Integration', () => {
@@ -100,9 +93,9 @@ describe('Token Integration', () => {
     return memory.createTask(input);
   }
 
-  // ─── messages.transform integration ──────────────
+  // ─── context hook integration ────────────────────
 
-  describe('messages.transform integration', () => {
+  describe('context hook integration', () => {
     it('records prompt tokens with correct bySource for active task', async () => {
       const sessionId = 'ses_transform_active';
       await setupActiveTask(sessionId);
@@ -115,7 +108,7 @@ describe('Token Integration', () => {
 
       const result = tokenCounter.countContextTokens(msg);
 
-      // record to memory — recordStepEntry now accepts TokenCount
+      // record to memory — recordStepTokens accepts TokenCount
       await memory.recordStepTokens(sessionId, 'bug-fix', 'S1', '理解需求', result);
 
       const metrics = await memory.getStepTokenMetrics(sessionId);
@@ -149,16 +142,17 @@ describe('Token Integration', () => {
     });
   });
 
-  // ─── chat.message integration ────────────────────
+  // ─── assistant turn accounting ──────────────────
 
-  describe('chat.message integration', () => {
-    it('records completion tokens for assistant + tool parts', async () => {
+  describe('assistant turn accounting', () => {
+    it('records completion tokens for assistant text + tool-result parts', async () => {
       const sessionId = 'ses_chat_active';
       await setupActiveTask(sessionId);
 
       const msg = makeAssistantMessage([
         makeTextPart('Here is the fix:\n\n```ts\nconst x = 1;\n```\n\nThis should work.'),
-        makeToolPart({ text: 'Execution result: test passed' }),
+        makeToolResult('call-1', 'bash', 'Execution result: test passed'),
+        makeReasoningPart('checking the patch'),
       ]);
 
       const result = tokenCounter.countContextTokens(msg);
@@ -169,6 +163,7 @@ describe('Token Integration', () => {
       expect(metrics).toHaveLength(1);
       expect(metrics[0].tokensBySource['Assistant']).toBeGreaterThan(0);
       expect(metrics[0].tokensBySource['Tool']).toBeGreaterThan(0);
+      expect(metrics[0].tokensBySource['Reasoning']).toBeGreaterThan(0);
     });
   });
 

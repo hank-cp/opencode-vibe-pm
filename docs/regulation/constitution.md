@@ -1,6 +1,6 @@
 # vibe-pm 项目宪章
 
-**版本**: 1.4.0 | **批准日期**: 2026-06-11 | **最后修订**: 2026-07-02
+**版本**: 1.5.0 | **批准日期**: 2026-06-11 | **最后修订**: 2026-10-21
 
 ---
 
@@ -110,15 +110,24 @@
 
 - **语言**: TypeScript（严格模式）
 - **运行时**: Bun（开发环境：构建、测试、包管理）
-- **SDK**: `@opencode-ai/plugin`（OpenCode 插件开发）
+- **宿主**: OpenCode **V2**（`opencode@2.x`）。V1 插件实现不能在 V2 加载，本项目只支持 V2，不做 V1/V2 双形态入口
+- **SDK**: `@opencode/plugin`（服务端插件与 TUI 插件），类型来源 `@opencode/client` / `@opencode/schema` / `@opencode/ai`
 - **数据库**: SQLite (bun:sqlite，结构化记忆存储)
 - **运行环境**: OpenCode 插件运行时（Bun）
-- **TUI**: 终端信息展示
+- **TUI**: `@opencode/plugin/tui` 的 slot 机制，终端信息展示
 
 ### 架构约束
 
 - **模块独立性** — 模块间通过明确接口通信，禁止跨模块直接访问内部实现；遵循固定目录约定，不将不同职责的代码混放；插件核心逻辑与 TUI 展示层分离
-- **SDK 优先** — 与 OpenCode 宿主环境的交互必须通过 `@opencode-ai/plugin` SDK 进行；插件入口类型使用 `Plugin` / `PluginInput`，禁止手写 OpenCode 交互类型；工具注册使用 `tool()` 工厂函数配合 Zod schema；Hook 签名使用 SDK 提供的 `Hooks` 类型；当 SDK 能力不足时，先评估是否为暂时性缺失（等待 SDK 更新）还是永久性缺口（再手写补充）
+- **SDK 优先** — 与 OpenCode 宿主环境的交互必须通过 `@opencode/plugin` SDK 进行，禁止手写 OpenCode 交互类型。具体约定：
+  - 插件入口使用 `Plugin.define({ id, setup(ctx) })` 并 **default export**；`setup` 返回的 cleanup 负责释放订阅与 claim
+  - 能力按**域**组织（`ctx.session` / `ctx.tool` / `ctx.command` / `ctx.event` / `ctx.storage` 等），不存在全局 client 对象
+  - **工具注册**通过 `ctx.tool.transform` 的 `ToolEditor.add`；入参 schema 使用**原生 JSON Schema**（Zod 仅在满足 StandardSchemaV1 时可用，本项目 zod@3 不满足）；`execute` 必须返回 `{ content }` 结构化结果，不得返回裸字符串
+  - **命令注册**通过 `ctx.command.transform` 的 `CommandEditor.add`，命令是代码式定义（`execute`），不是模板字符串
+  - **Hook 注册**通过所属域的 `hook(name, callback)`（如上下文注入用 `ctx.session.hook('context', ...)`），事件订阅用 `ctx.event.subscribe()` 并在 cleanup 中 abort
+  - **变换（transform）回调必须同步、无副作用**：外部数据的异步加载在注册前完成，捕获进闭包；数据变化时调用对应域的 `reload()`
+  - 当 SDK 能力不足时，先评估是否为暂时性缺失（等待 SDK 更新）还是永久性缺口（再手写补充），并把缺口显式记录到 Spec
+- **宿主类型不得静默降级** — 依赖宿主能力的类型（如 `@opencode/theme`）必须显式列入 `devDependencies`；否则 `skipLibCheck` 会把无法解析的宿主类型静默降级为 `any`，路径拼错也无法被编译器发现
 - 结构化记忆通过 SQLite 读写
 - 存储 JSON 数据时，SQLite 列使用 JSON 类型声明（非 TEXT），利用 json_extract() / json_set() 进行查询和更新
 - MD 文档记忆通过文件系统读取，不缓存过时内容
@@ -145,6 +154,8 @@ tests/               — 测试代码（或被测文件同目录）
 | 违规行为 | 处理 |
 |----------|------|
 | 类型逃逸（`any` / `@ts-ignore`） | 必须重写 |
+| 硬编码宿主未在类型层声明的标识符（内置工具名、事件字段名等） | 改为容错匹配，或从类型声明中取权威来源 |
+| 仅凭源码层测试判定插件装配正确 | 必须补构建产物的端到端冒烟 |
 | 跳过需求澄清直接实现 | 回退所有变更 |
 | 在 Spec 文档中编写具体实现代码 | 重写为伪码或自然语言表达 |
 | 删除失败测试"通过" | 恢复测试 + 修复根因 |

@@ -1,34 +1,44 @@
 /**
  * Logging Utility
  *
- * Writes to the host log system via the OpenCode SDK's app.log().
+ * OpenCode V2 removed `client.app.log()`, so the host log sink is gone. Logs now go to
+ * the host console (`console.debug/info/warn/error`, which the OpenCode server captures)
+ * and, when a data directory is known, are appended to `<dataDir>/logs/vibe-pm.log`.
+ *
  * Public interface unchanged: logger.debug / info / warn / error.
  */
 
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import type { ILogger } from './types.js';
 
-// ─── LogClient Minimal Interface ───
+// ─── Options ───
 
-interface LogClient {
-  app: {
-    log(options: {
-      body?: {
-        service: string;
-        level: 'debug' | 'info' | 'warn' | 'error';
-        message: string;
-        extra?: Record<string, unknown>;
-      };
-    }): Promise<unknown>;
-  };
+export interface LoggerOptions {
+  /** When set, log lines are additionally appended to `<dataDir>/logs/vibe-pm.log`. */
+  dataDir?: string;
 }
+
+type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
 
 // ─── State ───
 
-let client: LogClient | null = null;
+let logFile: string | null = null;
 let enabled = true;
 
-export function initLogger(c: LogClient): void {
-  client = c;
+export function initLogger(options: LoggerOptions = {}): void {
+  if (!options.dataDir) {
+    logFile = null;
+    return;
+  }
+  const file = path.join(options.dataDir, 'logs', 'vibe-pm.log');
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    logFile = file;
+  } catch {
+    // Diagnostics must never break plugin startup — fall back to console only.
+    logFile = null;
+  }
 }
 
 export function setLogEnabled(v: boolean): void {
@@ -77,41 +87,77 @@ function toExtra(data?: unknown): Record<string, unknown> | undefined {
   return { detail: String(data) };
 }
 
+function formatExtra(data?: unknown): string {
+  const extra = toExtra(data);
+  if (!extra) return '';
+  try {
+    return ` ${JSON.stringify(extra)}`;
+  } catch {
+    return ` ${String(data)}`;
+  }
+}
+
+// ─── Sinks ───
+
+function emitToConsole(level: LogLevel, line: string, data?: unknown): void {
+  const args: unknown[] = data === undefined ? [line] : [line, data];
+  switch (level) {
+    case 'DEBUG':
+      console.debug(...args);
+      break;
+    case 'INFO':
+      console.info(...args);
+      break;
+    case 'WARN':
+      console.warn(...args);
+      break;
+    case 'ERROR':
+      console.error(...args);
+      break;
+  }
+}
+
+/**
+ * Append asynchronously so the hot context hook never blocks on disk I/O.
+ * Any failure is swallowed — diagnostics must not affect the host.
+ */
+function appendToFile(line: string): void {
+  const file = logFile;
+  if (!file) return;
+  fs.appendFile(file, `${new Date().toISOString()} ${line}\n`, (err) => {
+    if (err) {
+      // Intentionally ignored: a broken log sink must not surface as a plugin error.
+    }
+  });
+}
+
 // ─── Write ───
 
-async function write(level: string, message: unknown, data?: unknown): Promise<void> {
-  if (!enabled || !client) return;
+function write(level: LogLevel, message: unknown, data?: unknown): void {
+  if (!enabled) return;
 
-  try {
-    const service = getCallerFile();
-    const msg = '[vibe-pm] ' + (typeof message === 'string' ? message : String(message));
+  const caller = getCallerFile();
+  const msg = `[vibe-pm] ${level} ${caller} ${
+    typeof message === 'string' ? message : String(message)
+  }`;
 
-    await client.app.log({
-      body: {
-        service,
-        level: level.toLowerCase() as 'debug' | 'info' | 'warn' | 'error',
-        message: msg,
-        extra: toExtra(data),
-      },
-    });
-  } catch {
-    // Silent failure — logging should not crash the application
-  }
+  emitToConsole(level, msg, data);
+  appendToFile(`${msg}${formatExtra(data)}`);
 }
 
 // ─── Logger Instance ───
 
 export const logger: ILogger = {
   debug(...args: unknown[]) {
-    void write('DEBUG', args[0], args[1]);
+    write('DEBUG', args[0], args[1]);
   },
   info(...args: unknown[]) {
-    void write('INFO', args[0], args[1]);
+    write('INFO', args[0], args[1]);
   },
   warn(...args: unknown[]) {
-    void write('WARN', args[0], args[1]);
+    write('WARN', args[0], args[1]);
   },
   error(...args: unknown[]) {
-    void write('ERROR', args[0], args[1]);
+    write('ERROR', args[0], args[1]);
   },
 };

@@ -1,53 +1,90 @@
 /**
- * TUI Plugin Unit Tests
+ * TUI Plugin Unit Tests (OpenCode V2)
  *
- * Tests createTuiPlugin factory function and non-TUI environment graceful degradation.
+ * V2 TUI plugins are `Plugin.define({ id, setup })`; there is no factory function and no
+ * `api.slots.register`. `setup(ctx)` claims one slot through `ctx.ui.slot({ append, render })`.
  */
 
 import { describe, it, expect } from 'bun:test';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import type { Plugin } from '@opencode/plugin/tui';
 
-describe('createTuiPlugin', () => {
-  const skipCI = process.env.CI === 'true';
+/** The slice of a V2 slot claim this plugin uses. */
+interface CapturedClaim {
+  readonly append?: string;
+  readonly prepend?: string;
+  readonly render: (input: { sessionID: string }) => unknown;
+}
 
-  it('returns a function with tui signature', async () => {
-    if (skipCI) return;
-    const { createTuiPlugin } = await import('../../src/tui/tui-plugin.jsx');
-    const plugin = createTuiPlugin();
-    expect(typeof plugin).toBe('function');
-    // TuiPlugin signature: (api, options?, meta?) => Promise<void>
-    expect(plugin.length).toBeGreaterThanOrEqual(1);
+interface TuiHarness {
+  ctx: Plugin.Context;
+  claims: CapturedClaim[];
+}
+
+function makeTuiCtx(directory: string): TuiHarness {
+  const claims: CapturedClaim[] = [];
+
+  const color = { r: 0, g: 0, b: 0, a: 255 };
+  const textStyle = { base: color, muted: color, feedback: { warning: { base: color }, success: { base: color } } };
+
+  const ctx = {
+    location: { directory },
+    theme: {
+      hue: { interactive: { 200: color } },
+      text: textStyle,
+    },
+    ui: {
+      slot: (claim: CapturedClaim) => {
+        claims.push(claim);
+        return () => {
+          const index = claims.indexOf(claim);
+          if (index >= 0) claims.splice(index, 1);
+        };
+      },
+    },
+  } as unknown as Plugin.Context;
+
+  return { ctx, claims };
+}
+
+describe('TUI plugin setup', () => {
+  it('claims the sidebar.content slot exactly once with a render function', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vibe-pm-tui-'));
+    try {
+      const { setup } = await import('../../src/tui/tui-plugin.jsx');
+      const { ctx, claims } = makeTuiCtx(tmpDir);
+
+      const cleanup = await setup(ctx);
+
+      expect(claims).toHaveLength(1);
+      expect(claims[0]!.append).toBe('sidebar.content');
+      expect(claims[0]!.prepend).toBeUndefined();
+      expect(typeof claims[0]!.render).toBe('function');
+      expect(typeof cleanup).toBe('function');
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 
-  it('does not throw in non-TUI environment', async () => {
-    if (skipCI) return;
-    const { createTuiPlugin } = await import('../../src/tui/tui-plugin.jsx');
-    const plugin = createTuiPlugin();
+  it('returns an inert cleanup and claims nothing when the data directory cannot be opened', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vibe-pm-tui-bad-'));
+    try {
+      // A regular file where `<project>/.vibe-pm` must be a directory makes MemorySystem.init fail.
+      fs.writeFileSync(path.join(tmpDir, '.vibe-pm'), '');
 
-    // Simulate a minimal TuiPluginApi that throws on slots.register
-    // to mimic non-TUI environment
-    const mockApi = {
-      state: {
-        path: { directory: undefined as string | undefined },
-      },
-      slots: {
-        register: () => {
-          throw new Error('No TUI renderer available');
-        },
-      },
-      theme: {
-        current: {
-          primary: {} as unknown,
-          text: {} as unknown,
-          textMuted: {} as unknown,
-        },
-      },
-      event: {
-        on: () => () => {},
-      },
-    } as unknown as Parameters<typeof plugin>[0];
+      const { setup } = await import('../../src/tui/tui-plugin.jsx');
+      const { ctx, claims } = makeTuiCtx(tmpDir);
 
-    // Should not throw — silently catches errors
-    await expect(plugin(mockApi, undefined as never, undefined as never)).resolves.toBeUndefined();
+      const cleanup = await setup(ctx);
+
+      expect(typeof cleanup).toBe('function');
+      cleanup();
+      expect(claims).toHaveLength(0);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 });
 

@@ -37,6 +37,10 @@ coverage/
 .codegraph
 !.opencode/opencode.jsonc
 !.opencode/tui.jsonc
+# Local dev entrypoints for this plugin — committed, see .opencode/plugins/vibe-pm/index.ts
+!.opencode/plugins/
+!.opencode/plugins/vibe-pm/
+!.opencode/plugins/vibe-pm/*.ts
 
 # Temp files
 *.tmp

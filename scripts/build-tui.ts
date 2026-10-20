@@ -16,7 +16,7 @@ const serverResult = await Bun.build({
   target: 'node' as const,
   format: 'esm' as const,
   external: [
-    '@opencode-ai/plugin',
+    '@opencode/plugin',
     'tiktoken',
   ],
   entrypoints: ['./src/index.ts'],
@@ -69,7 +69,9 @@ const tuiResult = await Bun.build({
     '@opentui/solid',
     '@opentui/keymap',
     'solid-js',
-    '@opencode-ai/plugin',
+    // V2 TUI plugin host API: must resolve to the host's own instance.
+    '@opencode/plugin',
+    '@opencode/plugin/tui',
     'tiktoken',
   ],
   entrypoints: ['./src/tui/index.ts'],

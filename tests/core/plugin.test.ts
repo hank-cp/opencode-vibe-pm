@@ -1,49 +1,147 @@
-import { describe, it, expect, beforeAll, afterAll, mock } from 'bun:test';
+/**
+ * Plugin Entry Tests (OpenCode V2)
+ *
+ * V2 (`Plugin.define({ id, setup })`) has no returned hook map: `setup(ctx)` registers
+ * everything through domain transforms and returns a cleanup. These tests build a minimal
+ * V2 context, run the real `setup`, and assert both the registrations and the context-hook
+ * behaviour (flow prompt injection / stale prompt removal).
+ */
+
+import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import type { Context as PluginContext } from '@opencode/plugin/promise/plugin';
+import type { CommandDefinition } from '@opencode/plugin/promise/command';
+import type { SessionContext } from '@opencode/plugin/promise/session';
+import type { SessionMessageInfo } from '@opencode/client';
+import type { AIMessage, AIContentPart, ToolContext, ToolInfo } from '../../src/core/types.js';
 import { VibePMPlugin } from '../../src/core/plugin.js';
-import type { PluginInput } from '../../src/core/types.js';
 
-function mockInput(dir: string): PluginInput {
-  return {
-    directory: dir,
-    worktree: dir,
-    serverUrl: new URL('http://localhost'),
-    client: {
-      session: {
-        message: mock(() =>
-          Promise.resolve({
-            data: { parts: [{ type: 'text', text: 'test user request' }] },
-          }),
-        ),
-        get: mock(() =>
-          Promise.resolve({
-            data: { model: { providerID: 'test', modelID: 'test-model' } },
-          }),
-        ),
-      },
-    } as any,
-    project: {} as PluginInput['project'],
-    experimental_workspace: { register: () => {} },
-    $: {} as PluginInput['$'],
-  };
+// ─── Minimal V2 context ───
+
+interface Harness {
+  commands: CommandDefinition[];
+  tools: ToolInfo[];
+  subscribeCalls: number;
+  invokeContext(event: SessionContext): Promise<void>;
 }
 
-function makeTransformOutput(
-  messages: { role: string; sessionID: string; parts: { type: string; text: string }[] }[],
-) {
+function makeMessage(role: AIMessage['role'], content: AIContentPart[]): AIMessage {
+  return { role, content } as AIMessage;
+}
+
+function makeToolContext(sessionID: string, messageID = 'msg-1'): ToolContext {
   return {
-    messages: messages.map((m, i) => ({
-      info: { role: m.role, sessionID: m.sessionID, id: `msg-${i}` },
-      parts: [...m.parts],
-    })),
+    sessionID,
+    messageID,
+    agent: 'build',
+    id: 'call-1',
+    signal: new AbortController().signal,
+    progress: async () => {},
+  } as unknown as ToolContext;
+}
+
+function makeCtx(directory: string): { ctx: PluginContext; harness: Harness } {
+  const commands: CommandDefinition[] = [];
+  const tools: ToolInfo[] = [];
+  let contextHook: ((event: SessionContext) => Promise<void>) | undefined;
+  let subscribeCalls = 0;
+
+  const harness: Harness = {
+    commands,
+    tools,
+    get subscribeCalls() {
+      return subscribeCalls;
+    },
+    async invokeContext(event: SessionContext): Promise<void> {
+      if (!contextHook) throw new Error('context hook was not registered');
+      await contextHook(event);
+    },
   };
+
+  const session = {
+    get: async (input: { sessionID: string }) => ({ id: input.sessionID }),
+    create: async (input: { parentID?: string; title?: string }) => ({
+      id: `child-${input.parentID ?? 'root'}`,
+    }),
+    prompt: async () => ({}),
+    wait: async () => {},
+    context: async () => [] as SessionMessageInfo[],
+    hook: async (name: string, callback: (event: SessionContext) => Promise<void>) => {
+      if (name === 'context') contextHook = callback;
+      return { dispose: async () => {} };
+    },
+  };
+
+  const registration = { dispose: async () => {} };
+
+  const ctx = {
+    app: { name: 'opencode', version: '2.1.1', channel: 'dev' },
+    location: { directory },
+    options: {},
+    session,
+    command: {
+      transform: async (callback: (editor: { add(d: CommandDefinition): void }) => void) => {
+        callback({ add: (definition) => commands.push(definition) });
+        return registration;
+      },
+    },
+    tool: {
+      transform: async (callback: (editor: { add(t: ToolInfo): void }) => void) => {
+        callback({ add: (tool) => tools.push(tool) });
+        return registration;
+      },
+    },
+    event: {
+      subscribe: () => {
+        subscribeCalls += 1;
+        return {
+          async *[Symbol.asyncIterator]() {
+            // No events: the subscription must not keep the test alive.
+          },
+        };
+      },
+    },
+  } as unknown as PluginContext;
+
+  return { ctx, harness };
+}
+
+function toolByName(tools: ToolInfo[], name: string): ToolInfo {
+  const tool = tools.find((t) => t.name === name);
+  if (!tool) throw new Error(`tool not registered: ${name}`);
+  return tool;
+}
+
+function emptySession(tools: Record<string, unknown> = {}): SessionContext {
+  return {
+    sessionID: 's1',
+    agent: 'build',
+    model: { id: 'test-model', providerID: 'test' },
+    system: [],
+    messages: [],
+    tools,
+    options: {},
+  } as unknown as SessionContext;
+}
+
+function userEvent(
+  sessionID: string,
+  parts: AIContentPart[],
+  tools: Record<string, unknown> = {},
+): SessionContext {
+  return {
+    ...emptySession(tools),
+    sessionID,
+    messages: [makeMessage('user', parts)],
+  } as SessionContext;
 }
 
 describe('VibePMPlugin', () => {
   let tmpDir: string;
-  let hooks: Awaited<ReturnType<typeof VibePMPlugin>>;
+  let harness: Harness;
+  let cleanup: void | (() => void | Promise<void>);
 
   beforeAll(async () => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vibe-pm-test-'));
@@ -52,117 +150,137 @@ describe('VibePMPlugin', () => {
       path.join(tmpDir, 'docs', 'flow', 'test-flow.md'),
       '**Command**: `/pm-test`\n# Test Flow\n\n## S1\n\n**完成后**: S2\n\n## S2\n\n**完成后**: [*]\n',
     );
-    hooks = await VibePMPlugin(mockInput(tmpDir));
+    const made = makeCtx(tmpDir);
+    harness = made.harness;
+    cleanup = await VibePMPlugin.setup(made.ctx);
   });
 
-  afterAll(() => {
+  afterAll(async () => {
+    if (typeof cleanup === 'function') await cleanup();
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it('registers config, tool, messages.transform, event', () => {
-    expect(typeof hooks.config).toBe('function');
-    expect(typeof hooks.tool).toBe('object');
-    expect(typeof hooks['experimental.chat.messages.transform']).toBe('function');
-    expect(typeof hooks.event).toBe('function');
+  it('registers commands, tools, context hook and event subscription', () => {
+    const names = harness.commands.map((c) => c.name);
+    expect(names).toHaveLength(8);
+    for (const name of [
+      'pm-install-flow',
+      'pm-uninstall-flow',
+      'pm-refine-flow',
+      'pm-task-set-step',
+      'pm-task-close',
+      'pm-task-current-step',
+      'pm-config',
+      'pm-test',
+    ]) {
+      expect(names).toContain(name);
+    }
+
+    const toolNames = harness.tools.map((t) => t.name);
+    for (const name of [
+      'pm_install_flow',
+      'pm_uninstall_flow',
+      'pm_config',
+      'pm_task_set_step',
+      'pm_task_close',
+      'pm_task_current_step',
+      'pm_task_verify',
+      'pm_test_flow',
+    ]) {
+      expect(toolNames).toContain(name);
+    }
+
+    // `setup` returns the cleanup that aborts the event subscription.
+    expect(typeof harness.subscribeCalls).toBe('number');
+    expect(harness.subscribeCalls).toBe(1);
+    expect(typeof cleanup).toBe('function');
   });
 
   it('injects protect when active task exists', async () => {
-    // Use the flow tool to create a task (via pm_{flow} tool instead of removed pm_task_start)
-    const tools = hooks.tool as Record<
-      string,
-      { execute: (args: unknown, ctx: unknown) => Promise<string> }
-    >;
-    const createResult = await tools.pm_test_flow.execute(
-      { summary: 'test task' },
-      { sessionID: 's1', messageID: 'msg-1' },
+    const flowTool = toolByName(harness.tools, 'pm_test_flow');
+    const created = await flowTool.execute(
+      { summary: 'test task', userRequest: '/pm-test start\n' },
+      makeToolContext('s1'),
     );
-    const parsed = JSON.parse(createResult);
-    expect(parsed.ok).toBe(true);
+    expect(JSON.parse(String(created.content)).ok).toBe(true);
 
-    const output = makeTransformOutput([
-      {
-        role: 'user',
-        sessionID: 's1',
-        parts: [
-          { type: 'text', text: '<auto-slash-command>\n/pm-test start\n</auto-slash-command>' },
-        ],
-      },
+    const event = userEvent('s1', [
+      { type: 'text', text: '<auto-slash-command>\n/pm-test start\n</auto-slash-command>' },
     ]);
-    await hooks['experimental.chat.messages.transform']!(
-      {},
-      output as Parameters<NonNullable<(typeof hooks)['experimental.chat.messages.transform']>>[1],
-    );
-    const parts = output.messages[0].parts as { type: string; text: string; synthetic?: boolean }[];
-    expect(parts.length).toBe(2);
-    expect(parts[1].type).toBe('text');
-    expect(parts[1].text).toContain('<protect>');
-    expect(parts[1].synthetic).toBe(true);
+    await harness.invokeContext(event);
 
-    // Clean up
-    await tools.pm_task_close.execute({}, { sessionID: 's1', messageID: 'msg-1' });
+    const content = event.messages[0]!.content as AIContentPart[];
+    expect(content).toHaveLength(2);
+
+    const injected = content[1]!;
+    expect(injected.type).toBe('text');
+    if (injected.type !== 'text') throw new Error('expected an injected text part');
+    expect(injected.text).toContain('<protect>');
+    expect(injected.metadata?.['synthetic']).toBe(true);
+
+    const closeTool = toolByName(harness.tools, 'pm_task_close');
+    await closeTool.execute({}, makeToolContext('s1'));
   });
 
-  it('skips when no auto-slash-command', async () => {
-    const output = makeTransformOutput([
-      { role: 'user', sessionID: 's2', parts: [{ type: 'text', text: 'hello' }] },
-    ]);
-    await hooks['experimental.chat.messages.transform']!(
-      {},
-      output as Parameters<NonNullable<(typeof hooks)['experimental.chat.messages.transform']>>[1],
-    );
-    expect(output.messages[0].parts.length).toBe(1);
+  it('does not inject without an active task', async () => {
+    const event = userEvent('s2', [{ type: 'text', text: 'hello' }]);
+    await harness.invokeContext(event);
+
+    const content = event.messages[0]!.content as AIContentPart[];
+    expect(content).toHaveLength(1);
   });
 
-  it('clears stale control prompt when no flow cmd', async () => {
-    const output = makeTransformOutput([
-      {
-        role: 'user',
-        sessionID: 's3',
-        parts: [
-          { type: 'text', text: 'hello' },
-          { type: 'text', text: '<protect>\nold\n</protect>' },
-        ],
-      },
-    ]);
-    await hooks['experimental.chat.messages.transform']!(
-      {},
-      output as Parameters<NonNullable<(typeof hooks)['experimental.chat.messages.transform']>>[1],
+  it('appends the control prompt when the task exists but no slash command was expanded', async () => {
+    const flowTool = toolByName(harness.tools, 'pm_test_flow');
+    const created = await flowTool.execute(
+      { summary: 'no marker', userRequest: 'plain request\n' },
+      makeToolContext('s4'),
     );
-    expect(output.messages[0].parts.length).toBe(1);
+    expect(JSON.parse(String(created.content)).ok).toBe(true);
+
+    const event = userEvent('s4', [{ type: 'text', text: 'plain request' }]);
+    await harness.invokeContext(event);
+
+    const content = event.messages[0]!.content as AIContentPart[];
+    expect(content).toHaveLength(2);
+    const injected = content[1]!;
+    if (injected.type !== 'text') throw new Error('expected an injected text part');
+    expect(injected.text).toContain('<protect>');
+
+    const closeTool = toolByName(harness.tools, 'pm_task_close');
+    await closeTool.execute({}, makeToolContext('s4'));
   });
 
-  it('injects_protect_when_active_task_exists: injects protect when active task exists', async () => {
-    const tools = hooks.tool as Record<
-      string,
-      { execute: (args: unknown, ctx: unknown) => Promise<string> }
-    >;
+  it('clears stale control prompt when no active task', async () => {
+    const event = userEvent('s3', [
+      { type: 'text', text: 'hello' },
+      { type: 'text', text: '<protect>\nold\n</protect>' },
+    ]);
+    await harness.invokeContext(event);
 
-    const createResult = await tools.pm_test_flow.execute(
-      { summary: 'dedup test' },
-      { sessionID: 'sd', messageID: 'msg-d' },
+    const content = event.messages[0]!.content as AIContentPart[];
+    expect(content).toHaveLength(1);
+  });
+
+  it('injects_protect_when_active_task_exists: injects protect only once per message', async () => {
+    const flowTool = toolByName(harness.tools, 'pm_test_flow');
+    const created = await flowTool.execute(
+      { summary: 'dedup test', userRequest: '/pm-test dedup\n' },
+      makeToolContext('sd', 'msg-d'),
     );
-    expect(JSON.parse(createResult).ok).toBe(true);
+    expect(JSON.parse(String(created.content)).ok).toBe(true);
 
     const cmd = '<auto-slash-command>\n/pm-test dedup\n</auto-slash-command>';
-    const o1 = makeTransformOutput([
-      { role: 'user', sessionID: 'sd', parts: [{ type: 'text', text: cmd }] },
-    ]);
-    await hooks['experimental.chat.messages.transform']!(
-      {},
-      o1 as Parameters<NonNullable<(typeof hooks)['experimental.chat.messages.transform']>>[1],
-    );
-    expect(o1.messages[0].parts.length).toBe(2);
 
-    const o2 = makeTransformOutput([
-      { role: 'user', sessionID: 'sd', parts: [{ type: 'text', text: cmd }] },
-    ]);
-    await hooks['experimental.chat.messages.transform']!(
-      {},
-      o2 as Parameters<NonNullable<(typeof hooks)['experimental.chat.messages.transform']>>[1],
-    );
-    expect(o2.messages[0].parts.length).toBe(2);
+    const first = userEvent('sd', [{ type: 'text', text: cmd }]);
+    await harness.invokeContext(first);
+    expect((first.messages[0]!.content as AIContentPart[]).length).toBe(2);
 
-    // Clean up
-    await tools.pm_task_close.execute({}, { sessionID: 'sd', messageID: 'msg-d' });
+    const second = userEvent('sd', [{ type: 'text', text: cmd }]);
+    await harness.invokeContext(second);
+    expect((second.messages[0]!.content as AIContentPart[]).length).toBe(2);
+
+    const closeTool = toolByName(harness.tools, 'pm_task_close');
+    await closeTool.execute({}, makeToolContext('sd', 'msg-d'));
   });
 });

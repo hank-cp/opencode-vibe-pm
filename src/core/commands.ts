@@ -1,16 +1,37 @@
 /**
- * Command Registration
+ * Command & Tool Registration (OpenCode V2)
  *
- * Registers all 8 /pm-* commands via the config hook (declarative) and
- * tool hook (executable). Uses the @opencode-ai/plugin SDK tool() factory.
- * Executable commands invoke FlowEngine and MemorySystem for real business logic.
+ * Registers all /pm-* commands through `ctx.command.transform` and all pm_* tools
+ * through `ctx.tool.transform`. Both transforms must stay synchronous and side-effect
+ * free, so this module only builds editor entries — the real work happens later in
+ * `execute`, which receives the plugin's narrow `IPluginContext`.
+ *
+ * Schemas are plain JSON Schema literals: the project's zod@3.23 does not satisfy
+ * StandardSchemaV1, and V2 requires `JsonSchema | StandardSchemaV1 | effect Codec`.
+ * Arguments are therefore read from `unknown` through explicit type guards.
  */
 
-import { tool } from '@opencode-ai/plugin';
+import type { JsonSchema } from 'effect';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { Config, IPluginContext, PluginConfig, ToolContext, ToolDefinition } from './types.js';
-import { installTemplate, scanTemplates, uninstallFlow, getPluginTemplateDir, installCodingStyleFromTemplate } from '../template';
+import type { SessionDomain } from '@opencode/plugin/promise/session';
+import {
+  CommandEditor,
+  IPluginContext,
+  PluginConfig,
+  SessionMessageInfo,
+  ToolContext,
+  ToolEditor,
+  ToolInfo,
+  ToolResult,
+} from './types.js';
+import {
+  installTemplate,
+  scanTemplates,
+  uninstallFlow,
+  getPluginTemplateDir,
+  installCodingStyleFromTemplate,
+} from '../template';
 import { loadConfig, writeConfig } from './config.js';
 import type { FlowEngine } from '../engine';
 import type { MemorySystem } from '../memory';
@@ -65,27 +86,35 @@ const COMMANDS: CommandMeta[] = [
   },
 ];
 
-// ─── register command: Command Registration/Unregistration ───
+/** The slice of the V2 session domain command handlers need to deliver a prompt. */
+type CommandSession = Pick<SessionDomain, 'prompt'>;
 
-interface CommandDeclaration {
-  template: string;
-  description: string;
-  agent?: string;
-}
+// ─── Command Registration ───
 
-export function registerCommands(opencodeConfig: Config): void {
-  const commands = (opencodeConfig.command ??= {}) as Record<string, CommandDeclaration>;
+export function registerCommands(editor: CommandEditor, session: CommandSession): void {
   const descMap = i18n().tool.commandDesc;
   for (const cmd of COMMANDS) {
-    commands[cmd.name] = {
-      template: cmd.template || '',
+    editor.add({
+      name: cmd.name,
       description: descMap[cmd.name] ?? cmd.name,
-    };
+      execute: async (input) => {
+        const template = cmd.template ?? '';
+        await session.prompt({
+          ...input.prompt,
+          sessionID: input.sessionID,
+          text: `${template}\n\n${input.prompt.text}`,
+          delivery: input.delivery,
+        });
+      },
+    });
   }
 }
 
-export function registerFlowCommands(opencodeConfig: Config, projectDir: string): void {
-  const commands = (opencodeConfig.command ??= {}) as Record<string, CommandDeclaration>;
+export function registerFlowCommands(
+  editor: CommandEditor,
+  projectDir: string,
+  session: CommandSession,
+): void {
   const flowDir = path.join(projectDir, 'docs', 'flow');
   if (!fs.existsSync(flowDir)) return;
 
@@ -94,83 +123,122 @@ export function registerFlowCommands(opencodeConfig: Config, projectDir: string)
     try {
       const raw = fs.readFileSync(path.join(flowDir, file), 'utf-8');
       const m = raw.match(/\*\*Command\*\*:\s*`?(.+?)`?\s*$/m);
-      if (!m) continue;
+      if (!m || !m[1]) continue;
 
       const command = m[1].trim();
       const cmdName = command.startsWith('/') ? command.slice(1) : command;
       const flowName = file.replace(/^flow-/, '').replace(/\.md$/, '');
+      const template = `Start a task under the "${flowName}" flow — call the pm_${flowName.replace(/-/g, '_')} tool with summary and userRequest`;
 
-      commands[cmdName] = {
-        template: `Start a task under the "${flowName}" flow — call the pm_${flowName.replace(/-/g, '_')} tool with summary and userRequest`,
+      editor.add({
+        name: cmdName,
         description: `Start a new ${flowName} task by calling the pm_${flowName.replace(/-/g, '_')} tool. Pass the user's original request as userRequest parameter.`,
-      };
+        execute: async (input) => {
+          await session.prompt({
+            ...input.prompt,
+            sessionID: input.sessionID,
+            text: `${template}\n\n${input.prompt.text}`,
+            delivery: input.delivery,
+          });
+        },
+      });
     } catch {
       // skip unparseable files
     }
   }
 }
 
-// ─── tool hook: Register Executable Tools ───
+// ─── Argument Guards ───
 
-/**
- * Create tool registry using the SDK tool() factory + Zod schemas.
- */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function argString(input: unknown, key: string): string | undefined {
+  if (!isRecord(input)) return undefined;
+  const value = input[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+function argBoolean(input: unknown, key: string): boolean | undefined {
+  if (!isRecord(input)) return undefined;
+  const value = input[key];
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function reply(payload: unknown): ToolResult {
+  return { content: JSON.stringify(payload) };
+}
+
+// ─── Tool Registration ───
+
 export function registerTools(
+  editor: ToolEditor,
   ctx: IPluginContext,
   engine: FlowEngine,
   memory: MemorySystem,
-): Record<string, ToolDefinition> {
-  const tools: Record<string, ToolDefinition> = {};
+): void {
+  const tools: ToolInfo[] = [];
 
   for (const cmd of COMMANDS) {
     if (!cmd.executable) continue;
 
     if (cmd.name === 'pm-install-flow') {
-      tools.pm_install_flow = createInstallFlowTool(ctx);
+      tools.push(createInstallFlowTool(ctx));
     } else if (cmd.name === 'pm-uninstall-flow') {
-      tools.pm_uninstall_flow = createUninstallFlowTool(ctx);
+      tools.push(createUninstallFlowTool(ctx));
     } else if (cmd.name === 'pm-config') {
-      tools.pm_config = createConfigTool(ctx);
+      tools.push(createConfigTool(ctx));
     } else if (cmd.name === 'pm-task-set-step') {
-      tools.pm_task_set_step = createTaskSetStepTool(engine, memory);
+      tools.push(createTaskSetStepTool(engine, memory));
     } else if (cmd.name === 'pm-task-close') {
-      tools.pm_task_close = createTaskCloseTool(engine);
+      tools.push(createTaskCloseTool(engine));
     } else if (cmd.name === 'pm-task-current-step') {
-      tools.pm_task_current_step = createTaskCurrentStepTool(memory);
+      tools.push(createTaskCurrentStepTool(memory));
     }
   }
 
-  tools.pm_task_verify = createVerifyOutputTool(engine);
+  tools.push(createVerifyOutputTool(engine));
 
-  return tools;
+  for (const tool of tools) editor.add(tool);
+  logger.info(`registering tools: ${tools.map((t) => t.name)}`);
 }
 
 // ─── Real Tool Implementations ───
 
-function createTaskSetStepTool(engine: FlowEngine, memory: MemorySystem): ToolDefinition {
+function createTaskSetStepTool(engine: FlowEngine, memory: MemorySystem): ToolInfo {
   const cmdI18n = i18n().tool;
-  return tool({
+  const input: JsonSchema.JsonSchema = {
+    type: 'object',
+    properties: {
+      step: { type: 'string', description: 'Target step ID, e.g. S1, S2' },
+      force: {
+        type: 'boolean',
+        description:
+          'Set true ONLY when the user explicitly requested to skip steps; bypasses FSM transition validation',
+      },
+    },
+    required: ['step'],
+  };
+
+  return {
+    name: 'pm_task_set_step',
     description:
       'Manually jump to a specific step. Pass force=true ONLY when the user explicitly requested to skip steps; it bypasses FSM transition validation (the target step must still exist in the flow document)',
-    args: {
-      step: tool.schema.string().describe('Target step ID, e.g. S1, S2'),
-      force: tool.schema
-        .boolean()
-        .optional()
-        .describe(
-          'Set true ONLY when the user explicitly requested to skip steps; bypasses FSM transition validation',
-        ),
-    },
-    async execute(args: { step: string; force?: boolean }, toolCtx: ToolContext): Promise<string> {
+    input,
+    async execute(raw: unknown, toolCtx: ToolContext): Promise<ToolResult> {
       const sessionId = toolCtx.sessionID;
       if (!sessionId) {
-        return JSON.stringify({ ok: false, error: cmdI18n.flowStartNoSession });
+        return reply({ ok: false, error: cmdI18n.flowStartNoSession });
       }
 
+      const step = argString(raw, 'step') ?? '';
+      const force = argBoolean(raw, 'force') === true;
+
       try {
-        const result = await engine.setStep(sessionId, args.step, args.force === true);
+        const result = await engine.setStep(sessionId, step, force);
         if (!result.ok) {
-          return JSON.stringify({
+          return reply({
             ok: false,
             error: result.warning ?? cmdI18n.unknownError,
             legalTargets: result.legalTargets ?? [],
@@ -178,43 +246,47 @@ function createTaskSetStepTool(engine: FlowEngine, memory: MemorySystem): ToolDe
         }
         const task = await memory.getActiveTask(sessionId);
         if (!task) {
-          return JSON.stringify({ ok: false, error: cmdI18n.setStepNoTask });
+          return reply({ ok: false, error: cmdI18n.setStepNoTask });
         }
-        return JSON.stringify({
+        return reply({
           ok: true,
           sessionId: task.sessionId,
           taskId: task.id,
           step: task.currentStep,
           stepName: task.currentStepName,
-          forced: args.force === true,
+          forced: force,
           notice: result.notice,
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : cmdI18n.unknownError;
-        return JSON.stringify({ ok: false, error: msg });
+        return reply({ ok: false, error: msg });
       }
     },
-  });
+  };
 }
 
-function createTaskCloseTool(engine: FlowEngine): ToolDefinition {  const cmdI18n = i18n().tool;
-  return tool({
+function createTaskCloseTool(engine: FlowEngine): ToolInfo {
+  const cmdI18n = i18n().tool;
+  const input: JsonSchema.JsonSchema = { type: 'object', properties: {} };
+
+  return {
+    name: 'pm_task_close',
     description:
       cmdI18n.commandDesc['pm-task-close'] ?? 'Close the current task and trigger analysis',
-    args: {},
-    async execute(_args: Record<string, never>, toolCtx: ToolContext): Promise<string> {
+    input,
+    async execute(_raw: unknown, toolCtx: ToolContext): Promise<ToolResult> {
       const sessionId = toolCtx.sessionID;
       if (!sessionId) {
-        return JSON.stringify({ ok: false, error: cmdI18n.flowStartNoSession });
+        return reply({ ok: false, error: cmdI18n.flowStartNoSession });
       }
 
       try {
         const task = await engine.closeTask(sessionId);
         if (!task) {
-          return JSON.stringify({ ok: false });
+          return reply({ ok: false });
         }
 
-        return JSON.stringify({
+        return reply({
           ok: true,
           sessionId: task.sessionId,
           taskId: task.id,
@@ -225,31 +297,34 @@ function createTaskCloseTool(engine: FlowEngine): ToolDefinition {  const cmdI18
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : cmdI18n.unknownError;
-        return JSON.stringify({ ok: false, error: msg });
+        return reply({ ok: false, error: msg });
       }
     },
-  });
+  };
 }
 
-function createTaskCurrentStepTool(memory: MemorySystem): ToolDefinition {
+function createTaskCurrentStepTool(memory: MemorySystem): ToolInfo {
   const cmdI18n = i18n().tool;
-  return tool({
+  const input: JsonSchema.JsonSchema = { type: 'object', properties: {} };
+
+  return {
+    name: 'pm_task_current_step',
     description:
       cmdI18n.commandDesc['pm-task-current-step'] ??
       'Get the current step of the active task. Returns JSON {ok:false} if no active task.',
-    args: {},
-    async execute(_args: Record<string, never>, toolCtx: ToolContext): Promise<string> {
+    input,
+    async execute(_raw: unknown, toolCtx: ToolContext): Promise<ToolResult> {
       const sessionId = toolCtx.sessionID;
       if (!sessionId) {
-        return JSON.stringify({ ok: false, error: cmdI18n.noSessionIdShort });
+        return reply({ ok: false, error: cmdI18n.noSessionIdShort });
       }
 
       try {
         const task = await memory.getActiveTask(sessionId);
         if (!task) {
-          return JSON.stringify({ ok: false });
+          return reply({ ok: false });
         }
-        return JSON.stringify({
+        return reply({
           ok: true,
           sessionId: task.sessionId,
           taskId: task.id,
@@ -258,32 +333,35 @@ function createTaskCurrentStepTool(memory: MemorySystem): ToolDefinition {
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : cmdI18n.unknownError;
-        return JSON.stringify({ ok: false, error: msg });
+        return reply({ ok: false, error: msg });
       }
     },
-  });
+  };
 }
 
-function createVerifyOutputTool(engine: FlowEngine): ToolDefinition {
+function createVerifyOutputTool(engine: FlowEngine): ToolInfo {
   const cmdI18n = i18n().tool;
-  return tool({
+  const input: JsonSchema.JsonSchema = { type: 'object', properties: {} };
+
+  return {
+    name: 'pm_task_verify',
     description:
       'Declare the current step output as complete and request the verification flow configured for that step (self-check checklist / review agent / human review). Acts on the active task\'s current step. Use this when a step\'s work is done before moving to the next step.',
-    args: {},
-    async execute(_args: Record<string, never>, toolCtx: ToolContext): Promise<string> {
+    input,
+    async execute(_raw: unknown, toolCtx: ToolContext): Promise<ToolResult> {
       const sessionId = toolCtx.sessionID;
       if (!sessionId) {
-        return JSON.stringify({ ok: false, error: cmdI18n.noSessionIdShort });
+        return reply({ ok: false, error: cmdI18n.noSessionIdShort });
       }
 
       try {
-        return JSON.stringify(await engine.verifyOutput(sessionId));
+        return reply(await engine.verifyOutput(sessionId));
       } catch (err) {
         const msg = err instanceof Error ? err.message : cmdI18n.unknownError;
-        return JSON.stringify({ ok: false, error: msg });
+        return reply({ ok: false, error: msg });
       }
     },
-  });
+  };
 }
 
 // ─── pm-config Implementation ───
@@ -298,63 +376,68 @@ async function buildInitInstructions(
   if (selectedLanguage) {
     config.language = selectedLanguage;
     writeConfig(projectDir, config);
-    const i18n = getControlPromptTemplate(selectedLanguage);
-    return i18n.buildInitRemainingSteps(packs);
+    const tpl = getControlPromptTemplate(selectedLanguage);
+    return tpl.buildInitRemainingSteps(packs);
   }
 
-  const i18n = getControlPromptTemplate(config.language);
-  return i18n.buildInitInstructions(packs);
+  const tpl = getControlPromptTemplate(config.language);
+  return tpl.buildInitInstructions(packs);
 }
 
-function createConfigTool(ctx: IPluginContext): ToolDefinition {
+function createConfigTool(ctx: IPluginContext): ToolInfo {
   const cmdI18n = i18n().tool;
-  return tool({
-    description: cmdI18n.commandDesc['pm-config'] ?? 'View or modify vibe-pm configuration',
-    args: {
-      subCommand: tool.schema
-        .string()
-        .optional()
-        .describe('Sub-command: view, edit, or init. Defaults to view.'),
-      key: tool.schema.string().optional().describe('Config key to edit (for edit sub-command)'),
-      value: tool.schema.string().optional().describe('JSON value to set (for edit sub-command)'),
-      language: tool.schema
-        .string()
-        .optional()
-        .describe(
+  const input: JsonSchema.JsonSchema = {
+    type: 'object',
+    properties: {
+      subCommand: {
+        type: 'string',
+        description: 'Sub-command: view, edit, or init. Defaults to view.',
+      },
+      key: { type: 'string', description: 'Config key to edit (for edit sub-command)' },
+      value: { type: 'string', description: 'JSON value to set (for edit sub-command)' },
+      language: {
+        type: 'string',
+        description:
           'Selected interactive language locale (for init sub-command). DO NOT provide this parameter automatically — it must ONLY be set after user explicitly chooses a language via the question tool. When provided, init returns remaining steps in this language.',
-        ),
+      },
     },
-    async execute(
-      args: { subCommand?: string; key?: string; value?: string; language?: string },
-      _toolCtx: ToolContext,
-    ): Promise<string> {
-      const sub = args.subCommand ?? 'view';
+  };
+
+  return {
+    name: 'pm_config',
+    description: cmdI18n.commandDesc['pm-config'] ?? 'View or modify vibe-pm configuration',
+    input,
+    async execute(raw: unknown): Promise<ToolResult> {
+      const sub = argString(raw, 'subCommand') ?? 'view';
+      const key = argString(raw, 'key');
+      const value = argString(raw, 'value');
+      const language = argString(raw, 'language');
 
       if (!['view', 'edit', 'init', 'coding-style'].includes(sub)) {
-        return cmdI18n.unknownSubCommand(sub);
+        return { content: cmdI18n.unknownSubCommand(sub) };
       }
 
       try {
         if (sub === 'view') {
           const config = loadConfig(ctx.projectDir);
-          return JSON.stringify(config, null, 2);
+          return { content: JSON.stringify(config, null, 2) };
         }
 
         if (sub === 'edit') {
-          if (!args.key) {
-            return cmdI18n.editNeedKey;
+          if (!key) {
+            return { content: cmdI18n.editNeedKey };
           }
-          if (args.value === undefined) {
-            return cmdI18n.editNeedValue;
+          if (value === undefined) {
+            return { content: cmdI18n.editNeedValue };
           }
           const config = loadConfig(ctx.projectDir);
-          (config as unknown as Record<string, unknown>)[args.key] = JSON.parse(args.value);
+          (config as unknown as Record<string, unknown>)[key] = JSON.parse(value);
           writeConfig(ctx.projectDir, config);
-          return cmdI18n.configUpdated(args.key, args.value);
+          return { content: cmdI18n.configUpdated(key, value) };
         }
 
         if (sub === 'init') {
-          return await buildInitInstructions(ctx.projectDir, args.language);
+          return { content: await buildInitInstructions(ctx.projectDir, language) };
         }
 
         if (sub === 'coding-style') {
@@ -371,16 +454,16 @@ function createConfigTool(ctx: IPluginContext): ToolDefinition {
               response += `\n- Coding Style: ${f}`;
             }
           }
-          return response;
+          return { content: response };
         }
 
-        return cmdI18n.unknownSubCommand(sub);
+        return { content: cmdI18n.unknownSubCommand(sub) };
       } catch (err) {
         const msg = err instanceof Error ? err.message : cmdI18n.unknownError;
-        return cmdI18n.operationFailed(msg);
+        return { content: cmdI18n.operationFailed(msg) };
       }
     },
-  });
+  };
 }
 
 // ─── pm-install-flow Implementation ───
@@ -429,43 +512,47 @@ function normalizeLanguage(input: string): string {
   return aliasMap[lower] ?? input;
 }
 
-function createInstallFlowTool(ctx: IPluginContext): ToolDefinition {
+function createInstallFlowTool(ctx: IPluginContext): ToolInfo {
   const cmdI18n = i18n().tool;
-  return tool({
-    description: cmdI18n.commandDesc['pm-install-flow'] ?? 'Install a flow from template library',
-    args: {
-      templateId: tool.schema
-        .string()
-        .optional()
-        .describe(
+  const input: JsonSchema.JsonSchema = {
+    type: 'object',
+    properties: {
+      templateId: {
+        type: 'string',
+        description:
           'Template ID to install (e.g. \'spec-driven-dev\', \'bug-fix\', \'research\', \'large-refactor\'). If omitted, lists available templates.',
-        ),
-      programmingLanguages: tool.schema
-        .string()
-        .optional()
-        .describe(
+      },
+      programmingLanguages: {
+        type: 'string',
+        description:
           'Comma-separated programming language list, provided by LLM after analyzing project structure. Supports: TypeScript, Python, Go, Rust, Java, JavaScript, Kotlin, Ruby, Elixir, C/C++. e.g. \'TypeScript,Go\'. When omitted, reads from config cache; falls back to General.',
-        ),
-      overwrite: tool.schema
-        .boolean()
-        .optional()
-        .describe(
+      },
+      overwrite: {
+        type: 'boolean',
+        description:
           'Whether to overwrite existing flow docs (default false; prompts user to confirm when files exist).',
-        ),
+      },
     },
-    async execute(
-      args: { templateId?: string; programmingLanguages?: string; overwrite?: boolean },
-      _toolCtx: ToolContext,
-    ): Promise<string> {
-      if (args.templateId) {
+  };
+
+  return {
+    name: 'pm_install_flow',
+    description: cmdI18n.commandDesc['pm-install-flow'] ?? 'Install a flow from template library',
+    input,
+    async execute(raw: unknown): Promise<ToolResult> {
+      const templateId = argString(raw, 'templateId');
+      const programmingLanguages = argString(raw, 'programmingLanguages');
+      const overwrite = argBoolean(raw, 'overwrite');
+
+      if (templateId) {
         try {
           const config = loadConfig(ctx.projectDir);
-          const languages = resolveLanguages(args.programmingLanguages, config);
+          const languages = resolveLanguages(programmingLanguages, config);
 
-          const i18n = getControlPromptTemplate(config.language);
-          const result = installTemplate(ctx.projectDir, args.templateId, {
+          const tpl = getControlPromptTemplate(config.language);
+          const result = installTemplate(ctx.projectDir, templateId, {
             programmingLanguages: languages,
-            overwrite: args.overwrite,
+            overwrite,
             locale: config.language,
           });
 
@@ -475,10 +562,10 @@ function createInstallFlowTool(ctx: IPluginContext): ToolDefinition {
           }
 
           const needsTranslation = config.language !== 'en-US';
-          let response = i18n.tool.installSuccess(args.templateId);
+          let response = tpl.tool.installSuccess(templateId);
 
           if (needsTranslation && result.flowPath) {
-            response += `\n\n${i18n.tool.translateMdFilePrompt}`;
+            response += `\n\n${tpl.tool.translateMdFilePrompt}`;
             response += `\n- Flow: ${result.flowPath}`;
             for (const rp of result.regulationPaths) {
               response += `\n- Regulation: ${rp}`;
@@ -493,18 +580,18 @@ function createInstallFlowTool(ctx: IPluginContext): ToolDefinition {
             }
           }
 
-          return response;
+          return { content: response };
         } catch (err) {
           const msg = err instanceof Error ? err.message : '未知错误';
           const config = loadConfig(ctx.projectDir);
-          const i18n = getControlPromptTemplate(config.language);
-          return i18n.tool.installFailure(msg);
+          const tpl = getControlPromptTemplate(config.language);
+          return { content: tpl.tool.installFailure(msg) };
         }
       }
 
       const templates = scanTemplates(ctx.projectDir);
       if (templates.length === 0) {
-        return cmdI18n.noTemplatesFound;
+        return { content: cmdI18n.noTemplatesFound };
       }
 
       const lines = templates.map(
@@ -514,170 +601,153 @@ function createInstallFlowTool(ctx: IPluginContext): ToolDefinition {
           }`,
       );
 
-      return cmdI18n.templateList(lines.join('\n'));
+      return { content: cmdI18n.templateList(lines.join('\n')) };
     },
-  });
+  };
 }
 
 // ─── pm-uninstall-flow Implementation ───
 
-function createUninstallFlowTool(ctx: IPluginContext): ToolDefinition {
+function createUninstallFlowTool(ctx: IPluginContext): ToolInfo {
   const cmdI18n = i18n().tool;
-  return tool({
+  const input: JsonSchema.JsonSchema = {
+    type: 'object',
+    properties: {
+      flowName: { type: 'string', description: 'Flow name to remove (e.g. spec-driven-dev)' },
+    },
+    required: ['flowName'],
+  };
+
+  return {
+    name: 'pm_uninstall_flow',
     description:
       cmdI18n.commandDesc['pm-uninstall-flow'] ?? 'Remove an installed flow and its command',
-    args: {
-      flowName: tool.schema.string().describe('Flow name to remove (e.g. spec-driven-dev)'),
-    },
-    async execute(args: { flowName: string }, _toolCtx: ToolContext): Promise<string> {
+    input,
+    async execute(raw: unknown): Promise<ToolResult> {
+      const flowName = argString(raw, 'flowName');
+      if (!flowName) throw new Error('pm_uninstall_flow: flowName is required');
+
       try {
-        uninstallFlow(ctx.projectDir, args.flowName);
-        return cmdI18n.uninstallSuccess(args.flowName);
+        uninstallFlow(ctx.projectDir, flowName);
+        return { content: cmdI18n.uninstallSuccess(flowName) };
       } catch (err) {
         const msg = err instanceof Error ? err.message : cmdI18n.unknownError;
-        return cmdI18n.uninstallFailure(msg);
+        return { content: cmdI18n.uninstallFailure(msg) };
       }
     },
-  });
+  };
 }
 
 // ─── Flow Tool Registration ───
 
 export function registerFlowTools(
+  editor: ToolEditor,
   ctx: IPluginContext,
   engine: FlowEngine,
-): Record<string, ToolDefinition> {
-  const tools: Record<string, ToolDefinition> = {};
+): void {
+  const tools: ToolInfo[] = [];
   const flowDir = path.join(ctx.projectDir, 'docs', 'flow');
-  if (!fs.existsSync(flowDir)) return tools;
+  if (!fs.existsSync(flowDir)) return;
 
   for (const file of fs.readdirSync(flowDir)) {
     if (!file.endsWith('.md')) continue;
     try {
       const flowName = file.replace(/^flow-/, '').replace(/\.md$/, '');
       logger.info(`registerFlowTools: found flow ${flowName}`);
-      tools[flowNameToToolKey(flowName)] = createFlowStartTool(ctx, engine, flowName);
+      tools.push(createFlowStartTool(ctx, engine, flowName));
     } catch {
       // skip unparseable files
     }
   }
-  return tools;
+
+  for (const tool of tools) editor.add(tool);
+  if (tools.length > 0) {
+    logger.info(`registering flow tools: ${tools.map((t) => t.name)}`);
+  }
 }
 
-function flowNameToToolKey(flowName: string): string {
-  return `pm_${flowName.replace(/-/g, '_')}`;
-}
+/** Extract of the V2 transcript union that carries a flat user `text`. */
+type UserMessageInfo = Extract<SessionMessageInfo, { type: 'user' }>;
 
 function createFlowStartTool(
   ctx: IPluginContext,
   engine: FlowEngine,
   flowName: string,
-): ToolDefinition {
+): ToolInfo {
   const cmdI18n = i18n().tool;
-
-  function extractText(parts: Array<any>): string {
-    return parts
-      .filter((p: any) => p.type === 'text')
-      .map((p: any) => p.text)
-      .join('\n');
-  }
-
-  return tool({
-    description: `Start a new task under the "${flowName}" flow. Call this tool BEFORE any analysis or implementation. Pass the user's original request as userRequest.`,
-    args: {
-      summary: tool.schema.string().optional().describe('任务摘要'),
-      userRequest: tool.schema
-        .string()
-        .optional()
-        .describe('用户原始请求全文 — 务必传递以保存任务上下文和去重'),
-      deliverable: tool.schema
-        .string()
-        .optional()
-        .describe('交付物重指定（覆盖流程文档默认交付物；可选）'),
-      acceptanceStandard: tool.schema
-        .string()
-        .optional()
-        .describe('交付标准重指定（覆盖流程文档默认交付标准；可选）'),
-    },
-    async execute(
-      args: {
-        summary?: string;
-        userRequest?: string;
-        deliverable?: string;
-        acceptanceStandard?: string;
+  const input: JsonSchema.JsonSchema = {
+    type: 'object',
+    properties: {
+      summary: { type: 'string', description: '任务摘要' },
+      userRequest: {
+        type: 'string',
+        description: '用户原始请求全文 — 务必传递以保存任务上下文和去重',
       },
-      _toolCtx: ToolContext,
-    ): Promise<string> {
-      const { sessionID, messageID } = _toolCtx;
+      deliverable: {
+        type: 'string',
+        description: '交付物重指定（覆盖流程文档默认交付物；可选）',
+      },
+      acceptanceStandard: {
+        type: 'string',
+        description: '交付标准重指定（覆盖流程文档默认交付标准；可选）',
+      },
+    },
+  };
+
+  return {
+    name: `pm_${flowName.replace(/-/g, '_')}`,
+    description: `Start a new task under the "${flowName}" flow. Call this tool BEFORE any analysis or implementation. Pass the user's original request as userRequest.`,
+    input,
+    async execute(raw: unknown, toolCtx: ToolContext): Promise<ToolResult> {
+      const { sessionID, messageID } = toolCtx;
+      const summary = argString(raw, 'summary') ?? '';
+      const deliverable = argString(raw, 'deliverable');
+      const acceptanceStandard = argString(raw, 'acceptanceStandard');
+
       if (!sessionID) {
         logger.warn(`createFlowStartTool(${flowName}): no sessionID`);
-        return JSON.stringify({ ok: false, error: cmdI18n.flowStartNoSession });
+        return reply({ ok: false, error: cmdI18n.flowStartNoSession });
       }
 
       logger.info(
-        `createFlowStartTool(${flowName}): sessionID=${sessionID} messageID=${messageID ?? 'N/A'} summary=${args.summary ?? 'N/A'} userRequest=${args.userRequest ? 'provided' : 'extracting'}`,
+        `createFlowStartTool(${flowName}): sessionID=${sessionID} messageID=${messageID ?? 'N/A'} summary=${summary || 'N/A'} userRequest=${argString(raw, 'userRequest') ? 'provided' : 'extracting'}`,
       );
 
       // ── Extract userRequest ──
-      let userRequest = args.userRequest ?? '';
+      let userRequest = argString(raw, 'userRequest') ?? '';
 
-      // 1) If not provided, try the message that triggered the tool (messageID from ToolContext)
-      if (!userRequest && messageID) {
+      // 1) Look up the triggering message by ID in the full transcript, else the latest user message
+      if (!userRequest) {
         logger.info(
-          `createFlowStartTool(${flowName}): trying message fetch via messageID=${messageID}`,
+          `createFlowStartTool(${flowName}): trying session context via messageID=${messageID}`,
         );
         try {
-          const response = await ctx.client.session.message({
-            path: { id: sessionID, messageID },
-          });
-          const msg = response.data;
-          if (msg && Array.isArray((msg as any).parts)) {
-            userRequest = extractText((msg as any).parts);
+          const messages = await ctx.session.context({ sessionID });
+          const triggering = messages.find(
+            (m): m is UserMessageInfo => m.type === 'user' && m.id === messageID,
+          );
+          const latestUser = [...messages]
+            .reverse()
+            .find((m): m is UserMessageInfo => m.type === 'user');
+          const source = triggering ?? latestUser;
+          if (source) {
+            userRequest = source.text.trim();
             logger.info(
-              `createFlowStartTool(${flowName}): extracted from message, len=${userRequest.length}`,
+              `createFlowStartTool(${flowName}): extracted from session context, len=${userRequest.length}`,
             );
           }
         } catch (err) {
-          logger.warn(`createFlowStartTool(${flowName}): message fetch failed: ${err}`);
+          logger.warn(`createFlowStartTool(${flowName}): session context fetch failed: ${err}`);
         }
       }
 
-      // 2) Fallback: list recent session messages, pick the latest user message
-      if (!userRequest) {
-        logger.info(`createFlowStartTool(${flowName}): trying session messages list`);
-        try {
-          const msgsResponse = await ctx.client.session.messages({
-            path: { id: sessionID },
-            query: { limit: 5 },
-          });
-          const messages = msgsResponse.data;
-          if (Array.isArray(messages)) {
-            for (let i = messages.length - 1; i >= 0; i--) {
-              const m = messages[i] as any;
-              const role = m.info?.role;
-              if (role === 'user') {
-                userRequest = extractText(m.parts ?? []);
-                logger.info(
-                  `createFlowStartTool(${flowName}): extracted from session messages[${i}], len=${userRequest.length}`,
-                );
-                break;
-              }
-            }
-          }
-        } catch (err) {
-          logger.warn(`createFlowStartTool(${flowName}): session messages fetch failed: ${err}`);
-        }
-      }
-
-      // 3) Final fallback: use summary
-      if (!userRequest && args.summary) {
+      // 2) Final fallback: use summary
+      if (!userRequest && summary) {
         logger.info(`createFlowStartTool(${flowName}): fallback to summary as userRequest`);
-        userRequest = args.summary;
+        userRequest = summary;
       }
 
       logger.info(`createFlowStartTool(${flowName}): final userRequest len=${userRequest.length}`);
-
-      const summary = args.summary || '';
 
       try {
         const task = await engine.startTask({
@@ -685,13 +755,13 @@ function createFlowStartTool(
           flow: flowName,
           summary,
           userRequest,
-          deliverable: args.deliverable,
-          acceptanceStandard: args.acceptanceStandard,
+          deliverable,
+          acceptanceStandard,
         });
         logger.info(
           `createFlowStartTool(${flowName}): task created id=${task.id} step=${task.currentStep}`,
         );
-        return JSON.stringify({
+        return reply({
           ok: true,
           sessionId: task.sessionId,
           taskId: task.id,
@@ -702,13 +772,14 @@ function createFlowStartTool(
           startAt: task.startAt,
           deliverable: task.deliverable,
           acceptanceStandard: task.acceptanceStandard,
-          notice: 'S1: confirm the deliverables and acceptance standards with the user (use the values above if specified, otherwise the flow document defaults).',
+          notice:
+            'S1: confirm the deliverables and acceptance standards with the user (use the values above if specified, otherwise the flow document defaults).',
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : cmdI18n.unknownError;
         logger.error(`createFlowStartTool(${flowName}): startTask failed: ${msg}`);
-        return JSON.stringify({ ok: false, error: msg });
+        return reply({ ok: false, error: msg });
       }
     },
-  });
+  };
 }

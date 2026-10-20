@@ -4,8 +4,8 @@ import type { Task } from '../memory';
 import { DuplicateTaskError, MemorySystem } from '../memory';
 import { logger } from '../core';
 import type { AgentsConfig } from '../core';
+import type { AIContentPart } from '../core/types.js';
 import { FlowNotFoundError } from './errors.js';
-import { Part } from '@opencode-ai/sdk';
 import type { ControlPromptTemplate } from '../i18n';
 import { getControlPromptTemplate, i18n } from '../i18n';
 import {
@@ -119,41 +119,35 @@ export class FlowEngine {
     logger.info(`FlowEngine.initLocale: locale=${locale} resolved=${this.promptTemplate.locale}`);
   }
 
-  async injectFlowControlPrompt(
-    sessionId: string,
-    flow: string,
-    parts: Part[],
-    msgId: string,
-    msgSid: string,
-  ): Promise<void> {
-    if (parts.some((p) => p.type === 'text' && this.promptTemplate!.isControlPromptPart(p.text))) {
+  async injectFlowControlPrompt(flow: string, content: AIContentPart[]): Promise<void> {
+    if (
+      content.some((p) => p.type === 'text' && this.promptTemplate!.isControlPromptPart(p.text))
+    ) {
       logger.info('injectFlowControlPrompt: already injected, skip');
       return;
     }
 
-    const cmdIdx = parts.findIndex(
+    const cmdIdx = content.findIndex(
       (p) => p.type === 'text' && p.text.includes('<auto-slash-command>'),
     );
-    parts.splice(cmdIdx >= 0 ? cmdIdx + 1 : parts.length, 0, {
-      id: `prt_vp_${sessionId}_${flow}`,
-      messageID: msgId,
-      sessionID: msgSid,
+    content.splice(cmdIdx >= 0 ? cmdIdx + 1 : content.length, 0, {
       type: 'text',
       text: this.buildControlPrompt(flow),
-      synthetic: true,
+      metadata: { synthetic: true },
     });
-    logger.info(`injectFlowControlPrompt: spliced after cmdIdx=${cmdIdx} parts=${parts.length}`);
+    logger.info(`injectFlowControlPrompt: spliced after cmdIdx=${cmdIdx} parts=${content.length}`);
   }
 
-  removeControlPrompt(parts: { type: string; text: string }[]): void {
+  removeControlPrompt(content: AIContentPart[]): void {
     let removed = 0;
-    for (let i = parts.length - 1; i >= 0; i--) {
+    for (let i = content.length - 1; i >= 0; i--) {
+      const part = content[i];
       if (
-        parts[i].type === 'text' &&
-        (this.promptTemplate!.isControlPromptPart(parts[i].text) ||
-          this.promptTemplate!.isWarningPromptPart(parts[i].text))
+        part.type === 'text' &&
+        (this.promptTemplate!.isControlPromptPart(part.text) ||
+          this.promptTemplate!.isWarningPromptPart(part.text))
       ) {
-        parts.splice(i, 1);
+        content.splice(i, 1);
         removed++;
       }
     }
@@ -164,19 +158,16 @@ export class FlowEngine {
     return this.promptTemplate!.buildControlPrompt(flowName);
   }
 
-  injectFlowWarningPrompt(sessionId: string, parts: Part[], msgId: string, msgSid: string): void {
-    if (parts.some((p) => p.type === 'text' && this.promptTemplate!.isWarningPromptPart(p.text))) {
+  injectFlowWarningPrompt(content: AIContentPart[]): void {
+    if (content.some((p) => p.type === 'text' && this.promptTemplate!.isWarningPromptPart(p.text))) {
       logger.info('injectFlowWarningPrompt: already injected, skip');
       return;
     }
 
-    parts.splice(parts.length, 0, {
-      id: `prt_vp_warn_${sessionId}`,
-      messageID: msgId,
-      sessionID: msgSid,
+    content.splice(content.length, 0, {
       type: 'text',
       text: this.promptTemplate!.buildFlowWarningPrompt(),
-      synthetic: true,
+      metadata: { synthetic: true },
     });
   }
 

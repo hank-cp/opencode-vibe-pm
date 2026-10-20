@@ -49,13 +49,6 @@ export interface ReviewAgentManagerOptions {
 
 export const DEFAULT_REVIEW_TIMEOUT_MS = 600000;
 
-const REVIEW_TOOL_WHITELIST: Record<string, boolean> = {
-  read: true,
-  grep: true,
-  glob: true,
-  bash: true,
-};
-
 export class ReviewAgentManager {
   constructor(
     private client: SubsessionClient,
@@ -94,7 +87,7 @@ export class ReviewAgentManager {
 
     try {
       const output = await withTimeout(
-        this.client.prompt(subSessionId, prompt, REVIEW_TOOL_WHITELIST),
+        this.client.prompt(subSessionId, prompt),
         this.options.timeoutMs ?? DEFAULT_REVIEW_TIMEOUT_MS,
       );
 

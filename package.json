@@ -50,6 +50,11 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@opencode/ai": "^2.1.1",
+    "@opencode/client": "^2.1.1",
+    "@opencode/plugin": "^2.1.1",
+    "@opencode/schema": "^2.1.1",
+    "@opencode/theme": "2.1.1",
     "@opentui/core": "^0.3.4",
     "@opentui/keymap": "^0.3.4",
     "@opentui/solid": "^0.3.4",
@@ -68,6 +73,6 @@
     "zod": "^3.23.0"
   },
   "peerDependencies": {
-    "@opencode-ai/plugin": "^1.17.4"
+    "@opencode/plugin": "^2.1.1"
   }
 }

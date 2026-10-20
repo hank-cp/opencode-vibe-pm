@@ -42,5 +42,12 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       'no-console': ['error', { allow: ['warn', 'error'] }],
     },
+  },
+  {
+    // OpenCode V2 removed `client.app.log()`, so the plugin logger reaches the host log
+    // through the console — the output path the V2 plugin docs use. See
+    // docs/spec/opencode-v2-plugin-migration.md §4.7.
+    files: ['src/core/logger.ts'],
+    rules: { 'no-console': 'off' },
   }
 );

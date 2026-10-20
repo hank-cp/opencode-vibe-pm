@@ -22,5 +22,10 @@ export type {
   ReviewParseResult,
   ReviewPromptInput,
 } from './review-framework.js';
-export { createSubsessionClient } from './subsession-client.js';
-export type { SubsessionClient } from './subsession-client.js';
+export { createSubsessionClient, SUB_SESSION_DENY_PERMISSIONS } from './subsession-client.js';
+export type {
+  SubsessionClient,
+  SubsessionGateway,
+  SubSessionPermission,
+  SubSessionPermissionEffect,
+} from './subsession-client.js';

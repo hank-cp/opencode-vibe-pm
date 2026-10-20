@@ -47,9 +47,24 @@ This project is built entirely with vibe-pm and Chinese as the development langu
 ## Installation
 
 ```bash
-# Install globally
-opencode plugin @laxture/vibe-pm@latest --global
+# Install globally (requires OpenCode V2)
+opencode plugin add @laxture/vibe-pm@latest --global
 ```
+
+## Local development
+
+Build first, then let OpenCode auto-discover the working copy:
+
+```bash
+bun install && bun run build
+```
+
+`.opencode/plugins/vibe-pm/` holds thin `index.ts` / `tui.ts` entrypoints that
+re-export `dist/`. OpenCode V2 resolves a local plugin directory by looking for
+literal `server` / `index` / `tui` files at its root — it no longer falls back
+to the package `main` / `exports` fields the way V1 did — so pointing
+`opencode.json` at the repository root silently loads nothing. The plugin is
+picked up automatically; no config entry is needed.
 
 ## Quick Start
 

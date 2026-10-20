@@ -1,7 +1,7 @@
 /**
  * Token counting module type definitions
  */
-import type { Message, Part } from '@opencode-ai/sdk';
+import type { AIMessage } from '../core/types.js';
 
 /** Token count classified by 6 sources */
 export interface TokenCount {
@@ -14,12 +14,17 @@ export interface TokenCount {
   reasoning: number;
 }
 
+/**
+ * One outbound message from the V2 `context` hook.
+ *
+ * V1 used `{ info, parts }` (SDK message + parts). V2 flattens both into a single
+ * `Message` (`{ role, content }`), so a pack simply wraps that message.
+ */
 export interface MessagePack {
-  info: Message;
-  parts: Part[];
+  message: AIMessage;
 }
 
-/** LLM API telemetry data — aligned with @opencode-ai/sdk tokens type */
+/** LLM API telemetry data — aligned with V2 `TokenUsage.Info` */
 export interface ApiTelemetry {
   input: number;
   output: number;

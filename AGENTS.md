@@ -36,7 +36,7 @@
 | 组件 | 用途 |
 |------|------|
 | TypeScript (ES2022, NodeNext) | 实现语言 |
-| `@opencode-ai/plugin` SDK | 钩子/命令/工具注册 |
+| `@opencode/plugin` SDK（V2） | 钩子/命令/工具注册 |
 | SQLite (better-sqlite3) | 嵌入式结构化记忆（任务状态、指标） |
 | Zod | 运行时校验 |
 | tiktoken | Token 计数 |
@@ -98,7 +98,7 @@ bun run typecheck   # tsc --noEmit 仅类型检查
 | IV. Mermaid 图表优先 | 禁止 ASCII art 图表 |
 | V. 模块独立性 | 跨模块通过明确接口通信 |
 | VI. 代码品质优先 | 优雅、直达核心、可阅读、可维护 |
-| VII. SDK 优先开发 | 与 OpenCode 交互必须通过 `@opencode-ai/plugin` SDK |
+| VII. SDK 优先开发 | 与 OpenCode 交互必须通过 `@opencode/plugin` SDK（V2） |
 | VIII. 中文优先沟通 | Thinking/Reply 用中文，代码/日志用英文 |
 | IX. 尊重人工修改 | 禁止未经同意覆盖用户重构代码 |
 

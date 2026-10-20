@@ -1,5 +1,4 @@
 import type { JSX } from 'solid-js';
-import type { TuiPluginApi } from '@opencode-ai/plugin/tui';
 import type { TaskStatusData, TokenData } from '../types.js';
 import { SOURCE_COLORS, compactTokens, formatElapsed } from '../types.js';
 import { Collapsible } from '../components/collapsible.jsx';
@@ -8,14 +7,26 @@ import { RGBA } from '@opentui/core';
 
 const SIDEBAR_WIDTH = 38;
 
+/**
+ * The flat colors the sidebar paints with, mapped from the V2 resolved theme
+ * by the plugin setup (see `resolveSidebarTheme`).
+ */
+export interface SidebarTheme {
+  readonly primary: RGBA;
+  readonly text: RGBA;
+  readonly textMuted: RGBA;
+  readonly warning: RGBA;
+  readonly success: RGBA;
+}
+
 interface SidebarContentProps {
-  api: TuiPluginApi;
+  theme: SidebarTheme;
   taskStatus: () => TaskStatusData;
   tokenData: () => TokenData;
 }
 
 export function SidebarContent(props: SidebarContentProps): JSX.Element {
-  const theme = () => props.api.theme.current;
+  const theme = () => props.theme;
 
   return (
     <box width="100%" flexDirection="column" paddingRight={1}>

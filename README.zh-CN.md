@@ -52,9 +52,23 @@ vibe-pm 的解法：**只注入当前步骤所需的内容** — 不多不少。
 ## 安装
 
 ```bash
-# 全局安装
-opencode plugin @laxture/vibe-pm@latest --global
+# 全局安装（需要 OpenCode V2）
+opencode plugin add @laxture/vibe-pm@latest --global
 ```
+
+## 本地开发
+
+先构建，再让 OpenCode 自动发现工作副本：
+
+```bash
+bun install && bun run build
+```
+
+`.opencode/plugins/vibe-pm/` 下是两个薄入口 `index.ts` / `tui.ts`，只做对
+`dist/` 的再导出。OpenCode V2 解析本地插件目录时，只认根部的字面量
+`server` / `index` / `tui` 文件，不再像 V1 那样回落到 package 的
+`main` / `exports`——所以把 `opencode.json` 指向仓库根目录会静默加载不到任何东西。
+插件会被自动发现，无需配置项。
 
 ## 快速开始
 ```
