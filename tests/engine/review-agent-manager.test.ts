@@ -113,6 +113,18 @@ describe('ReviewAgentManager', () => {
     expect(result.feedback).toContain('no json here');
   });
 
+  it('degrades instead of failing the step when the review produced no reply', async () => {
+    const { client } = mockClient({ output: '' });
+    const manager = new ReviewAgentManager(client);
+    const result = await manager.startReview(INPUT);
+
+    // The sub-session never ran: an infrastructure fault is not a review verdict,
+    // so the step must not be rolled back as "Execution problem".
+    expect(result.conclusion).toBe('degraded');
+    expect(result.failReason).toBeUndefined();
+    expect(result.feedback).toContain('no reply');
+  });
+
   it('passes the custom framework through to the prompt', async () => {
     let promptText = '';
     const capturingClient: SubsessionClient = {

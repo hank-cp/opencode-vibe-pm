@@ -12,6 +12,7 @@
  * the semantics change from whitelist to blacklist.
  */
 
+import { logger } from '../core/logger.js';
 import type { SessionMessageInfo } from '../core/types.js';
 
 /** Permission action/resource pair handed to `session.create` */
@@ -36,23 +37,47 @@ export const SUB_SESSION_DENY_PERMISSIONS: readonly SubSessionPermission[] = [
   { action: 'websearch', resource: '*', effect: 'deny' },
 ];
 
+/** Model selection of a session, mirroring V2 `ModelRef` / `SessionCreateInput.model` */
+export interface SubSessionModelRef {
+  id: string;
+  providerID: string;
+  variant?: string;
+}
+
+/**
+ * Agent/model a session runs with, as reported by V2 `session.get` (`SessionInfo`).
+ * A child session starts with neither unless it is told which to use.
+ */
+export interface SubSessionAgentSelection {
+  agent?: string;
+  model?: SubSessionModelRef;
+}
+
 /** Narrow slice of the V2 session domain consumed by `createSubsessionClient` */
 export interface SubsessionGateway {
   create(input: {
     parentID?: string;
     title?: string;
+    agent?: string;
+    model?: SubSessionModelRef;
     permissions?: readonly SubSessionPermission[];
   }): Promise<{ id: string }>;
   prompt(input: { sessionID: string; text: string }): Promise<unknown>;
   wait(input: { sessionID: string }): Promise<void>;
   context(input: { sessionID: string }): Promise<readonly SessionMessageInfo[]>;
-  get(input: { sessionID: string }): Promise<{ id: string; parentID?: string }>;
+  get(input: { sessionID: string }): Promise<{ id: string; parentID?: string } & SubSessionAgentSelection>;
 }
 
 export interface SubsessionClient {
-  /** Create a child session of `parentId`, returning the new session ID */
+  /** Create a child session of `parentId`, running the same agent and model */
   createSession(parentId: string, title: string): Promise<string>;
-  /** Send a text prompt and synchronously wait for the assistant reply text */
+  /**
+   * Send a text prompt and synchronously wait for the assistant reply text.
+   *
+   * An empty string means the sub-session recorded no assistant reply at all —
+   * the host never ran the agent. Callers must read that as an execution fault,
+   * not as a review verdict.
+   */
   prompt(sessionId: string, text: string): Promise<string>;
   /** Fetch the most recent messages as a role-labeled text excerpt (truncated) */
   fetchRecentMessages(sessionId: string, limit: number): Promise<string>;
@@ -87,15 +112,40 @@ function extractRoleText(message: SessionMessageInfo): { role: string; text: str
   return null;
 }
 
+/**
+ * Read the agent/model the parent session runs with.
+ *
+ * V2 does not inherit these into a child session: a child created without an
+ * explicit selection drains with an empty agent, and its model call fails before
+ * any reply is recorded. Failing to read the selection is therefore not fatal —
+ * the child is still created, just without a selection to inherit.
+ */
+async function resolveAgentSelection(
+  session: SubsessionGateway,
+  parentId: string,
+): Promise<SubSessionAgentSelection> {
+  try {
+    const parent = await session.get({ sessionID: parentId });
+    return { agent: parent.agent, model: parent.model };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.warn(`SubsessionClient: parent session lookup failed for ${parentId}: ${message}`);
+    return {};
+  }
+}
+
 export function createSubsessionClient(
   session: SubsessionGateway,
   maxExcerptChars = 20000,
 ): SubsessionClient {
   return {
     async createSession(parentId: string, title: string): Promise<string> {
+      const selection = await resolveAgentSelection(session, parentId);
       const created = await session.create({
         parentID: parentId,
         title,
+        ...(selection.agent ? { agent: selection.agent } : {}),
+        ...(selection.model ? { model: selection.model } : {}),
         permissions: SUB_SESSION_DENY_PERMISSIONS,
       });
       return created.id;
@@ -106,10 +156,14 @@ export function createSubsessionClient(
       await session.wait({ sessionID: sessionId });
 
       const messages = await session.context({ sessionID: sessionId });
+      // Walk back to the last assistant message that actually carries text: a step
+      // that only made tool calls records no text part, and stopping there would
+      // read as "the sub-session said nothing at all".
       for (let i = messages.length - 1; i >= 0; i--) {
         const message = messages[i];
         if (message.type === 'assistant') {
-          return extractAssistantText(message);
+          const text = extractAssistantText(message);
+          if (text) return text;
         }
       }
       return '';

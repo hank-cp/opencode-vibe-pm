@@ -91,6 +91,21 @@ export class ReviewAgentManager {
         this.options.timeoutMs ?? DEFAULT_REVIEW_TIMEOUT_MS,
       );
 
+      // No reply at all means the sub-session never got to answer: the host failed
+      // to run the agent (agent resolution, model endpoint, ...). That is an
+      // infrastructure fault, not a review verdict — degrading keeps the step from
+      // being rolled back for something its author cannot fix.
+      if (!output.trim()) {
+        logger.warn(
+          `ReviewAgentManager: review sub-session produced no reply for ${input.taskId}:${input.stepId}`,
+        );
+        return {
+          conclusion: 'degraded',
+          feedback: 'Review agent produced no reply',
+          nextInput: '',
+        };
+      }
+
       const { parsed, raw } = parseReviewOutput(output);
       if (parsed) {
         return {
@@ -101,6 +116,9 @@ export class ReviewAgentManager {
           raw,
         };
       }
+      logger.warn(
+        `ReviewAgentManager: unparseable review output for ${input.taskId}:${input.stepId} (${raw.length} chars)`,
+      );
       return { ...conservativeReviewFallback(raw), raw };
     } catch (err) {
       if (err instanceof ReviewTimeoutError) {
