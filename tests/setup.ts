@@ -27,4 +27,9 @@ mock.module('@opentui/solid', () => ({
   useKeyboard: () => {},
   render: () => {},
   extend: () => {},
+  // `@opentui/solid/jsx-runtime` imports these reconciler primitives from the
+  // package root at link time — the mock must expose them or the import fails.
+  createComponent: (component: unknown, props: unknown) => ({ component, props }),
+  createElement: (type: unknown) => ({ type }),
+  spread: () => {},
 }));

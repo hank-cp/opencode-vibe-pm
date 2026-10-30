@@ -424,6 +424,7 @@ function compactTokens(tokens: number): string;
 | TypeScript strict mode | 所有新增代码必须通过 strict 类型检查 |
 | @opencode-ai/plugin SDK | TUI Plugin 必须通过 `TuiPluginModule` 格式导出，使用 `@opentui/solid` JSX 渲染 |
 | 渲染框架 | 必须使用 `@opentui/solid`（OpenCode TUI 的渲染层），禁止引入额外 UI 框架 |
+| OpenTUI 依赖版本 | `@opentui/core` / `@opentui/keymap` / `@opentui/solid` 三者严格同版本，且不低于宿主 `@opencode/plugin` 的 peer 要求（`>=0.6.6`）；`@opentui/solid` 必须随包发布 `jsx-runtime` 入口（Bun 自动 JSX 运行时依赖），由 `tests/tui/jsx-runtime.test.ts` 守护 |
 | 主题集成 | 颜色定义使用 `api.theme.current` 获取基础色，SOURCE_COLORS 在 Spec 中预定义固定值 |
 
 ### 业务约束

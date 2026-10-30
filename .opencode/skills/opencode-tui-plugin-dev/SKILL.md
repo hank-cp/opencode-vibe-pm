@@ -295,8 +295,10 @@ await Bun.build({
 
 ### 不再需要
 
-- ~~`postinstall` 脚本修补 `@opentui/solid` jsx-runtime~~ — `@opentui/solid@0.3.4` 已内置 `jsx-runtime.js` export
+- ~~`postinstall` 脚本修补 `@opentui/solid` jsx-runtime~~ — `@opentui/solid@0.4.5+` 才真正随包发布 `jsx-runtime.js` / `jsx-dev-runtime.js`；`0.3.4` 的 exports 声明了这两个入口但 tarball 里**只有 `.d.ts`**，Bun 解析会回退到类型声明并抛 `Export named 'jsxDEV' not found`（CI 全新安装必炸，本地有残留 shim 则不炸）
 - ~~`jsx-shim.mjs` 生成 `.js` 重导出~~ — `Bun.build()` 直接输出 JS
+
+> 依赖版本约束：`@opentui/core` / `@opentui/keymap` / `@opentui/solid` 必须**三者严格同版本**（solid 依赖 core 精确版本，keymap 的 peer 依赖 solid 精确版本），且不低于宿主 `@opencode/plugin` 的 peer 要求（`>=0.6.6`）。`tests/tui/jsx-runtime.test.ts` 守护 JSX runtime 入口可用性。
 
 ### TUI 插件注册
 
