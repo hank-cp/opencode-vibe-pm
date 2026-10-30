@@ -37,9 +37,20 @@ jobs:
               echo "${NAME}@${VERSION} is not published yet."
           fi
 
+      - name: Check npm registry
+        run: |
+          npx --yes --package npm@^11.5.1 npm --version
+          npm ping
+
       - run: bun install --frozen-lockfile
       - run: bun run build
       - run: bun test
-      - run: npx --yes --package npm@11 npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # Trusted publishing (OIDC): npm exchanges the GitHub OIDC token for a
+      # short-lived publish token. No npm token secret is involved — a stale or
+      # expired token is the usual cause of `E404` on publish.
+      # npmjs.com → @laxture/vibe-pm → Settings → Trusted Publisher:
+      #   org/user `hank-cp`, repo `opencode-vibe-pm`, workflow filename `publish.yml`,
+      #   and allow `npm publish`. A new trusted publisher config must complete its
+      #   first successful publish within 2 days, otherwise it expires.
+      - name: Publish to npm
+        run: npx --yes --package npm@^11.5.1 npm publish --access public --provenance
