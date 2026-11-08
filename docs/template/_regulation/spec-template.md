@@ -32,6 +32,8 @@ For non-code-oriented features (process design, architecture design, rule defini
   P1 = core value; even if only this one is implemented, it should form a usable MVP.
   For non-interactive features (e.g., architecture, process, rules), user stories can be omitted;
   use "Use Case Scenarios" to describe system behavior instead.
+  User stories describe value; Use Case Scenarios describe continuous/branching behavior.
+  They complement each other and can be used together.
 -->
 
 ### User Story 1 — {Title} (Priority: P1)
@@ -77,6 +79,30 @@ For non-code-oriented features (process design, architecture design, rule defini
 
 ---
 
+### Use Case Scenarios
+
+<!--
+  Describe continuous, branching, or stateful behavior as scenarios.
+  Use a Mermaid flowchart to connect the scenarios and show their association logic.
+  Keep scenario IDs (UC-1, UC-2, ...) stable so Acceptance Criteria can trace back to them.
+  The diagram uses concrete example names; replace them when writing a real Spec.
+-->
+
+```mermaid
+flowchart TD
+    UC1["UC-1: Create order"] --> D1{"Stock available?"}
+    D1 -->|Yes| UC2["UC-2: Reserve stock"]
+    D1 -->|No| UC3["UC-3: Reject order"]
+    UC2 --> UC4["UC-4: Confirm order"]
+```
+
+| Scenario | Trigger / Precondition | Main Flow | Branches | Postcondition |
+|----------|------------------------|-----------|----------|---------------|
+| UC-1 | {What starts the scenario} | 1. {Step} 2. {Step} | {condition} → UC-2; {condition} → UC-3 | {Resulting state} |
+| UC-2 | {…} | {…} | {…} | {…} |
+
+---
+
 ## Design
 
 ### Modules & Responsibilities
@@ -97,11 +123,35 @@ For non-code-oriented features (process design, architecture design, rule defini
 
 ### Domain Model
 
-<!-- Core entities/concepts and their relationships -->
+<!--
+  Describe core entities/concepts and their relationships with a Mermaid classDiagram.
+  Show key attributes, key behavior (methods), and relationship cardinalities.
+  The diagram uses concrete example names; replace them when writing a real Spec.
+  Add the optional table only for invariants or constraints the diagram cannot express clearly.
+-->
 
-| Entity | Attributes | Relationships |
-|--------|------------|---------------|
-| {Entity Name} | {Key Attributes} | {Related entities and their relationships} |
+```mermaid
+classDiagram
+    class Order {
+        +id: OrderId
+        +status: OrderStatus
+        +place()
+        +cancel()
+    }
+    class OrderItem {
+        +quantity: number
+        +subtotal: Money
+    }
+    class Customer {
+        +id: CustomerId
+    }
+    Customer "1" --> "*" Order : places
+    Order "1" *-- "1..*" OrderItem : contains
+```
+
+| Entity | Responsibility | Key Invariants |
+|--------|---------------|----------------|
+| {Entity Name} | {What it represents / owns} | {Rules that must always hold} |
 
 ---
 

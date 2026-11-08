@@ -4,7 +4,7 @@
 **Category**: development
 **Description**: Architecture design and project cold-start workflow (intent → facts → architecture & layering → scaffold → delivery)
 **Command**: `/pm-arch-design`
-**Version**: 0.3.0
+**Version**: 0.4.0
 
 ---
 
@@ -29,7 +29,7 @@
 
 ## Default Deliverables
 
-- Spec document covering architecture & layering design (deliverable of S3)
+- Architecture-level Spec document: system architecture overview, module division, deployment model, and main data-flow direction (deliverable of S3); detailed design is deferred to feat-design
 - Project skeleton: directory structure, base config, build/test setup (deliverable of S4)
 
 > The user may re-specify deliverables when starting a task; in S1 the LLM must re-confirm deliverables and acceptance standards with the user.
@@ -108,28 +108,41 @@ stateDiagram-v2
 
 ### S3: Architecture & Layering Design
 
-**Goal**: Produce an architecture & layering design (Spec document) based on confirmed preferences.
-**Output**: Spec document (architecture & layering design, produced after confirming design preferences)
+**Goal**: Produce an architecture-level design (Spec document) based on confirmed preferences — architecture overview, module division, deployment model, and main data-flow direction.
+**Output**: Architecture-level Spec document (architecture overview, module boundaries, deployment model, main data-flow direction; produced after confirming design preferences). Detailed interface/logic design is out of scope.
 **Output Checklist**:
-- Spec document follows the Spec template structure (spec-template.md)
+- Spec covers architecture-level concerns: architecture overview, module division & responsibilities, deployment model (or why it is not applicable), main data-flow direction
+- Only confirmed information is written; undecided items are explicitly marked "待决策" (To be decided) with the open question
+- No speculative requirements or detailed design added just to fill template sections
+- Detailed design sections (interface contracts, internal logic, per-module data structures) are omitted or marked "Not Applicable" — deferred to feat-design
 - All diagrams use Mermaid (no ASCII art)
-- Each architecture decision traceable to interview conclusions
+- Each architecture decision traceable to S1/S2 conclusions
+- Spec document follows the Spec template structure (spec-template.md), retaining only applicable sections
 **Review Checklist**:
 - Architecture rationality: layering and module boundaries are justified
 - Module independence: no cross-module internal access
 - Tech stack fits the project constraints and goals
 - Design consistency: no contradictions between modules and data flow
+- Scope discipline: architecture-level only — no detailed design leaking in, no requirements invented to fill template sections
 **Output Review**: self-check + review-agent + human
-**Referenced Regulation**: /docs/regulation/spec-template.md
+**Referenced Regulation**: /docs/regulation/spec-template.md, /docs/regulation/constitution.md
 
-1. Identify the key architecture decision points (tech stack, module boundaries, layering approach, conventions)
+1. Identify the key architecture decision points (tech stack, module boundaries, layering approach, deployment model, conventions)
 2. For each key decision point where multiple viable options exist, present 2-3 design alternatives using the `question` tool and let the user choose the one closest to their design intent:
    - One design point at a time
    - Each alternative states its trade-offs briefly
    - Loop until all key design points are decided
    - **Never** batch multiple questions in plain text
-3. Design the architecture based on the chosen preferences: modules, layers, dependencies between modules, data flow, edge cases
-4. Write the Spec document following the Spec template structure
+3. Design at the architecture level based on the chosen preferences:
+   - System context and architecture overview
+   - Module division, responsibilities, and dependency direction
+   - Deployment model (runtime units, processes, external dependencies; state why it is not applicable if the project has none)
+   - Main data-flow direction between modules
+   - Do NOT descend into detailed design (interface contracts, internal logic, per-module data structures) — that belongs to feat-design
+4. Write the architecture Spec following the Spec template structure:
+   - Fill only confirmed information; mark undecided items as "待决策" (To be decided) and state the open question
+   - Omit or mark "Not Applicable" sections that belong to detailed design (e.g., detailed Interface Design, Internal Logic, feature-level Acceptance Criteria)
+   - Do not invent requirements or detailed design just to fill template sections
 5. Present the architecture design and use the `confirm` tool to wait for user approval
 
 **Upon completion**:
