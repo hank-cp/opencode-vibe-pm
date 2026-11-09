@@ -72,8 +72,11 @@ picked up automatically; no config entry is needed.
 # Initialize configuration
 /pm-config init
 
-# Install a workflow template
+# Install a specific workflow
 /pm-install-flow bug-fix
+
+# Install all workflow
+/pm-install-flow all
 
 # Start a task
 /pm-bug-fix "Login returns 500 after password reset"

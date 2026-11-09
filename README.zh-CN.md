@@ -75,8 +75,11 @@ bun install && bun run build
 # 初始化配置
 /pm-config init
 
-# 安装流程模板
+# 安装指定流程
 /pm-install-flow bug-fix
+
+# 安装所有流程
+/pm-install-flow all
 
 # 启动流程
 /pm-bug-fix "重置密码后登录报 500 错误"
