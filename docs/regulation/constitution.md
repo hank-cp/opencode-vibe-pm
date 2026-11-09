@@ -137,7 +137,7 @@
 
 ```
 /docs/flow/         — 流程定义（不可随意修改，变更需走流程）
-/docs/regulation/   — 宪法、编码风格、检查清单、字典
+/docs/regulation/   — 宪法、编码风格、字典
 /docs/spec/         — 程序规格说明
 /docs/plan/         — 任务计划
 /docs/template/     — 流程模板
@@ -176,7 +176,6 @@ docs/
 ├── regulation/
 │   ├── constitution.md               ← 顶层宪章（本文件），不可妥协的原则
 │   ├── coding_style.md               ← TypeScript 编码风格
-│   ├── checklist.md                  ← 质量门控清单
 │   └── dictionary.md                 ← 术语中英对照
 ├── spec/
 ├── plan/

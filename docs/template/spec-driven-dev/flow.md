@@ -192,7 +192,7 @@ stateDiagram-v2
 - Tests genuinely cover the change points and boundary conditions (no weak assertions / ideal mocks)
 - No unnecessary refactoring or hidden changes
 **Output Review**: self-check + review-agent + human
-**Referenced Regulation**: /docs/regulation/constitution.md, coding_style.md, checklist.md
+**Referenced Regulation**: /docs/regulation/constitution.md, coding_style.md
 
 1. Implement change points from the Plan one by one (run build/type-check after each change)
 2. Write tests according to the Plan's test cases; run tests and fix failures; do NOT delete failing tests
@@ -215,7 +215,7 @@ stateDiagram-v2
 **Output Checklist**: —
 **Review Checklist**: —
 **Output Review**: human
-**Referenced Regulation**: /docs/regulation/checklist.md
+**Referenced Regulation**: —
 
 1. Summarize all task outputs; update the Spec document's Implementation Plan section to reflect actual changes
 2. Present the deliverables vs acceptance standards comparison; use the `confirm` tool to wait for user acceptance (not accepted → return to S5 per FSM edge)

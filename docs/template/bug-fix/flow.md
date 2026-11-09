@@ -157,7 +157,7 @@ stateDiagram-v2
 **Output Checklist**: —
 **Review Checklist**: —
 **Output Review**: human
-**Referenced Regulation**: /docs/regulation/checklist.md
+**Referenced Regulation**: —
 
 1. Present the fix report (root cause, changes, test results) and the deliverables vs acceptance standards comparison
 2. Use the `confirm` tool to wait for user acceptance (not accepted → return to S3 per FSM edge)

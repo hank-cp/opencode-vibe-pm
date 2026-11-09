@@ -80,7 +80,7 @@ stateDiagram-v2
 
 **目标**：用户审查并确认设计方案。
 **执行 Agent**：—
-**引用 Regulation**：/docs/regulation/checklist.md
+**引用 Regulation**：—
 
 1. 展示方案
 2. 使用 `confirm` 工具等待用户确认

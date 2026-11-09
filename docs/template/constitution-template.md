@@ -105,7 +105,7 @@ All Spec documents must follow these requirements:
 
 ```
 /docs/flow/         — Flow definitions (do not modify casually; changes follow process)
-/docs/regulation/   — Constitution, coding style, checklists, dictionary
+/docs/regulation/   — Constitution, coding style, dictionary
 /docs/spec/         — Program specifications
 /docs/plan/         — Task plans
 ```

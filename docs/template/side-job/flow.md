@@ -192,7 +192,7 @@ stateDiagram-v2
 **Output Checklist**: —
 **Review Checklist**: —
 **Output Review**: human
-**Referenced Regulation**: /docs/regulation/checklist.md
+**Referenced Regulation**: —
 
 1. Present an execution summary:
    - Which files were modified
